@@ -1,4 +1,4 @@
-//! Tauri [`invoke`] handlers. Event names live in `crate::ipc` (mirrored in frontend `src/lib/ipc.ts`).
+//! Tauri `invoke` handlers. Event names live in `crate::ipc` (mirrored in frontend `src/lib/ipc.ts`).
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
