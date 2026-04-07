@@ -1,3 +1,6 @@
+# Internal docs (not committed — see docs-internal/README if present)
+docs-internal/
+
 .DS_Store
 node_modules
 /build
