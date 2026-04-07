@@ -1,0 +1,17 @@
+/**
+ * IPC event names — keep in sync with `src-tauri/src/ipc.rs` and `docs/IPC.md`.
+ */
+export const EVENT_AUDIO_LEVEL = "audio:level";
+export const EVENT_MIDI_NOTE = "input:midi_note";
+export const EVENT_PRACTICE_TICK = "practice:tick";
+
+export type AppInfo = {
+  name: string;
+  version: string;
+  displayName: string;
+};
+
+export type AudioInputDevice = {
+  id: string;
+  label: string;
+};
