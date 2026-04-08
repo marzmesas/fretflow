@@ -45,6 +45,14 @@ fn list_midi_input_ports_inner() -> Result<Vec<MidiInputPortInfo>, MidiError> {
     Ok(out)
 }
 
+/// Whether a MIDI input connection is open.
+pub fn is_midi_input_listen_active() -> bool {
+    match MIDI_INPUT.lock() {
+        Ok(g) => g.is_some(),
+        Err(_) => false,
+    }
+}
+
 fn close_midi_listener() -> Result<(), MidiError> {
     let mut guard = MIDI_INPUT.lock().map_err(|_| MidiError::LockPoisoned)?;
     if let Some(conn) = guard.take() {

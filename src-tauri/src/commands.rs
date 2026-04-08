@@ -5,6 +5,7 @@ use tauri::AppHandle;
 
 use crate::audio_io::monitor;
 use crate::meter_mock;
+use crate::midi;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -33,4 +34,20 @@ pub fn start_mock_audio_meter(app: AppHandle) -> Result<(), String> {
 #[tauri::command]
 pub fn stop_mock_audio_meter() -> Result<(), String> {
     meter_mock::stop_mock_audio_meter()
+}
+
+/// Live input monitor (cpal) and MIDI listener activity for shell UI.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InputConnectionStatus {
+    pub input_monitor_active: bool,
+    pub midi_listen_active: bool,
+}
+
+#[tauri::command]
+pub fn get_input_connection_status() -> InputConnectionStatus {
+    InputConnectionStatus {
+        input_monitor_active: monitor::is_input_monitor_active(),
+        midi_listen_active: midi::is_midi_input_listen_active(),
+    }
 }

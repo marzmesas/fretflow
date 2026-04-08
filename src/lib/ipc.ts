@@ -14,6 +14,12 @@ export type AppInfo = {
   displayName: string;
 };
 
+/** From `get_input_connection_status` — cpal monitor and MIDI listener threads. */
+export type InputConnectionStatus = {
+  inputMonitorActive: boolean;
+  midiListenActive: boolean;
+};
+
 export type AudioInputDevice = {
   id: string;
   label: string;

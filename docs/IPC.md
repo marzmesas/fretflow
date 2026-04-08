@@ -9,6 +9,7 @@ Use **snake_case** Rust symbols; Tauri exposes them with the same names to the f
 | Command | Payload | Returns | Notes |
 |--------|---------|---------|--------|
 | `get_app_info` | — | `{ name, version, displayName }` | Crate + product label |
+| `get_input_connection_status` | — | `{ inputMonitorActive, midiListenActive }` | Shell indicator; reflects cpal monitor + MIDI listener threads |
 | `start_mock_audio_meter` | — | `()` | Sine demo; emits `audio:level` ~20/s; stops live monitor first |
 | `stop_mock_audio_meter` | — | `()` | Stops demo thread |
 | `list_audio_input_devices` | — | `{ id, label }[]` | cpal enumeration (`id` is `0`, `1`, …) |

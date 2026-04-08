@@ -54,6 +54,48 @@ a:hover {
   border-bottom: 1px solid var(--ff-border);
 }
 
+.app-header-right {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+}
+
+.connection-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  color: var(--ff-muted);
+}
+
+.connection-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: 999px;
+  background: var(--ff-bg);
+  border: 1px solid var(--ff-border);
+}
+
+.connection-pill--on {
+  color: var(--ff-text);
+  border-color: var(--ff-success);
+}
+
+.connection-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ff-border);
+}
+
+.connection-pill--on .connection-dot {
+  background: var(--ff-success);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--ff-success) 55%, transparent);
+}
+
 .app-brand {
   font-weight: 700;
   letter-spacing: -0.02em;

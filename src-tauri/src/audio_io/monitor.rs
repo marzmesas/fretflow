@@ -97,6 +97,14 @@ fn build_input_stream(
     }
 }
 
+/// Whether the cpal input monitor thread is running.
+pub(crate) fn is_input_monitor_active() -> bool {
+    match INPUT_MONITOR.lock() {
+        Ok(g) => g.is_some(),
+        Err(_) => false,
+    }
+}
+
 /// Stops live input monitoring if running.
 pub fn stop_input_monitor() -> Result<(), AudioError> {
     let mut guard = INPUT_MONITOR

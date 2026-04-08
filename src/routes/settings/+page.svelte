@@ -5,8 +5,9 @@
   import type {
     AudioInputDevice,
     AudioPreferences,
-    MidiInputPortInfo,
+    InputConnectionStatus,
     InputEventPayload,
+    MidiInputPortInfo,
   } from "$lib/ipc";
   import {
     EVENT_AUDIO_INPUT_ERROR,
@@ -186,6 +187,11 @@
       unlistenMidi = await listen<InputEventPayload>(EVENT_INPUT_EVENT, (ev) => {
         recentMidiNotes = [ev.payload, ...recentMidiNotes].slice(0, 8);
       });
+      const conn = await invoke<InputConnectionStatus>("get_input_connection_status");
+      monitoring = conn.inputMonitorActive;
+      midiListening = conn.midiListenActive;
+      audioMonitorDesired = conn.inputMonitorActive;
+      midiListenDesired = conn.midiListenActive;
     } catch (e) {
       error = String(e);
     }
@@ -202,11 +208,7 @@
     unlistenLevel?.();
     unlistenInputError?.();
     unlistenMidi?.();
-    if (isTauri()) {
-      invoke("stop_input_monitor").catch(() => {});
-      invoke("stop_mock_audio_meter").catch(() => {});
-      invoke("stop_midi_input_listen").catch(() => {});
-    }
+    /* Input monitor and MIDI keep running for Practice / layout status; stop from Settings buttons. */
     audioMonitorDesired = false;
     midiListenDesired = false;
   });
@@ -270,7 +272,7 @@
 
 <h1 style="margin: 0 0 0.5rem; font-size: 1.5rem">Settings</h1>
 <p class="muted">
-  Audio input, MIDI monitoring, and latency offset (used for Practice scoring timing; not in audio DSP).
+  Audio input, MIDI monitoring, and latency offset (used for Practice scoring timing; not in audio DSP). Monitoring and MIDI stay active when you switch routes — use <strong>Stop</strong> here or close the app.
 </p>
 
 <div class="panel">

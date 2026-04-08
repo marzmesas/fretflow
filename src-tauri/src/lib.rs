@@ -5,7 +5,9 @@ mod ipc;
 mod meter_mock;
 mod midi;
 
-use commands::{get_app_info, start_mock_audio_meter, stop_mock_audio_meter};
+use commands::{
+    get_app_info, get_input_connection_status, start_mock_audio_meter, stop_mock_audio_meter,
+};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -13,6 +15,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             get_app_info,
+            get_input_connection_status,
             start_mock_audio_meter,
             stop_mock_audio_meter,
             audio_io::list_audio_input_devices,
