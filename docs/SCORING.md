@@ -22,6 +22,12 @@ Windows are measured from each **chart note start** (same timebase as the highwa
 - Standard tuning at **concert pitch**; chart `stringIndex` + `fret` → expected MIDI note (`src/lib/chart/guitar.ts`).
 - Requires **Settings → MIDI → Start listening** and the **desktop** app.
 
+## Metronome (Practice)
+
+- Optional **Metronome** checkbox in Practice: **Web Audio** quarter-note clicks aligned to **chart time** (same seconds as the highway), using the chart **BPM**.
+- **Playback speed** is respected: chart time advances faster or slower, so click spacing matches what you see.
+- **Latency offset** does **not** affect the metronome (only scoring). **Loop A–B** resets beat sync at the wrap.
+
 ## Mic rhythm (beta)
 
 - Uses **`audio:level`** peaks (input monitor must be running in Settings).

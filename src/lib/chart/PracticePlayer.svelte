@@ -6,6 +6,11 @@
   import { EVENT_AUDIO_LEVEL, EVENT_MIDI_NOTE } from "$lib/ipc";
   import { isTauri } from "$lib/tauri-env";
   import ChartHighway from "./ChartHighway.svelte";
+  import {
+    ChartBeatMetronome,
+    createMetronomeAudioContext,
+    playMetronomeClick,
+  } from "./chart-metronome";
   import { DEMO_CHART } from "./demo-chart";
   import {
     collectMissedNoteIndices,
@@ -50,6 +55,10 @@
   let loopEnabled = $state(false);
   let loopABeat = $state(0);
   let loopBBeat = $state(8);
+
+  let metronomeEnabled = $state(false);
+  let metronomeCtx: AudioContext | null = null;
+  const beatMetronome = new ChartBeatMetronome();
 
   let pixelsPerSecond = $state(140);
 
@@ -189,6 +198,29 @@
     return anchorChartSec + ((now - anchorWallMs) / 1000) * speed;
   }
 
+  function getMetronomeCtx(): AudioContext | null {
+    if (!metronomeEnabled) return null;
+    if (metronomeCtx?.state === "closed") metronomeCtx = null;
+    if (!metronomeCtx) metronomeCtx = createMetronomeAudioContext();
+    return metronomeCtx;
+  }
+
+  function maybePlayMetronomeClick(t: number) {
+    if (!metronomeEnabled || !playing) return;
+    if (!beatMetronome.tick(t, chart.bpm)) return;
+    const ctx = getMetronomeCtx();
+    if (!ctx) return;
+    void ctx.resume().then(() => {
+      if (metronomeCtx === ctx && ctx.state !== "closed") playMetronomeClick(ctx);
+    });
+  }
+
+  function onMetronomeEnabledChange() {
+    if (metronomeEnabled && playing) {
+      beatMetronome.syncResume(captureWallTime(), chart.bpm);
+    }
+  }
+
   function tickFrame() {
     if (!playing) return;
     const now = performance.now();
@@ -208,6 +240,7 @@
       t = loopA + ((t - loopA) % span);
       anchorChartSec = t;
       anchorWallMs = now;
+      beatMetronome.syncAfterJump(t, chart.bpm);
     } else if (!loopEnabled && t >= totalSec) {
       t = totalSec;
       applyMissesForTime(t);
@@ -219,6 +252,8 @@
       lastFrameWall = 0;
       return;
     }
+
+    maybePlayMetronomeClick(t);
 
     applyMissesForTime(t);
     timeSec = t;
@@ -238,6 +273,11 @@
       anchorChartSec = timeSec;
       anchorWallMs = performance.now();
       lastFrameWall = 0;
+      if (anchorChartSec < 0.05) {
+        beatMetronome.syncAfterJump(anchorChartSec, chart.bpm);
+      } else {
+        beatMetronome.syncResume(anchorChartSec, chart.bpm);
+      }
       playing = true;
       rafId = requestAnimationFrame(tickFrame);
     }
@@ -251,6 +291,7 @@
     lastFrameWall = 0;
     lastAudioLevel = 0;
     lastMicTriggerWall = 0;
+    beatMetronome.syncAfterJump(0, chart.bpm);
     resetScoringState(null);
   }
 
@@ -329,6 +370,8 @@
     stopRaf();
     midiUnlisten?.();
     levelUnlisten?.();
+    void metronomeCtx?.close();
+    metronomeCtx = null;
   });
 </script>
 
@@ -425,6 +468,16 @@
   {/if}
 
   <div class="panel-inner">
+    <label class="row" style="gap: 0.5rem; margin-bottom: 0.5rem; cursor: pointer">
+      <input
+        type="checkbox"
+        bind:checked={metronomeEnabled}
+        onchange={onMetronomeEnabledChange}
+      />
+      <span>Metronome</span>
+      <span class="muted" style="font-size: 0.8rem">quarter clicks in chart time (respects speed)</span>
+    </label>
+
     <label class="row" style="gap: 0.75rem; align-items: center; margin-bottom: 0.65rem">
       <span class="muted" style="min-width: 5rem">Speed</span>
       <input
