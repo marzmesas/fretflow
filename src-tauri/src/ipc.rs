@@ -6,8 +6,8 @@ pub const AUDIO_LEVEL: &str = "audio:level";
 /// Input monitor or cpal stream failure (`String` message for the UI).
 pub const AUDIO_INPUT_ERROR: &str = "audio:input_error";
 
-/// Note on/off from the active MIDI input listener (`MidiNoteIpc`).
-pub const MIDI_NOTE: &str = "input:midi_note";
+/// Unified realtime input: MIDI today; future mic onset / pitch as additional `source` values.
+pub const INPUT_EVENT: &str = "input:event";
 
 /// Future: playhead / scoring ticks toward the UI.
 #[allow(dead_code)]

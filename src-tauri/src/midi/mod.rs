@@ -11,7 +11,7 @@ use midir::MidiInput;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 
-use crate::ipc;
+use crate::input_event::InputEvent;
 
 static MIDI_INPUT: Mutex<Option<midir::MidiInputConnection<AppHandle>>> = Mutex::new(None);
 
@@ -77,8 +77,15 @@ fn start_midi_input_listen_inner(app: AppHandle, port_id: String) -> Result<(), 
             &port,
             "fretflow-input",
             move |ts, msg, handle: &mut AppHandle| {
-                if let Some(ev) = note::voice_message_to_ipc(ts, msg) {
-                    let _ = handle.emit(ipc::MIDI_NOTE, &ev);
+                if let Some(voice) = note::voice_message_to_ipc(ts, msg) {
+                    let ev = InputEvent::from_midi_voice(
+                        voice.kind,
+                        voice.channel,
+                        voice.note,
+                        voice.velocity,
+                        voice.timestamp_us,
+                    );
+                    let _ = handle.emit(crate::ipc::INPUT_EVENT, &ev);
                 }
             },
             app_cb,

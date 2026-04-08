@@ -20,7 +20,7 @@ Use **snake_case** Rust symbols; Tauri exposes them with the same names to the f
 | `start_input_monitor` | `{ deviceId?: string \| null }` | `()` | Live mic level → `audio:level` ~30/s; `null` = OS default; stops mock first |
 | `stop_input_monitor` | — | `()` | Stops cpal stream thread |
 | `list_midi_input_ports` | — | `{ id, name }[]` | `id` is an opaque backend identifier (persist, don’t parse) |
-| `start_midi_input_listen` | `{ portId }` | `()` | Opens selected MIDI input; note on/off → `input:midi_note` |
+| `start_midi_input_listen` | `{ portId }` | `()` | Opens selected MIDI input; voice messages → `input:event` (see below) |
 | `stop_midi_input_listen` | — | `()` | Closes the active MIDI input connection |
 
 Future (plan): buffer size / exclusive mode, catalog fetch, etc.
@@ -35,8 +35,10 @@ Throttle UI updates (e.g. **30–60 Hz**) for meters and playhead-style traffic.
 |-------|---------|---------|
 | `audio:level` | `number` (`0..1`) | Mock sine, **or** live input RMS/peak (monitoring) |
 | `audio:input_error` | `string` | Live monitor setup failure or cpal stream error (throttled ~2/s) |
-| `input:midi_note` | `{ kind, channel, note, velocity, timestampUs }` | `kind`: `note_on` \| `note_off`; `timestampUs` from midir (µs, same origin for session) |
+| `input:event` | `InputEvent` (see below) | Unified realtime playing input; **MIDI** today (`source: "midi"`). |
 | `practice:tick` | TBD | Phase 3+ scoring / playhead sync |
+
+**`input:event` payload (`schemaVersion` 1):** `schemaVersion`, `source` (`"midi"` for note voice), `kind` (`note_on` \| `note_off`), `channel`, `note`, `velocity`, `timestampUs` (midir µs). Optional `pitchHz`, `confidence` reserved for future mic path — omitted when unset.
 
 ## Chart data (frontend)
 

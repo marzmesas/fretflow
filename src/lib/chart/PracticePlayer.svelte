@@ -2,8 +2,8 @@
   import { invoke } from "@tauri-apps/api/core";
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
   import { onDestroy, onMount } from "svelte";
-  import type { AudioPreferences, MidiNoteEvent } from "$lib/ipc";
-  import { EVENT_AUDIO_LEVEL, EVENT_MIDI_NOTE } from "$lib/ipc";
+  import type { AudioPreferences, InputEventPayload } from "$lib/ipc";
+  import { EVENT_AUDIO_LEVEL, EVENT_INPUT_EVENT, inputEventIsMidiV1 } from "$lib/ipc";
   import { isTauri } from "$lib/tauri-env";
   import ChartHighway from "./ChartHighway.svelte";
   import {
@@ -112,9 +112,10 @@
     lastFeedback = `${src}Hit ${sign}${hit.deltaMs.toFixed(0)} ms · combo ${combo}`;
   }
 
-  function handleMidiScoring(ev: { payload: MidiNoteEvent }) {
+  function handleMidiScoring(ev: { payload: InputEventPayload }) {
     if (!scoringEnabled || !playing) return;
     const p = ev.payload;
+    if (!inputEventIsMidiV1(p)) return;
     if (p.kind !== "note_on" || p.velocity === 0) return;
     const t = captureWallTime();
     const hit = findHitNoteIndex(
@@ -357,7 +358,7 @@
     window.addEventListener("focus", onWindowFocusCalib);
     void (async () => {
       if (isTauri()) {
-        midiUnlisten = await listen<MidiNoteEvent>(EVENT_MIDI_NOTE, handleMidiScoring);
+        midiUnlisten = await listen<InputEventPayload>(EVENT_INPUT_EVENT, handleMidiScoring);
         levelUnlisten = await listen<number>(EVENT_AUDIO_LEVEL, handleAudioLevel);
       }
     })();

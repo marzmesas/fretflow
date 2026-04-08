@@ -4,7 +4,8 @@
 export const EVENT_AUDIO_LEVEL = "audio:level";
 /** cpal stream / monitor failure — payload is a human-readable string */
 export const EVENT_AUDIO_INPUT_ERROR = "audio:input_error";
-export const EVENT_MIDI_NOTE = "input:midi_note";
+/** Unified input stream (MIDI today; mic / other sources later). */
+export const EVENT_INPUT_EVENT = "input:event";
 export const EVENT_PRACTICE_TICK = "practice:tick";
 
 export type AppInfo = {
@@ -34,10 +35,19 @@ export type MidiInputPortInfo = {
   name: string;
 };
 
-export type MidiNoteEvent = {
-  kind: "note_on" | "note_off";
+/** Payload for `input:event` (versioned; ignore unknown `schemaVersion`). */
+export type InputEventPayload = {
+  schemaVersion: number;
+  source: string;
+  kind: string;
   channel: number;
   note: number;
   velocity: number;
   timestampUs: number;
+  pitchHz?: number | null;
+  confidence?: number | null;
 };
+
+export function inputEventIsMidiV1(e: InputEventPayload): boolean {
+  return e.schemaVersion === 1 && e.source === "midi";
+}

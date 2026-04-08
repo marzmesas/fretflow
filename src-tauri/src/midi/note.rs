@@ -1,4 +1,4 @@
-//! Voice message parsing for IPC (`input:midi_note`).
+//! Voice message parsing → wrapped in [`crate::input_event::InputEvent`] (`input:event`).
 
 use serde::Serialize;
 

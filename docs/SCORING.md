@@ -20,7 +20,7 @@ Windows are measured from each **chart note start** (same timebase as the highwa
 ## MIDI
 
 - Standard tuning at **concert pitch**; chart `stringIndex` + `fret` → expected MIDI note (`src/lib/chart/guitar.ts`).
-- Requires **Settings → MIDI → Start listening** and the **desktop** app.
+- Requires **Settings → MIDI → Start listening** and the **desktop** app. Voice messages are delivered as **`input:event`** with `source: "midi"` (`docs/IPC.md`).
 
 ## Metronome (Practice)
 

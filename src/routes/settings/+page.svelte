@@ -6,12 +6,12 @@
     AudioInputDevice,
     AudioPreferences,
     MidiInputPortInfo,
-    MidiNoteEvent,
+    InputEventPayload,
   } from "$lib/ipc";
   import {
     EVENT_AUDIO_INPUT_ERROR,
     EVENT_AUDIO_LEVEL,
-    EVENT_MIDI_NOTE,
+    EVENT_INPUT_EVENT,
   } from "$lib/ipc";
   import { isTauri } from "$lib/tauri-env";
 
@@ -32,7 +32,7 @@
   let selectedMidiPortId = $state<string | null>(null);
   let midiError = $state<string | null>(null);
   let midiListening = $state(false);
-  let recentMidiNotes = $state<MidiNoteEvent[]>([]);
+  let recentMidiNotes = $state<InputEventPayload[]>([]);
 
   /** User intent: reconnect input monitor after errors / hotplug when window regains focus. */
   let audioMonitorDesired = $state(false);
@@ -183,7 +183,7 @@
         audioLevel = 0;
         /* Keep audioMonitorDesired so a window focus can retry after hotplug / stream errors. */
       });
-      unlistenMidi = await listen<MidiNoteEvent>(EVENT_MIDI_NOTE, (ev) => {
+      unlistenMidi = await listen<InputEventPayload>(EVENT_INPUT_EVENT, (ev) => {
         recentMidiNotes = [ev.payload, ...recentMidiNotes].slice(0, 8);
       });
     } catch (e) {
@@ -403,7 +403,7 @@
       <ul style="margin: 0; padding-left: 1.25rem; font-size: 0.9rem">
         {#each recentMidiNotes as n}
           <li>
-            {n.kind} ch{n.channel} note {n.note} vel {n.velocity}
+            {n.source} · {n.kind} ch{n.channel} note {n.note} vel {n.velocity}
             <span class="muted">({n.timestampUs} µs)</span>
           </li>
         {/each}

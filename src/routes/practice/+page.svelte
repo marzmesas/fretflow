@@ -2,12 +2,12 @@
   import { onDestroy, onMount } from "svelte";
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
   import PracticePlayer from "$lib/chart/PracticePlayer.svelte";
-  import type { MidiNoteEvent } from "$lib/ipc";
-  import { EVENT_MIDI_NOTE } from "$lib/ipc";
+  import type { InputEventPayload } from "$lib/ipc";
+  import { EVENT_INPUT_EVENT } from "$lib/ipc";
   import { isTauri } from "$lib/tauri-env";
 
   const maxNotes = 16;
-  let recent = $state<MidiNoteEvent[]>([]);
+  let recent = $state<InputEventPayload[]>([]);
   let unlisten: UnlistenFn | null = null;
   let browserOnly = $state(false);
 
@@ -16,7 +16,7 @@
       browserOnly = true;
       return;
     }
-    unlisten = await listen<MidiNoteEvent>(EVENT_MIDI_NOTE, (ev) => {
+    unlisten = await listen<InputEventPayload>(EVENT_INPUT_EVENT, (ev) => {
       recent = [ev.payload, ...recent].slice(0, maxNotes);
     });
   });
@@ -49,7 +49,7 @@
     <ul style="margin: 0; padding-left: 1.25rem; font-size: 0.9rem">
       {#each recent as n}
         <li>
-          {n.kind} ch{n.channel} note {n.note} vel {n.velocity}
+          {n.source} · {n.kind} ch{n.channel} note {n.note} vel {n.velocity}
           <span class="muted">({n.timestampUs} µs)</span>
         </li>
       {/each}

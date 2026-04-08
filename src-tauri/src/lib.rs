@@ -1,5 +1,6 @@
 mod audio_io;
 mod commands;
+mod input_event;
 mod ipc;
 mod meter_mock;
 mod midi;
