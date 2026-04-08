@@ -24,7 +24,7 @@
       {/each}
     </nav>
   </header>
-  <main class="app-main">
+  <main class="app-main" class:app-main--wide={$page.url.pathname.startsWith("/practice")}>
     <slot />
   </main>
 </div>

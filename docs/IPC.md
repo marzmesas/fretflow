@@ -36,6 +36,10 @@ Throttle UI updates (e.g. **30–60 Hz**) for meters and playhead-style traffic.
 | `input:midi_note` | `{ kind, channel, note, velocity, timestampUs }` | `kind`: `note_on` \| `note_off`; `timestampUs` from midir (µs, same origin for session) |
 | `practice:tick` | TBD | Phase 3+ scoring / playhead sync |
 
+## Chart data (frontend)
+
+Charts are JSON v1 (see `docs/CHART_SCHEMA.md`). Loaded in the Practice UI; no Tauri command required for Phase 3.
+
 ## Source of truth
 
 - Rust constants: `src-tauri/src/ipc.rs`

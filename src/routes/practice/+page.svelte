@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onDestroy, onMount } from "svelte";
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+  import PracticePlayer from "$lib/chart/PracticePlayer.svelte";
   import type { MidiNoteEvent } from "$lib/ipc";
   import { EVENT_MIDI_NOTE } from "$lib/ipc";
   import { isTauri } from "$lib/tauri-env";
@@ -27,12 +28,12 @@
 
 <h1 style="margin: 0 0 0.5rem; font-size: 1.5rem">Practice</h1>
 <p class="muted">
-  Scrolling highway, chart data, and scoring land in Phase 3–4. This route is reserved for the core
-  play-along experience.
+  Phase 3: embedded chart + scrolling highway. Phase 4 adds scoring against mic/MIDI. Chart schema:
+  <code>docs/CHART_SCHEMA.md</code>.
 </p>
+
 <div class="panel">
-  <h2>Roadmap</h2>
-  <p>Chart engine → metronome & loops → mic/MIDI scoring → session summaries.</p>
+  <PracticePlayer />
 </div>
 
 <div class="panel">

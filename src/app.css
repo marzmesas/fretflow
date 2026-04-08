@@ -94,6 +94,10 @@ a:hover {
   width: 100%;
 }
 
+.app-main--wide {
+  max-width: min(100%, 56rem);
+}
+
 .panel {
   background: var(--ff-surface);
   border: 1px solid var(--ff-border);
