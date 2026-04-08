@@ -2,6 +2,7 @@ mod audio_io;
 mod commands;
 mod ipc;
 mod meter_mock;
+mod midi;
 
 use commands::{get_app_info, start_mock_audio_meter, stop_mock_audio_meter};
 
@@ -19,6 +20,9 @@ pub fn run() {
             audio_io::set_audio_preferences,
             audio_io::start_input_monitor,
             audio_io::stop_input_monitor,
+            midi::list_midi_input_ports,
+            midi::start_midi_input_listen,
+            midi::stop_midi_input_listen,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

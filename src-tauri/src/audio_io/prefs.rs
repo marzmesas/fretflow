@@ -17,6 +17,9 @@ pub struct AudioPreferences {
     pub preferred_input_device_id: Option<String>,
     /// Reserved for Phase 1 latency compensation (not applied to DSP yet).
     pub latency_offset_ms: i32,
+    /// Opaque MIDI input port id from [`crate::midi::list_midi_input_ports`].
+    #[serde(default)]
+    pub preferred_midi_input_port_id: Option<String>,
 }
 
 fn prefs_path(app: &AppHandle) -> Result<PathBuf, AudioError> {
@@ -51,10 +54,19 @@ mod tests {
         let p = AudioPreferences {
             preferred_input_device_id: Some("0".into()),
             latency_offset_ms: -12,
+            preferred_midi_input_port_id: Some("abc".into()),
         };
         let s = serde_json::to_string(&p).unwrap();
         let q: AudioPreferences = serde_json::from_str(&s).unwrap();
         assert_eq!(p.preferred_input_device_id, q.preferred_input_device_id);
         assert_eq!(p.latency_offset_ms, q.latency_offset_ms);
+        assert_eq!(p.preferred_midi_input_port_id, q.preferred_midi_input_port_id);
+    }
+
+    #[test]
+    fn prefs_deserialize_without_midi_field() {
+        let raw = r#"{"preferredInputDeviceId":null,"latencyOffsetMs":0}"#;
+        let p: AudioPreferences = serde_json::from_str(raw).unwrap();
+        assert!(p.preferred_midi_input_port_id.is_none());
     }
 }

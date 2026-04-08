@@ -21,4 +21,19 @@ export type AudioInputDevice = {
 export type AudioPreferences = {
   preferredInputDeviceId: string | null;
   latencyOffsetMs: number;
+  /** Opaque id from `list_midi_input_ports` */
+  preferredMidiInputPortId: string | null;
+};
+
+export type MidiInputPortInfo = {
+  id: string;
+  name: string;
+};
+
+export type MidiNoteEvent = {
+  kind: "note_on" | "note_off";
+  channel: number;
+  note: number;
+  velocity: number;
+  timestampUs: number;
 };

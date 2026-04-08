@@ -2,8 +2,17 @@
   import { onDestroy, onMount } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-  import type { AudioInputDevice, AudioPreferences } from "$lib/ipc";
-  import { EVENT_AUDIO_INPUT_ERROR, EVENT_AUDIO_LEVEL } from "$lib/ipc";
+  import type {
+    AudioInputDevice,
+    AudioPreferences,
+    MidiInputPortInfo,
+    MidiNoteEvent,
+  } from "$lib/ipc";
+  import {
+    EVENT_AUDIO_INPUT_ERROR,
+    EVENT_AUDIO_LEVEL,
+    EVENT_MIDI_NOTE,
+  } from "$lib/ipc";
   import { isTauri } from "$lib/tauri-env";
 
   let devices = $state<AudioInputDevice[]>([]);
@@ -17,6 +26,23 @@
   let audioLevel = $state(0);
   let unlistenLevel: UnlistenFn | null = null;
   let unlistenInputError: UnlistenFn | null = null;
+  let unlistenMidi: UnlistenFn | null = null;
+
+  let midiPorts = $state<MidiInputPortInfo[]>([]);
+  let selectedMidiPortId = $state<string | null>(null);
+  let midiError = $state<string | null>(null);
+  let midiListening = $state(false);
+  let recentMidiNotes = $state<MidiNoteEvent[]>([]);
+
+  async function refreshMidiPorts() {
+    if (!isTauri()) return;
+    midiError = null;
+    try {
+      midiPorts = await invoke<MidiInputPortInfo[]>("list_midi_input_ports");
+    } catch (e) {
+      midiError = String(e);
+    }
+  }
 
   async function refreshDevices() {
     if (!isTauri()) return;
@@ -46,6 +72,8 @@
         prefs.preferredInputDeviceId ??
         (defaultDevice?.id === "default" ? null : defaultDevice?.id ?? null);
       latencyMs = prefs.latencyOffsetMs;
+      selectedMidiPortId = prefs.preferredMidiInputPortId ?? null;
+      await refreshMidiPorts();
       unlistenLevel = await listen<number>(EVENT_AUDIO_LEVEL, (ev) => {
         audioLevel = Math.min(1, Math.max(0, ev.payload));
       });
@@ -53,6 +81,9 @@
         error = ev.payload;
         monitoring = false;
         audioLevel = 0;
+      });
+      unlistenMidi = await listen<MidiNoteEvent>(EVENT_MIDI_NOTE, (ev) => {
+        recentMidiNotes = [ev.payload, ...recentMidiNotes].slice(0, 8);
       });
     } catch (e) {
       error = String(e);
@@ -62,9 +93,11 @@
   onDestroy(() => {
     unlistenLevel?.();
     unlistenInputError?.();
+    unlistenMidi?.();
     if (isTauri()) {
       invoke("stop_input_monitor").catch(() => {});
       invoke("stop_mock_audio_meter").catch(() => {});
+      invoke("stop_midi_input_listen").catch(() => {});
     }
   });
 
@@ -73,6 +106,7 @@
     const next: AudioPreferences = {
       preferredInputDeviceId: selectedId,
       latencyOffsetMs: latencyMs,
+      preferredMidiInputPortId: selectedMidiPortId,
     };
     await invoke("set_audio_preferences", { prefs: next });
     prefs = next;
@@ -98,10 +132,30 @@
     monitoring = false;
     audioLevel = 0;
   }
+
+  async function startMidiListen() {
+    if (!isTauri() || selectedMidiPortId == null) return;
+    midiError = null;
+    try {
+      await savePrefs();
+      await invoke("start_midi_input_listen", { portId: selectedMidiPortId });
+      midiListening = true;
+    } catch (e) {
+      midiError = String(e);
+    }
+  }
+
+  async function stopMidiListen() {
+    if (!isTauri()) return;
+    await invoke("stop_midi_input_listen");
+    midiListening = false;
+  }
 </script>
 
 <h1 style="margin: 0 0 0.5rem; font-size: 1.5rem">Settings</h1>
-<p class="muted">Audio input, monitoring, and (soon) MIDI. Latency offset is stored but not applied to DSP yet.</p>
+<p class="muted">
+  Audio input, MIDI monitoring, and latency offset (offset not applied to DSP yet).
+</p>
 
 <div class="panel">
   <h2>Audio input</h2>
@@ -178,6 +232,62 @@
 </div>
 
 <div class="panel">
-  <h2>MIDI</h2>
-  <p class="muted" style="margin-bottom: 0">Device picker and status (Phase 2).</p>
+  <h2>MIDI input</h2>
+  {#if browserOnly}
+    <p class="muted" style="margin-bottom: 0">Open the desktop app to use MIDI.</p>
+  {:else}
+    {#if midiPorts.length === 0}
+      <p class="muted">No MIDI input ports found. Connect a controller and use Refresh.</p>
+    {:else}
+      <fieldset style="border: none; margin: 0 0 1rem; padding: 0">
+        <legend class="muted" style="margin-bottom: 0.5rem">Input port</legend>
+        {#each midiPorts as p}
+          <label class="row" style="margin-bottom: 0.35rem; cursor: pointer">
+            <input
+              type="radio"
+              name="midi"
+              checked={selectedMidiPortId === p.id}
+              onchange={() => (selectedMidiPortId = p.id)}
+            />
+            <span>{p.name}</span>
+          </label>
+        {/each}
+      </fieldset>
+    {/if}
+
+    <div class="row" style="margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem">
+      <button type="button" class="btn" onclick={savePrefs}>Save MIDI preference</button>
+      <button type="button" class="btn" onclick={refreshMidiPorts}>Refresh MIDI ports</button>
+    </div>
+
+    <div class="row" style="margin-bottom: 0.75rem">
+      <button
+        type="button"
+        class="btn btn-primary"
+        onclick={startMidiListen}
+        disabled={midiListening || selectedMidiPortId == null || midiPorts.length === 0}
+      >
+        Start listening
+      </button>
+      <button type="button" class="btn" onclick={stopMidiListen} disabled={!midiListening}>
+        Stop
+      </button>
+    </div>
+
+    {#if recentMidiNotes.length > 0}
+      <p class="muted" style="margin-bottom: 0.35rem">Recent notes (newest first)</p>
+      <ul style="margin: 0; padding-left: 1.25rem; font-size: 0.9rem">
+        {#each recentMidiNotes as n}
+          <li>
+            {n.kind} ch{n.channel} note {n.note} vel {n.velocity}
+            <span class="muted">({n.timestampUs} µs)</span>
+          </li>
+        {/each}
+      </ul>
+    {/if}
+
+    {#if midiError}
+      <p style="color: #f87171; margin-top: 0.75rem; margin-bottom: 0">{midiError}</p>
+    {/if}
+  {/if}
 </div>
