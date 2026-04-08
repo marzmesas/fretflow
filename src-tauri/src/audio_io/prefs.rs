@@ -6,6 +6,8 @@ use std::path::PathBuf;
 use tauri::AppHandle;
 use tauri::Manager;
 
+use super::AudioError;
+
 const PREFS_FILE: &str = "preferences.json";
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -17,28 +19,42 @@ pub struct AudioPreferences {
     pub latency_offset_ms: i32,
 }
 
-fn prefs_path(app: &AppHandle) -> Result<PathBuf, String> {
-    let dir = app
-        .path()
-        .app_config_dir()
-        .map_err(|e| format!("app_config_dir: {e}"))?;
+fn prefs_path(app: &AppHandle) -> Result<PathBuf, AudioError> {
+    let dir = app.path().app_config_dir()?;
     Ok(dir.join(PREFS_FILE))
 }
 
-pub fn load_audio_preferences(app: &AppHandle) -> Result<AudioPreferences, String> {
+pub fn load_audio_preferences(app: &AppHandle) -> Result<AudioPreferences, AudioError> {
     let path = prefs_path(app)?;
     if !path.exists() {
         return Ok(AudioPreferences::default());
     }
-    let raw = fs::read_to_string(&path).map_err(|e| format!("read prefs: {e}"))?;
-    serde_json::from_str(&raw).map_err(|e| format!("parse prefs: {e}"))
+    let raw = fs::read_to_string(&path).map_err(AudioError::PrefsRead)?;
+    serde_json::from_str(&raw).map_err(AudioError::PrefsParse)
 }
 
-pub fn save_audio_preferences(app: &AppHandle, prefs: &AudioPreferences) -> Result<(), String> {
+pub fn save_audio_preferences(app: &AppHandle, prefs: &AudioPreferences) -> Result<(), AudioError> {
     let path = prefs_path(app)?;
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| format!("create config dir: {e}"))?;
+        fs::create_dir_all(parent).map_err(AudioError::ConfigDirCreate)?;
     }
-    let raw = serde_json::to_string_pretty(prefs).map_err(|e| format!("serialize prefs: {e}"))?;
-    fs::write(&path, raw).map_err(|e| format!("write prefs: {e}"))
+    let raw = serde_json::to_string_pretty(prefs).map_err(AudioError::PrefsSerialize)?;
+    fs::write(&path, raw).map_err(AudioError::PrefsWrite)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn prefs_json_roundtrip() {
+        let p = AudioPreferences {
+            preferred_input_device_id: Some("0".into()),
+            latency_offset_ms: -12,
+        };
+        let s = serde_json::to_string(&p).unwrap();
+        let q: AudioPreferences = serde_json::from_str(&s).unwrap();
+        assert_eq!(p.preferred_input_device_id, q.preferred_input_device_id);
+        assert_eq!(p.latency_offset_ms, q.latency_offset_ms);
+    }
 }

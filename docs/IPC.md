@@ -29,6 +29,7 @@ Throttle UI updates (e.g. **30–60 Hz**) for meters and playhead-style traffic.
 | Event | Payload | Purpose |
 |-------|---------|---------|
 | `audio:level` | `number` (`0..1`) | Mock sine, **or** live input RMS/peak (monitoring) |
+| `audio:input_error` | `string` | Live monitor setup failure or cpal stream error (throttled ~2/s) |
 | `input:midi_note` | TBD | Phase 2 MIDI |
 | `practice:tick` | TBD | Phase 3+ scoring / playhead sync |
 

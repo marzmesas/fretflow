@@ -26,7 +26,7 @@ pub fn get_app_info() -> AppInfo {
 /// Emits `audio:level` ~20×/s with a sine-shaped fake level (Phase 0 demo).
 #[tauri::command]
 pub fn start_mock_audio_meter(app: AppHandle) -> Result<(), String> {
-    monitor::stop_input_monitor()?;
+    monitor::stop_input_monitor().map_err(|e| e.to_string())?;
     meter_mock::start_mock_audio_meter(app)
 }
 

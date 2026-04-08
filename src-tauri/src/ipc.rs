@@ -3,6 +3,9 @@
 /// Throttled input level for UI meters (`f32` in `0.0..=1.0`).
 pub const AUDIO_LEVEL: &str = "audio:level";
 
+/// Input monitor or cpal stream failure (`String` message for the UI).
+pub const AUDIO_INPUT_ERROR: &str = "audio:input_error";
+
 /// Future: MIDI note-on/off payloads.
 #[allow(dead_code)]
 pub const MIDI_NOTE: &str = "input:midi_note";

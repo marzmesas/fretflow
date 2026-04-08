@@ -6,7 +6,7 @@
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use cpal::traits::{DeviceTrait, StreamTrait};
 use cpal::{Device, SampleFormat, Stream, StreamConfig};
@@ -14,6 +14,8 @@ use cpal::{Device, SampleFormat, Stream, StreamConfig};
 use tauri::{AppHandle, Emitter};
 
 use crate::ipc;
+
+use super::AudioError;
 
 static INPUT_MONITOR: Mutex<Option<InputMonitorHandle>> = Mutex::new(None);
 
@@ -32,8 +34,33 @@ fn build_input_stream(
     config: &StreamConfig,
     sample_format: SampleFormat,
     level_bits: Arc<AtomicU32>,
-) -> Result<Stream, String> {
-    let err_fn = |e| eprintln!("[fretflow] input stream: {e}");
+    app: AppHandle,
+) -> Result<Stream, AudioError> {
+    let app_err = app.clone();
+    let last_emit: Arc<Mutex<Option<Instant>>> = Arc::new(Mutex::new(None));
+    let last_emit_cb = Arc::clone(&last_emit);
+    let err_fn = move |e: cpal::StreamError| {
+        let should_emit = match last_emit_cb.lock() {
+            Ok(mut g) => {
+                let now = Instant::now();
+                let emit = match *g {
+                    None => true,
+                    Some(t) if now.duration_since(t) >= Duration::from_millis(500) => true,
+                    _ => false,
+                };
+                if emit {
+                    *g = Some(now);
+                }
+                emit
+            }
+            Err(_) => false,
+        };
+        if should_emit {
+            let msg = format!("Input stream: {e}");
+            let _ = app_err.emit(ipc::AUDIO_INPUT_ERROR, msg);
+        }
+        eprintln!("[fretflow] input stream: {e}");
+    };
 
     macro_rules! build {
         ($t:ty, $conv:expr) => {
@@ -51,7 +78,7 @@ fn build_input_stream(
                     err_fn,
                     None,
                 )
-                .map_err(|e| format!("build_input_stream: {e}"))
+                .map_err(AudioError::BuildStream)
         };
     }
 
@@ -66,27 +93,27 @@ fn build_input_stream(
         SampleFormat::U64 => build!(u64, |s: u64| (s as f64 / u64::MAX as f64) as f32 * 2.0
             - 1.0),
         SampleFormat::F64 => build!(f64, |s: f64| s as f32),
-        f => Err(format!("Unsupported sample format: {f:?}")),
+        f => Err(AudioError::UnsupportedSampleFormat(f)),
     }
 }
 
 /// Stops live input monitoring if running.
-pub fn stop_input_monitor() -> Result<(), String> {
+pub fn stop_input_monitor() -> Result<(), AudioError> {
     let mut guard = INPUT_MONITOR
         .lock()
-        .map_err(|e| format!("input monitor lock: {e}"))?;
+        .map_err(|_| AudioError::MonitorLockPoisoned)?;
     if let Some(handle) = guard.take() {
         handle.stop.store(true, Ordering::SeqCst);
         handle
             .join
             .join()
-            .map_err(|_| "input monitor thread panicked")?;
+            .map_err(|_| AudioError::MonitorThreadPanicked)?;
     }
     Ok(())
 }
 
 /// Starts monitoring the given logical device id (see [`super::devices::resolve_input_device`]).
-pub fn start_input_monitor(app: AppHandle, device_id: Option<String>) -> Result<(), String> {
+pub fn start_input_monitor(app: AppHandle, device_id: Option<String>) -> Result<(), AudioError> {
     stop_input_monitor()?;
 
     let stop = Arc::new(AtomicBool::new(false));
@@ -94,18 +121,21 @@ pub fn start_input_monitor(app: AppHandle, device_id: Option<String>) -> Result<
     let emit_handle = app.clone();
 
     let join = thread::spawn(move || {
-        let run = || -> Result<(), String> {
+        let run = || -> Result<(), AudioError> {
             let device = super::devices::resolve_input_device(device_id.as_deref())?;
-            let supported = device
-                .default_input_config()
-                .map_err(|e| format!("default_input_config: {e}"))?;
+            let supported = device.default_input_config()?;
             let sample_format = supported.sample_format();
             let config: StreamConfig = supported.config();
 
             let level_bits = Arc::new(AtomicU32::new(0.0f32.to_bits()));
-            let stream =
-                build_input_stream(&device, &config, sample_format, Arc::clone(&level_bits))?;
-            stream.play().map_err(|e| format!("play stream: {e}"))?;
+            let stream = build_input_stream(
+                &device,
+                &config,
+                sample_format,
+                Arc::clone(&level_bits),
+                app.clone(),
+            )?;
+            stream.play()?;
 
             while !stop_thread.load(Ordering::SeqCst) {
                 let v = f32::from_bits(level_bits.load(Ordering::Relaxed));
@@ -117,7 +147,9 @@ pub fn start_input_monitor(app: AppHandle, device_id: Option<String>) -> Result<
         };
 
         if let Err(e) = run() {
-            eprintln!("[fretflow] input monitor: {e}");
+            let msg = e.to_string();
+            eprintln!("[fretflow] input monitor: {msg}");
+            let _ = emit_handle.emit(ipc::AUDIO_INPUT_ERROR, msg);
         }
     });
 
@@ -125,7 +157,7 @@ pub fn start_input_monitor(app: AppHandle, device_id: Option<String>) -> Result<
 
     let mut guard = INPUT_MONITOR
         .lock()
-        .map_err(|e| format!("input monitor lock: {e}"))?;
+        .map_err(|_| AudioError::MonitorLockPoisoned)?;
     *guard = Some(handle);
     Ok(())
 }

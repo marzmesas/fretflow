@@ -3,7 +3,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
   import type { AudioInputDevice, AudioPreferences } from "$lib/ipc";
-  import { EVENT_AUDIO_LEVEL } from "$lib/ipc";
+  import { EVENT_AUDIO_INPUT_ERROR, EVENT_AUDIO_LEVEL } from "$lib/ipc";
   import { isTauri } from "$lib/tauri-env";
 
   let devices = $state<AudioInputDevice[]>([]);
@@ -16,6 +16,20 @@
   let monitoring = $state(false);
   let audioLevel = $state(0);
   let unlistenLevel: UnlistenFn | null = null;
+  let unlistenInputError: UnlistenFn | null = null;
+
+  async function refreshDevices() {
+    if (!isTauri()) return;
+    error = null;
+    try {
+      devices = await invoke<AudioInputDevice[]>("list_audio_input_devices");
+      defaultDevice = await invoke<AudioInputDevice | null>(
+        "get_default_audio_input_device",
+      );
+    } catch (e) {
+      error = String(e);
+    }
+  }
 
   onMount(async () => {
     if (!isTauri()) {
@@ -35,6 +49,11 @@
       unlistenLevel = await listen<number>(EVENT_AUDIO_LEVEL, (ev) => {
         audioLevel = Math.min(1, Math.max(0, ev.payload));
       });
+      unlistenInputError = await listen<string>(EVENT_AUDIO_INPUT_ERROR, (ev) => {
+        error = ev.payload;
+        monitoring = false;
+        audioLevel = 0;
+      });
     } catch (e) {
       error = String(e);
     }
@@ -42,6 +61,7 @@
 
   onDestroy(() => {
     unlistenLevel?.();
+    unlistenInputError?.();
     if (isTauri()) {
       invoke("stop_input_monitor").catch(() => {});
       invoke("stop_mock_audio_meter").catch(() => {});
@@ -49,7 +69,7 @@
   });
 
   async function savePrefs() {
-    if (!isTauri() || !prefs) return;
+    if (!isTauri()) return;
     const next: AudioPreferences = {
       preferredInputDeviceId: selectedId,
       latencyOffsetMs: latencyMs,
@@ -62,6 +82,7 @@
     if (!isTauri()) return;
     error = null;
     try {
+      await savePrefs();
       await invoke("start_input_monitor", {
         deviceId: selectedId,
       });
@@ -118,8 +139,9 @@
       </fieldset>
     {/if}
 
-    <div class="row" style="margin-bottom: 1rem">
+    <div class="row" style="margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem">
       <button type="button" class="btn" onclick={savePrefs}>Save preference</button>
+      <button type="button" class="btn" onclick={refreshDevices}>Refresh device list</button>
     </div>
 
     <div class="row" style="margin-bottom: 0.75rem">
