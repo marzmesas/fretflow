@@ -13,8 +13,10 @@ Use **snake_case** Rust symbols; Tauri exposes them with the same names to the f
 | `stop_mock_audio_meter` | — | `()` | Stops demo thread |
 | `list_audio_input_devices` | — | `{ id, label }[]` | cpal enumeration (`id` is `0`, `1`, …) |
 | `get_default_audio_input_device` | — | `{ id, label } \| null` | `id` is `"default"` when present |
-| `get_audio_preferences` | — | `{ preferredInputDeviceId, latencyOffsetMs, preferredMidiInputPortId? }` | JSON file under app config dir |
-| `set_audio_preferences` | `{ prefs }` | `()` | Same shape as above (`preferredMidiInputPortId` optional / nullable) |
+| `get_audio_preferences` | — | prefs object (see below) | JSON file under app config dir |
+| `set_audio_preferences` | `{ prefs }` | `()` | Same shape as `get_audio_preferences` |
+
+**`AudioPreferences`:** `preferredInputDeviceId`, `preferredInputDeviceLabel?` (cpal device name for hotplug remapping), `latencyOffsetMs`, `preferredMidiInputPortId`, `preferredMidiInputPortName?` (MIDI port name for remapping when opaque ids change). Label/name fields omit or `null` when unset; older prefs files deserialize with them missing.
 | `start_input_monitor` | `{ deviceId?: string \| null }` | `()` | Live mic level → `audio:level` ~30/s; `null` = OS default; stops mock first |
 | `stop_input_monitor` | — | `()` | Stops cpal stream thread |
 | `list_midi_input_ports` | — | `{ id, name }[]` | `id` is an opaque backend identifier (persist, don’t parse) |

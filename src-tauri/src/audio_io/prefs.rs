@@ -15,11 +15,17 @@ const PREFS_FILE: &str = "preferences.json";
 pub struct AudioPreferences {
     /// `Some("0")` = first enumerated input; `None` = use OS default when starting monitor.
     pub preferred_input_device_id: Option<String>,
+    /// Last known cpal device label (hotplug / reorder remapping when `id` no longer matches).
+    #[serde(default)]
+    pub preferred_input_device_label: Option<String>,
     /// Reserved for Phase 1 latency compensation (not applied to DSP yet).
     pub latency_offset_ms: i32,
     /// Opaque MIDI input port id from [`crate::midi::list_midi_input_ports`].
     #[serde(default)]
     pub preferred_midi_input_port_id: Option<String>,
+    /// Last known MIDI port display name (remap when opaque `id` changes after reconnect).
+    #[serde(default)]
+    pub preferred_midi_input_port_name: Option<String>,
 }
 
 fn prefs_path(app: &AppHandle) -> Result<PathBuf, AudioError> {
@@ -53,8 +59,10 @@ mod tests {
     fn prefs_json_roundtrip() {
         let p = AudioPreferences {
             preferred_input_device_id: Some("0".into()),
+            preferred_input_device_label: Some("Scarlett".into()),
             latency_offset_ms: -12,
             preferred_midi_input_port_id: Some("abc".into()),
+            preferred_midi_input_port_name: Some("KeyStation".into()),
         };
         let s = serde_json::to_string(&p).unwrap();
         let q: AudioPreferences = serde_json::from_str(&s).unwrap();
@@ -64,6 +72,14 @@ mod tests {
             p.preferred_midi_input_port_id,
             q.preferred_midi_input_port_id
         );
+        assert_eq!(
+            p.preferred_input_device_label,
+            q.preferred_input_device_label
+        );
+        assert_eq!(
+            p.preferred_midi_input_port_name,
+            q.preferred_midi_input_port_name
+        );
     }
 
     #[test]
@@ -71,5 +87,13 @@ mod tests {
         let raw = r#"{"preferredInputDeviceId":null,"latencyOffsetMs":0}"#;
         let p: AudioPreferences = serde_json::from_str(raw).unwrap();
         assert!(p.preferred_midi_input_port_id.is_none());
+    }
+
+    #[test]
+    fn prefs_deserialize_without_label_fields() {
+        let raw = r#"{"preferredInputDeviceId":"1","latencyOffsetMs":0,"preferredMidiInputPortId":"x"}"#;
+        let p: AudioPreferences = serde_json::from_str(raw).unwrap();
+        assert!(p.preferred_input_device_label.is_none());
+        assert!(p.preferred_midi_input_port_name.is_none());
     }
 }

@@ -34,6 +34,101 @@
   let midiListening = $state(false);
   let recentMidiNotes = $state<MidiNoteEvent[]>([]);
 
+  /** User intent: reconnect input monitor after errors / hotplug when window regains focus. */
+  let audioMonitorDesired = $state(false);
+  /** User intent: reopen MIDI when port id changes after reconnect. */
+  let midiListenDesired = $state(false);
+
+  let focusDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function labelForSelectedAudio(): string | null {
+    if (selectedId == null) return null;
+    return devices.find((d) => d.id === selectedId)?.label ?? null;
+  }
+
+  function nameForSelectedMidi(): string | null {
+    if (selectedMidiPortId == null) return null;
+    return midiPorts.find((p) => p.id === selectedMidiPortId)?.name ?? null;
+  }
+
+  /**
+   * When OS reorders inputs or MIDI port ids change, map saved labels to current ids.
+   * Returns whether audio or MIDI selection changed.
+   */
+  function remapSelectionsAfterRefresh(): { audio: boolean; midi: boolean } {
+    let audioRemapped = false;
+    let midiRemapped = false;
+    const hintLabel = prefs?.preferredInputDeviceLabel ?? null;
+    if (selectedId != null && !devices.some((d) => d.id === selectedId)) {
+      if (hintLabel) {
+        const m = devices.find((d) => d.label === hintLabel);
+        if (m) {
+          selectedId = m.id;
+          audioRemapped = true;
+        }
+      }
+    }
+    const hintMidi = prefs?.preferredMidiInputPortName ?? null;
+    if (selectedMidiPortId != null && !midiPorts.some((p) => p.id === selectedMidiPortId)) {
+      if (hintMidi) {
+        const m = midiPorts.find((p) => p.name === hintMidi);
+        if (m) {
+          selectedMidiPortId = m.id;
+          midiRemapped = true;
+        }
+      }
+    }
+    return { audio: audioRemapped, midi: midiRemapped };
+  }
+
+  async function reconnectAfterHotplugIfNeeded(flags: { audio: boolean; midi: boolean }) {
+    if (audioMonitorDesired && (!monitoring || flags.audio)) {
+      try {
+        await invoke("stop_input_monitor").catch(() => {});
+        monitoring = false;
+        await invoke("start_input_monitor", { deviceId: selectedId });
+        monitoring = true;
+        error = null;
+      } catch (e) {
+        error = String(e);
+      }
+    }
+    if (
+      midiListenDesired &&
+      selectedMidiPortId != null &&
+      (!midiListening || flags.midi)
+    ) {
+      try {
+        await invoke("stop_midi_input_listen").catch(() => {});
+        midiListening = false;
+        await invoke("start_midi_input_listen", { portId: selectedMidiPortId });
+        midiListening = true;
+        midiError = null;
+      } catch (e) {
+        midiError = String(e);
+      }
+    }
+  }
+
+  async function onWindowFocusHotplug() {
+    if (!isTauri() || browserOnly) return;
+    await refreshDevices();
+    await refreshMidiPorts();
+    const remapped = remapSelectionsAfterRefresh();
+    if (remapped.audio || remapped.midi) {
+      await savePrefs().catch(() => {});
+    }
+    await reconnectAfterHotplugIfNeeded(remapped);
+  }
+
+  function scheduleWindowFocusHotplug() {
+    if (focusDebounceTimer != null) clearTimeout(focusDebounceTimer);
+    focusDebounceTimer = setTimeout(() => {
+      focusDebounceTimer = null;
+      void onWindowFocusHotplug();
+    }, 250);
+  }
+
   async function refreshMidiPorts() {
     if (!isTauri()) return;
     midiError = null;
@@ -74,6 +169,11 @@
       latencyMs = prefs.latencyOffsetMs;
       selectedMidiPortId = prefs.preferredMidiInputPortId ?? null;
       await refreshMidiPorts();
+      const initialRemap = remapSelectionsAfterRefresh();
+      if (initialRemap.audio || initialRemap.midi) {
+        await savePrefs().catch(() => {});
+      }
+      window.addEventListener("focus", scheduleWindowFocusHotplug);
       unlistenLevel = await listen<number>(EVENT_AUDIO_LEVEL, (ev) => {
         audioLevel = Math.min(1, Math.max(0, ev.payload));
       });
@@ -81,6 +181,7 @@
         error = ev.payload;
         monitoring = false;
         audioLevel = 0;
+        /* Keep audioMonitorDesired so a window focus can retry after hotplug / stream errors. */
       });
       unlistenMidi = await listen<MidiNoteEvent>(EVENT_MIDI_NOTE, (ev) => {
         recentMidiNotes = [ev.payload, ...recentMidiNotes].slice(0, 8);
@@ -91,6 +192,13 @@
   });
 
   onDestroy(() => {
+    if (typeof window !== "undefined") {
+      window.removeEventListener("focus", scheduleWindowFocusHotplug);
+    }
+    if (focusDebounceTimer != null) {
+      clearTimeout(focusDebounceTimer);
+      focusDebounceTimer = null;
+    }
     unlistenLevel?.();
     unlistenInputError?.();
     unlistenMidi?.();
@@ -99,14 +207,18 @@
       invoke("stop_mock_audio_meter").catch(() => {});
       invoke("stop_midi_input_listen").catch(() => {});
     }
+    audioMonitorDesired = false;
+    midiListenDesired = false;
   });
 
   async function savePrefs() {
     if (!isTauri()) return;
     const next: AudioPreferences = {
       preferredInputDeviceId: selectedId,
+      preferredInputDeviceLabel: labelForSelectedAudio(),
       latencyOffsetMs: latencyMs,
       preferredMidiInputPortId: selectedMidiPortId,
+      preferredMidiInputPortName: nameForSelectedMidi(),
     };
     await invoke("set_audio_preferences", { prefs: next });
     prefs = next;
@@ -121,6 +233,7 @@
         deviceId: selectedId,
       });
       monitoring = true;
+      audioMonitorDesired = true;
     } catch (e) {
       error = String(e);
     }
@@ -130,6 +243,7 @@
     if (!isTauri()) return;
     await invoke("stop_input_monitor");
     monitoring = false;
+    audioMonitorDesired = false;
     audioLevel = 0;
   }
 
@@ -140,6 +254,7 @@
       await savePrefs();
       await invoke("start_midi_input_listen", { portId: selectedMidiPortId });
       midiListening = true;
+      midiListenDesired = true;
     } catch (e) {
       midiError = String(e);
     }
@@ -149,6 +264,7 @@
     if (!isTauri()) return;
     await invoke("stop_midi_input_listen");
     midiListening = false;
+    midiListenDesired = false;
   }
 </script>
 
@@ -197,6 +313,9 @@
       <button type="button" class="btn" onclick={savePrefs}>Save preference</button>
       <button type="button" class="btn" onclick={refreshDevices}>Refresh device list</button>
     </div>
+    <p class="muted" style="margin: -0.5rem 0 1rem; font-size: 0.82rem">
+      After plugging or unplugging hardware, use Refresh or switch back to this window: lists update and active monitoring can reconnect when a saved device name still matches.
+    </p>
 
     <div class="row" style="margin-bottom: 0.75rem">
       <button type="button" class="btn btn-primary" onclick={startMonitor} disabled={monitoring}>
@@ -261,6 +380,9 @@
       <button type="button" class="btn" onclick={savePrefs}>Save MIDI preference</button>
       <button type="button" class="btn" onclick={refreshMidiPorts}>Refresh MIDI ports</button>
     </div>
+    <p class="muted" style="margin: -0.5rem 0 1rem; font-size: 0.82rem">
+      Saving stores the port name; if the backend assigns a new id after reconnect, refocus this window or Refresh to remap and reopen listening.
+    </p>
 
     <div class="row" style="margin-bottom: 0.75rem">
       <button

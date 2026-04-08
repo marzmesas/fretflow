@@ -20,9 +20,13 @@ export type AudioInputDevice = {
 
 export type AudioPreferences = {
   preferredInputDeviceId: string | null;
+  /** Matches `AudioInputDevice.label` when a specific input was saved (hotplug remapping). */
+  preferredInputDeviceLabel?: string | null;
   latencyOffsetMs: number;
   /** Opaque id from `list_midi_input_ports` */
   preferredMidiInputPortId: string | null;
+  /** Matches `MidiInputPortInfo.name` when a port was saved (hotplug remapping). */
+  preferredMidiInputPortName?: string | null;
 };
 
 export type MidiInputPortInfo = {
