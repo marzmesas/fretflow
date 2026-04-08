@@ -60,7 +60,10 @@ mod tests {
         let q: AudioPreferences = serde_json::from_str(&s).unwrap();
         assert_eq!(p.preferred_input_device_id, q.preferred_input_device_id);
         assert_eq!(p.latency_offset_ms, q.latency_offset_ms);
-        assert_eq!(p.preferred_midi_input_port_id, q.preferred_midi_input_port_id);
+        assert_eq!(
+            p.preferred_midi_input_port_id,
+            q.preferred_midi_input_port_id
+        );
     }
 
     #[test]
