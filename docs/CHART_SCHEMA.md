@@ -27,6 +27,12 @@ JSON charts describe **when** and **where** notes appear for the scrolling highw
 - Seconds from start: `beat * 60 / bpm`
 - The renderer scrolls so the **hit line** is “now” in that timeline.
 
+## Scoring (Practice)
+
+See **`docs/SCORING.md`** for **Practice vs Performance** timing, **MIDI** pitch mapping (`OPEN_STRING_MIDI` in `src/lib/chart/guitar.ts`), optional **mic rhythm (beta)**, and **session summary** storage.
+
+Hits and misses tint notes on the highway; **loop A–B** resets scoring each wrap.
+
 ## Validation
 
 The app uses `validateChart()` in `src/lib/chart/validate.ts` before accepting a loaded file.

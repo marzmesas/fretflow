@@ -40,6 +40,8 @@ Throttle UI updates (e.g. **30–60 Hz**) for meters and playhead-style traffic.
 
 Charts are JSON v1 (see `docs/CHART_SCHEMA.md`). Loaded in the Practice UI; no Tauri command required for Phase 3.
 
+**Practice scoring:** `audio:level` can drive optional **mic rhythm (beta)** when input monitoring is active (`docs/SCORING.md`).
+
 ## Source of truth
 
 - Rust constants: `src-tauri/src/ipc.rs`

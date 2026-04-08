@@ -8,9 +8,22 @@
     timeSec: number;
     pixelsPerSecond?: number;
     colors?: HighwayColors;
+    /** Chart note indices judged as hits (MIDI scoring). */
+    hitIndices?: number[];
+    missIndices?: number[];
   };
 
-  let { chart, timeSec, pixelsPerSecond = 140, colors = HIGHWAY_THEME_DARK }: Props = $props();
+  let {
+    chart,
+    timeSec,
+    pixelsPerSecond = 140,
+    colors = HIGHWAY_THEME_DARK,
+    hitIndices = [],
+    missIndices = [],
+  }: Props = $props();
+
+  const hitSet = $derived(new Set(hitIndices));
+  const missSet = $derived(new Set(missIndices));
 
   let canvas: HTMLCanvasElement | undefined = $state();
   let wrap: HTMLDivElement | undefined = $state();
@@ -27,7 +40,7 @@
     canvas.height = Math.floor(h * dpr);
     canvas.style.width = `${w}px`;
     canvas.style.height = `${h}px`;
-    drawHighway(ctx, chart, timeSec, pixelsPerSecond, colors, dpr, w, h);
+    drawHighway(ctx, chart, timeSec, pixelsPerSecond, colors, dpr, w, h, hitSet, missSet);
   }
 
   $effect(() => {
@@ -35,6 +48,8 @@
     timeSec;
     pixelsPerSecond;
     colors;
+    hitIndices;
+    missIndices;
     paint();
   });
 

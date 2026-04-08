@@ -1,12 +1,41 @@
 <script lang="ts">
-  import { onDestroy } from "svelte";
+  import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+  import { onDestroy, onMount } from "svelte";
+  import type { MidiNoteEvent } from "$lib/ipc";
+  import { EVENT_AUDIO_LEVEL, EVENT_MIDI_NOTE } from "$lib/ipc";
+  import { isTauri } from "$lib/tauri-env";
   import ChartHighway from "./ChartHighway.svelte";
   import { DEMO_CHART } from "./demo-chart";
+  import {
+    collectMissedNoteIndices,
+    findHitNoteIndex,
+    findRhythmHitNoteIndex,
+  } from "./midi-scoring";
+  import { MIDI_SCORING_LABEL, TIMING_BY_MODE, type ScoringModeId } from "./scoring-modes";
+  import { loadLastSession, saveLastSession, type SessionSummaryV1 } from "./session-storage";
   import { beatToSeconds, chartLengthBeats, chartLengthSeconds, secondsToBeat } from "./time";
   import type { FretflowChartV1 } from "./types";
   import { validateChart } from "./validate";
 
   let chart: FretflowChartV1 = $state(DEMO_CHART);
+
+  const consumedNoteIndices = new Set<number>();
+  const missedNoteIndices = new Set<number>();
+  let hitIndicesDisplay = $state<number[]>([]);
+  let missIndicesDisplay = $state<number[]>([]);
+  let combo = $state(0);
+  let lastFeedback = $state<string | null>(null);
+  let scoringEnabled = $state(true);
+  let scoringMode = $state<ScoringModeId>("practice");
+  let micRhythmBeta = $state(false);
+  let maxComboEver = 0;
+  let lastAudioLevel = 0;
+  let lastMicTriggerWall = 0;
+
+  let midiUnlisten: UnlistenFn | null = null;
+  let levelUnlisten: UnlistenFn | null = null;
+
+  let lastSessionSnapshot = $state<SessionSummaryV1 | null>(null);
 
   let playing = $state(false);
   let speed = $state(1);
@@ -28,6 +57,111 @@
 
   const totalSec = $derived(chartLengthSeconds(chart));
   const totalBeats = $derived(chartLengthBeats(chart));
+  const timingWindows = $derived(TIMING_BY_MODE[scoringMode]);
+
+  function resetScoringState(feedback: string | null = null) {
+    consumedNoteIndices.clear();
+    missedNoteIndices.clear();
+    hitIndicesDisplay = [];
+    missIndicesDisplay = [];
+    combo = 0;
+    maxComboEver = 0;
+    lastFeedback = feedback;
+  }
+
+  function applyMissesForTime(t: number) {
+    if (!scoringEnabled) return;
+    const newMisses = collectMissedNoteIndices(
+      chart,
+      t,
+      consumedNoteIndices,
+      missedNoteIndices,
+      timingWindows.lateMs,
+    );
+    if (newMisses.length === 0) return;
+    for (const i of newMisses) {
+      missedNoteIndices.add(i);
+    }
+    missIndicesDisplay = [...missIndicesDisplay, ...newMisses];
+    combo = 0;
+    lastFeedback =
+      newMisses.length === 1 ? `Miss (note ${newMisses[0]! + 1})` : `Miss ×${newMisses.length}`;
+  }
+
+  function registerHit(hit: { index: number; deltaMs: number }, source: "midi" | "mic") {
+    consumedNoteIndices.add(hit.index);
+    hitIndicesDisplay = [...hitIndicesDisplay, hit.index];
+    combo += 1;
+    if (combo > maxComboEver) maxComboEver = combo;
+    const sign = hit.deltaMs >= 0 ? "+" : "";
+    const src = source === "mic" ? "Mic " : "";
+    lastFeedback = `${src}Hit ${sign}${hit.deltaMs.toFixed(0)} ms · combo ${combo}`;
+  }
+
+  function handleMidiScoring(ev: { payload: MidiNoteEvent }) {
+    if (!scoringEnabled || !playing) return;
+    const p = ev.payload;
+    if (p.kind !== "note_on" || p.velocity === 0) return;
+    const t = captureWallTime();
+    const hit = findHitNoteIndex(
+      chart,
+      t,
+      p.note,
+      consumedNoteIndices,
+      missedNoteIndices,
+      timingWindows,
+    );
+    if (!hit) return;
+    registerHit(hit, "midi");
+  }
+
+  function handleAudioLevel(ev: { payload: number }) {
+    if (!scoringEnabled || !playing || !micRhythmBeta) return;
+    const level = Math.min(1, Math.max(0, ev.payload));
+    const th = 0.34;
+    const now = performance.now();
+    if (now - lastMicTriggerWall < 95) {
+      lastAudioLevel = level;
+      return;
+    }
+    if (lastAudioLevel < th && level >= th) {
+      lastMicTriggerWall = now;
+      const t = captureWallTime();
+      const hit = findRhythmHitNoteIndex(
+        chart,
+        t,
+        consumedNoteIndices,
+        missedNoteIndices,
+        timingWindows,
+      );
+      if (hit) {
+        registerHit(hit, "mic");
+      }
+    }
+    lastAudioLevel = level;
+  }
+
+  function finalizeSessionSummary() {
+    if (!scoringEnabled) return;
+    const hits = hitIndicesDisplay.length;
+    const misses = missIndicesDisplay.length;
+    const judged = hits + misses;
+    if (judged === 0) return;
+    const accuracyPercent = Math.round((100 * hits) / judged);
+    const summary: SessionSummaryV1 = {
+      schemaVersion: 1,
+      at: new Date().toISOString(),
+      chartTitle: chart.title,
+      scoringMode,
+      hits,
+      misses,
+      accuracyPercent,
+      maxCombo: maxComboEver,
+    };
+    saveLastSession(summary);
+    lastSessionSnapshot = summary;
+    lastFeedback = `Run complete · ${accuracyPercent}% · ${hits} hits / ${misses} misses · max combo ${maxComboEver}`;
+  }
 
   function normalizeLoopBeats() {
     let a = loopABeat;
@@ -62,12 +196,15 @@
     const loopB = beatToSeconds(loopBBeat, chart.bpm);
 
     if (loopEnabled && loopB > loopA && t >= loopB) {
+      resetScoringState("Loop — scoring reset");
       const span = loopB - loopA;
       t = loopA + ((t - loopA) % span);
       anchorChartSec = t;
       anchorWallMs = now;
     } else if (!loopEnabled && t >= totalSec) {
       t = totalSec;
+      applyMissesForTime(t);
+      finalizeSessionSummary();
       playing = false;
       stopRaf();
       anchorChartSec = t;
@@ -76,6 +213,7 @@
       return;
     }
 
+    applyMissesForTime(t);
     timeSec = t;
     rafId = requestAnimationFrame(tickFrame);
   }
@@ -104,6 +242,9 @@
     timeSec = 0;
     anchorChartSec = 0;
     lastFrameWall = 0;
+    lastAudioLevel = 0;
+    lastMicTriggerWall = 0;
+    resetScoringState(null);
   }
 
   function setLoopA() {
@@ -145,7 +286,19 @@
     input.value = "";
   }
 
-  onDestroy(() => stopRaf());
+  onMount(async () => {
+    lastSessionSnapshot = loadLastSession();
+    if (isTauri()) {
+      midiUnlisten = await listen<MidiNoteEvent>(EVENT_MIDI_NOTE, handleMidiScoring);
+      levelUnlisten = await listen<number>(EVENT_AUDIO_LEVEL, handleAudioLevel);
+    }
+  });
+
+  onDestroy(() => {
+    stopRaf();
+    midiUnlisten?.();
+    levelUnlisten?.();
+  });
 </script>
 
 <div class="practice-player">
@@ -164,7 +317,76 @@
     </div>
   </div>
 
-  <ChartHighway {chart} {timeSec} {pixelsPerSecond} />
+  <ChartHighway
+    {chart}
+    {timeSec}
+    {pixelsPerSecond}
+    hitIndices={hitIndicesDisplay}
+    missIndices={missIndicesDisplay}
+  />
+
+  <div class="scoring-block">
+    <label class="row" style="gap: 0.5rem; cursor: pointer; margin-bottom: 0.5rem">
+      <input type="checkbox" bind:checked={scoringEnabled} />
+      <span>MIDI scoring</span>
+      <span class="muted" style="font-size: 0.85rem">(standard tuning · concert pitch)</span>
+    </label>
+    <p style="margin: 0 0 0.35rem; font-variant-numeric: tabular-nums">
+      Hits <strong>{hitIndicesDisplay.length}</strong>
+      · Misses <strong>{missIndicesDisplay.length}</strong>
+      · Combo <strong>{combo}</strong>
+    </p>
+    {#if lastFeedback}
+      <p
+        class="last-feedback"
+        class:last-feedback--hit={lastFeedback.startsWith("Hit") || lastFeedback.startsWith("Mic Hit")}
+        class:last-feedback--miss={lastFeedback.startsWith("Miss")}
+        class:last-feedback--loop={lastFeedback.startsWith("Loop")}
+        class:last-feedback--summary={lastFeedback.startsWith("Run complete")}
+        style="margin: 0 0 0.5rem"
+      >
+        {lastFeedback}
+      </p>
+    {/if}
+    <div class="mode-row" style="margin-bottom: 0.65rem">
+      <span class="muted" style="margin-right: 0.5rem">Accuracy</span>
+      {#each (["practice", "performance"] as ScoringModeId[]) as m (m)}
+        <label class="row" style="gap: 0.35rem; margin-right: 1rem; cursor: pointer">
+          <input type="radio" name="scoring-mode" value={m} bind:group={scoringMode} />
+          <span>{m === "practice" ? "Practice" : "Performance"}</span>
+        </label>
+      {/each}
+      <span class="muted" style="font-size: 0.8rem">{MIDI_SCORING_LABEL[scoringMode]}</span>
+    </div>
+    {#if isTauri()}
+      <label class="row" style="gap: 0.5rem; cursor: pointer; margin-bottom: 0.5rem">
+        <input type="checkbox" bind:checked={micRhythmBeta} />
+        <span>Mic rhythm (beta)</span>
+        <span class="muted" style="font-size: 0.8rem">needs input monitor + level peaks; no pitch</span>
+      </label>
+    {/if}
+    <p class="muted" style="margin: 0; font-size: 0.85rem">
+      {#if isTauri()}
+        MIDI: <strong>Settings → MIDI → Start listening</strong>. Mic beta: <strong>Settings → Start monitoring</strong>.
+      {:else}
+        Scoring needs the desktop app (MIDI and mic use Tauri events).
+      {/if}
+    </p>
+  </div>
+
+  {#if lastSessionSnapshot}
+    <div class="last-session panel-inner">
+      <h3 style="margin: 0 0 0.35rem; font-size: 0.95rem">Last session</h3>
+      <p style="margin: 0; font-size: 0.88rem; color: var(--ff-muted)">
+        <strong style="color: var(--ff-text)">{lastSessionSnapshot.chartTitle}</strong>
+        · {lastSessionSnapshot.accuracyPercent}% · {lastSessionSnapshot.hits}H / {lastSessionSnapshot.misses}M · combo
+        {lastSessionSnapshot.maxCombo} · {lastSessionSnapshot.scoringMode}
+      </p>
+      <p style="margin: 0.25rem 0 0; font-size: 0.8rem; color: var(--ff-muted)">
+        {new Date(lastSessionSnapshot.at).toLocaleString()}
+      </p>
+    </div>
+  {/if}
 
   <div class="panel-inner">
     <label class="row" style="gap: 0.75rem; align-items: center; margin-bottom: 0.65rem">
@@ -246,5 +468,37 @@
   .loop-block {
     padding-top: 0.35rem;
     border-top: 1px solid var(--ff-border);
+  }
+  .scoring-block {
+    margin-top: 1rem;
+    padding: 0.85rem 0 0;
+    border-top: 1px solid var(--ff-border);
+  }
+  .last-feedback {
+    font-size: 0.9rem;
+    color: var(--ff-muted);
+  }
+  .last-feedback--hit {
+    color: var(--ff-success);
+  }
+  .last-feedback--miss {
+    color: #f87171;
+  }
+  .last-feedback--loop {
+    color: var(--ff-accent);
+  }
+  .last-feedback--summary {
+    color: var(--ff-accent);
+  }
+  .last-session {
+    margin-top: 0.75rem;
+    padding: 0.75rem 0 0;
+    border-top: 1px solid var(--ff-border);
+  }
+  .mode-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem;
   }
 </style>

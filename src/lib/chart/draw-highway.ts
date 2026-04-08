@@ -8,6 +8,10 @@ export type HighwayColors = {
   playhead: string;
   noteFill: string;
   noteBorder: string;
+  noteHitFill: string;
+  noteHitBorder: string;
+  noteMissFill: string;
+  noteMissBorder: string;
   label: string;
 };
 
@@ -19,6 +23,10 @@ export const HIGHWAY_THEME_DARK: HighwayColors = {
   playhead: "#3dd68c",
   noteFill: "#2a5cb0",
   noteBorder: "#3d8bfd",
+  noteHitFill: "#1a4a3a",
+  noteHitBorder: "#3dd68c",
+  noteMissFill: "#3a2528",
+  noteMissBorder: "#f87171",
   label: "#e8eaef",
 };
 
@@ -33,6 +41,8 @@ export function drawHighway(
   dpr: number,
   logicalW: number,
   logicalH: number,
+  hitNoteIndices: ReadonlySet<number> = new Set(),
+  missNoteIndices: ReadonlySet<number> = new Set(),
 ): void {
   const laneCount = 6;
   const labelW = 28;
@@ -97,7 +107,8 @@ export function drawHighway(
   const t0 = timeSec - 0.25;
   const t1 = timeSec + leadSec;
 
-  for (const n of chart.notes) {
+  for (let idx = 0; idx < chart.notes.length; idx++) {
+    const n = chart.notes[idx]!;
     const startSec = beatToSeconds(n.startBeat, chart.bpm);
     const endSec = beatToSeconds(n.startBeat + n.durationBeats, chart.bpm);
     if (endSec < t0 || startSec > t1) continue;
@@ -111,9 +122,14 @@ export function drawHighway(
     const x0 = gridLeft + n.stringIndex * colW + padX;
     const noteW = colW - padX * 2;
 
-    ctx.fillStyle = colors.noteFill;
-    ctx.strokeStyle = colors.noteBorder;
-    ctx.lineWidth = 1;
+    const isHit = hitNoteIndices.has(idx);
+    const isMiss = missNoteIndices.has(idx);
+    const fill = isHit ? colors.noteHitFill : isMiss ? colors.noteMissFill : colors.noteFill;
+    const stroke = isHit ? colors.noteHitBorder : isMiss ? colors.noteMissBorder : colors.noteBorder;
+
+    ctx.fillStyle = fill;
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = isHit || isMiss ? 2 : 1;
     const r = 5;
     roundRect(ctx, x0, top, noteW, height, r);
     ctx.fill();
