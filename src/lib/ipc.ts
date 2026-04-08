@@ -15,3 +15,8 @@ export type AudioInputDevice = {
   id: string;
   label: string;
 };
+
+export type AudioPreferences = {
+  preferredInputDeviceId: string | null;
+  latencyOffsetMs: number;
+};

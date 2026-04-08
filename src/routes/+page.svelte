@@ -32,6 +32,7 @@
     unlistenLevel?.();
     if (isTauri()) {
       invoke("stop_mock_audio_meter").catch(() => {});
+      invoke("stop_input_monitor").catch(() => {});
     }
   });
 
@@ -76,8 +77,8 @@
   <div class="panel">
     <h2>IPC demo</h2>
     <p>
-      Event <code style="color: var(--ff-accent)">{EVENT_AUDIO_LEVEL}</code> (~20/s) for input
-      meters. Start/stop is mocked until real capture lands (Phase 1).
+      Event <code style="color: var(--ff-accent)">{EVENT_AUDIO_LEVEL}</code> — sine demo here; use
+      <strong>Settings → Start monitoring</strong> for real mic level (cpal).
     </p>
     <div class="row">
       <button type="button" class="btn btn-primary" onclick={startDemo} disabled={demoRunning}>
