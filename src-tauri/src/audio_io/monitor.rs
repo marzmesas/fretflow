@@ -60,9 +60,11 @@ fn build_input_stream(
         SampleFormat::I16 => build!(i16, |s: i16| s as f32 / i16::MAX as f32),
         SampleFormat::U16 => build!(u16, |s: u16| (s as f32 / u16::MAX as f32) * 2.0 - 1.0),
         SampleFormat::I32 => build!(i32, |s: i32| s as f32 / i32::MAX as f32),
-        SampleFormat::U32 => build!(u32, |s: u32| (s as f64 / u32::MAX as f64) as f32 * 2.0 - 1.0),
+        SampleFormat::U32 => build!(u32, |s: u32| (s as f64 / u32::MAX as f64) as f32 * 2.0
+            - 1.0),
         SampleFormat::I64 => build!(i64, |s: i64| s as f32 / i64::MAX as f32),
-        SampleFormat::U64 => build!(u64, |s: u64| (s as f64 / u64::MAX as f64) as f32 * 2.0 - 1.0),
+        SampleFormat::U64 => build!(u64, |s: u64| (s as f64 / u64::MAX as f64) as f32 * 2.0
+            - 1.0),
         SampleFormat::F64 => build!(f64, |s: f64| s as f32),
         f => Err(format!("Unsupported sample format: {f:?}")),
     }
@@ -101,10 +103,9 @@ pub fn start_input_monitor(app: AppHandle, device_id: Option<String>) -> Result<
             let config: StreamConfig = supported.config();
 
             let level_bits = Arc::new(AtomicU32::new(0.0f32.to_bits()));
-            let stream = build_input_stream(&device, &config, sample_format, Arc::clone(&level_bits))?;
-            stream
-                .play()
-                .map_err(|e| format!("play stream: {e}"))?;
+            let stream =
+                build_input_stream(&device, &config, sample_format, Arc::clone(&level_bits))?;
+            stream.play().map_err(|e| format!("play stream: {e}"))?;
 
             while !stop_thread.load(Ordering::SeqCst) {
                 let v = f32::from_bits(level_bits.load(Ordering::Relaxed));
