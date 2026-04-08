@@ -10,6 +10,19 @@ export function noteStartSeconds(note: ChartNoteV1, bpm: number): number {
 }
 
 /**
+ * Note start time used for hit/miss judgement after **latency offset** (Settings).
+ * Positive `latencyOffsetMs` shifts the expected hit **later** on the wall-clock timeline
+ * (compensate if you consistently register early vs the chart).
+ */
+export function judgedNoteStartSeconds(
+  note: ChartNoteV1,
+  bpm: number,
+  latencyOffsetMs: number,
+): number {
+  return noteStartSeconds(note, bpm) + latencyOffsetMs / 1000;
+}
+
+/**
  * Pick the unconsumed chart note that matches `midiNote` and is closest in time to `chartTimeSec`.
  */
 export function findHitNoteIndex(
@@ -19,14 +32,15 @@ export function findHitNoteIndex(
   consumed: ReadonlySet<number>,
   missed: ReadonlySet<number>,
   windowMs: { earlyMs: number; lateMs: number } = DEFAULT_TIMING_WINDOWS,
+  latencyOffsetMs: number = 0,
 ): { index: number; deltaMs: number } | null {
   let best: { index: number; deltaMs: number; abs: number } | null = null;
   for (let i = 0; i < chart.notes.length; i++) {
     if (consumed.has(i) || missed.has(i)) continue;
     const n = chart.notes[i]!;
     if (chartNoteToMidi(n) !== midiNote) continue;
-    const startSec = noteStartSeconds(n, chart.bpm);
-    const deltaMs = (chartTimeSec - startSec) * 1000;
+    const judgedStart = judgedNoteStartSeconds(n, chart.bpm, latencyOffsetMs);
+    const deltaMs = (chartTimeSec - judgedStart) * 1000;
     if (deltaMs < -windowMs.earlyMs || deltaMs > windowMs.lateMs) continue;
     const abs = Math.abs(deltaMs);
     if (!best || abs < best.abs) {
@@ -46,13 +60,14 @@ export function findRhythmHitNoteIndex(
   consumed: ReadonlySet<number>,
   missed: ReadonlySet<number>,
   windowMs: { earlyMs: number; lateMs: number } = DEFAULT_TIMING_WINDOWS,
+  latencyOffsetMs: number = 0,
 ): { index: number; deltaMs: number } | null {
   let best: { index: number; deltaMs: number; abs: number } | null = null;
   for (let i = 0; i < chart.notes.length; i++) {
     if (consumed.has(i) || missed.has(i)) continue;
     const n = chart.notes[i]!;
-    const startSec = noteStartSeconds(n, chart.bpm);
-    const deltaMs = (chartTimeSec - startSec) * 1000;
+    const judgedStart = judgedNoteStartSeconds(n, chart.bpm, latencyOffsetMs);
+    const deltaMs = (chartTimeSec - judgedStart) * 1000;
     if (deltaMs < -windowMs.earlyMs || deltaMs > windowMs.lateMs) continue;
     const abs = Math.abs(deltaMs);
     if (!best || abs < best.abs) {
@@ -69,13 +84,14 @@ export function collectMissedNoteIndices(
   consumed: ReadonlySet<number>,
   missed: ReadonlySet<number>,
   lateMs: number = DEFAULT_TIMING_WINDOWS.lateMs,
+  latencyOffsetMs: number = 0,
 ): number[] {
   const lateSec = lateMs / 1000;
   const out: number[] = [];
   for (let i = 0; i < chart.notes.length; i++) {
     if (consumed.has(i) || missed.has(i)) continue;
-    const startSec = noteStartSeconds(chart.notes[i]!, chart.bpm);
-    if (chartTimeSec > startSec + lateSec) {
+    const judgedStart = judgedNoteStartSeconds(chart.notes[i]!, chart.bpm, latencyOffsetMs);
+    if (chartTimeSec > judgedStart + lateSec) {
       out.push(i);
     }
   }

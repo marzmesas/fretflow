@@ -9,6 +9,14 @@
 
 Windows are measured from each **chart note start** (same timebase as the highway).
 
+## Latency offset (Settings)
+
+**`latencyOffsetMs`** (Settings → Latency) shifts the **judged** note start time for **scoring only**:
+
+- **Positive** values move the expected hit **later** on the wall-clock chart timeline (if you tend to register **early** vs the visual, try a positive offset).
+- The **scrolling highway** does not shift — only MIDI/mic hit and miss detection use the offset.
+- Practice reloads this value on load and when the **window regains focus** (e.g. after changing Settings).
+
 ## MIDI
 
 - Standard tuning at **concert pitch**; chart `stringIndex` + `fret` → expected MIDI note (`src/lib/chart/guitar.ts`).

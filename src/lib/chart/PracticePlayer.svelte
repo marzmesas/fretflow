@@ -1,7 +1,8 @@
 <script lang="ts">
+  import { invoke } from "@tauri-apps/api/core";
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
   import { onDestroy, onMount } from "svelte";
-  import type { MidiNoteEvent } from "$lib/ipc";
+  import type { AudioPreferences, MidiNoteEvent } from "$lib/ipc";
   import { EVENT_AUDIO_LEVEL, EVENT_MIDI_NOTE } from "$lib/ipc";
   import { isTauri } from "$lib/tauri-env";
   import ChartHighway from "./ChartHighway.svelte";
@@ -36,6 +37,9 @@
   let levelUnlisten: UnlistenFn | null = null;
 
   let lastSessionSnapshot = $state<SessionSummaryV1 | null>(null);
+
+  /** From Settings → Latency; applied to hit/miss only (highway unchanged). */
+  let latencyOffsetMs = $state(0);
 
   let playing = $state(false);
   let speed = $state(1);
@@ -77,6 +81,7 @@
       consumedNoteIndices,
       missedNoteIndices,
       timingWindows.lateMs,
+      latencyOffsetMs,
     );
     if (newMisses.length === 0) return;
     for (const i of newMisses) {
@@ -110,6 +115,7 @@
       consumedNoteIndices,
       missedNoteIndices,
       timingWindows,
+      latencyOffsetMs,
     );
     if (!hit) return;
     registerHit(hit, "midi");
@@ -133,6 +139,7 @@
         consumedNoteIndices,
         missedNoteIndices,
         timingWindows,
+        latencyOffsetMs,
       );
       if (hit) {
         registerHit(hit, "mic");
@@ -286,15 +293,39 @@
     input.value = "";
   }
 
-  onMount(async () => {
-    lastSessionSnapshot = loadLastSession();
-    if (isTauri()) {
-      midiUnlisten = await listen<MidiNoteEvent>(EVENT_MIDI_NOTE, handleMidiScoring);
-      levelUnlisten = await listen<number>(EVENT_AUDIO_LEVEL, handleAudioLevel);
+  async function refreshCalibrationFromPrefs() {
+    if (!isTauri()) {
+      latencyOffsetMs = 0;
+      return;
     }
+    try {
+      const p = await invoke<AudioPreferences>("get_audio_preferences");
+      latencyOffsetMs = p.latencyOffsetMs;
+    } catch {
+      /* keep previous */
+    }
+  }
+
+  function onWindowFocusCalib() {
+    void refreshCalibrationFromPrefs();
+  }
+
+  onMount(() => {
+    lastSessionSnapshot = loadLastSession();
+    void refreshCalibrationFromPrefs();
+    window.addEventListener("focus", onWindowFocusCalib);
+    void (async () => {
+      if (isTauri()) {
+        midiUnlisten = await listen<MidiNoteEvent>(EVENT_MIDI_NOTE, handleMidiScoring);
+        levelUnlisten = await listen<number>(EVENT_AUDIO_LEVEL, handleAudioLevel);
+      }
+    })();
   });
 
   onDestroy(() => {
+    if (typeof window !== "undefined") {
+      window.removeEventListener("focus", onWindowFocusCalib);
+    }
     stopRaf();
     midiUnlisten?.();
     levelUnlisten?.();
@@ -331,6 +362,11 @@
       <span>MIDI scoring</span>
       <span class="muted" style="font-size: 0.85rem">(standard tuning · concert pitch)</span>
     </label>
+    {#if isTauri()}
+      <p class="muted" style="margin: 0 0 0.5rem; font-size: 0.82rem">
+        Latency offset: <strong>{latencyOffsetMs} ms</strong> (Settings → Latency). Shifts hit/miss timing only; highway is unchanged.
+      </p>
+    {/if}
     <p style="margin: 0 0 0.35rem; font-variant-numeric: tabular-nums">
       Hits <strong>{hitIndicesDisplay.length}</strong>
       · Misses <strong>{missIndicesDisplay.length}</strong>

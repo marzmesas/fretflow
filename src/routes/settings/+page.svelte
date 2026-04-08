@@ -154,7 +154,7 @@
 
 <h1 style="margin: 0 0 0.5rem; font-size: 1.5rem">Settings</h1>
 <p class="muted">
-  Audio input, MIDI monitoring, and latency offset (offset not applied to DSP yet).
+  Audio input, MIDI monitoring, and latency offset (used for Practice scoring timing; not in audio DSP).
 </p>
 
 <div class="panel">
@@ -228,7 +228,9 @@
     />
     <button type="button" class="btn" onclick={savePrefs}>Save</button>
   </label>
-  <p class="muted" style="margin-bottom: 0">Used for scoring sync in a later phase.</p>
+  <p class="muted" style="margin-bottom: 0">
+    Applied to <strong>Practice</strong> hit/miss timing (MIDI / mic rhythm). The chart highway does not shift.
+  </p>
 </div>
 
 <div class="panel">
