@@ -98,14 +98,8 @@ mod tests {
         );
         assert_eq!(p.backing_drone_enabled, q.backing_drone_enabled);
         assert_eq!(p.backing_drone_muted, q.backing_drone_muted);
-        assert_eq!(
-            p.input_stream_sample_rate_hz,
-            q.input_stream_sample_rate_hz
-        );
-        assert_eq!(
-            p.input_stream_buffer_frames,
-            q.input_stream_buffer_frames
-        );
+        assert_eq!(p.input_stream_sample_rate_hz, q.input_stream_sample_rate_hz);
+        assert_eq!(p.input_stream_buffer_frames, q.input_stream_buffer_frames);
     }
 
     #[test]

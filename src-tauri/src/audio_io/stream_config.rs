@@ -31,9 +31,7 @@ fn buffer_size_from_supported(supported: &SupportedBufferSize, frames: Option<u3
         return BufferSize::Default;
     };
     match supported {
-        SupportedBufferSize::Range { min, max } => {
-            BufferSize::Fixed(n.clamp(*min, *max))
-        }
+        SupportedBufferSize::Range { min, max } => BufferSize::Fixed(n.clamp(*min, *max)),
         SupportedBufferSize::Unknown => BufferSize::Fixed(n),
     }
 }
@@ -75,7 +73,8 @@ pub fn resolve_input_stream_config_for_device(
     if let Some(sc) = chosen {
         let mut cfg = sc.config();
         cfg.sample_rate = want_rate;
-        cfg.buffer_size = buffer_size_from_supported(sc.buffer_size(), prefs.input_stream_buffer_frames);
+        cfg.buffer_size =
+            buffer_size_from_supported(sc.buffer_size(), prefs.input_stream_buffer_frames);
         return Ok((cfg, sc.sample_format()));
     }
 
@@ -103,7 +102,9 @@ pub struct InputDeviceStreamInfo {
     pub buffer_frames_max: Option<u32>,
 }
 
-pub fn get_input_device_stream_info(device_id: Option<&str>) -> Result<InputDeviceStreamInfo, AudioError> {
+pub fn get_input_device_stream_info(
+    device_id: Option<&str>,
+) -> Result<InputDeviceStreamInfo, AudioError> {
     let device = devices::resolve_input_device(device_id)?;
     let default = device.default_input_config()?;
     let channels = default.channels();

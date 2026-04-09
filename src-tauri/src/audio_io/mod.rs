@@ -50,6 +50,10 @@ pub fn stop_input_monitor() -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn get_input_device_stream_info(device_id: Option<String>) -> Result<InputDeviceStreamInfo, String> {
-    map_audio_err(stream_config::get_input_device_stream_info(device_id.as_deref()))
+pub fn get_input_device_stream_info(
+    device_id: Option<String>,
+) -> Result<InputDeviceStreamInfo, String> {
+    map_audio_err(stream_config::get_input_device_stream_info(
+        device_id.as_deref(),
+    ))
 }
