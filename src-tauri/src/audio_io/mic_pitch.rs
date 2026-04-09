@@ -85,7 +85,7 @@ impl Default for MicCaptureState {
     }
 }
 
-pub fn mic_capture_lock<'a>(mic: &'a Mutex<MicCaptureState>) -> MutexGuard<'a, MicCaptureState> {
+pub fn mic_capture_lock(mic: &Mutex<MicCaptureState>) -> MutexGuard<'_, MicCaptureState> {
     mic.lock().unwrap_or_else(|e| e.into_inner())
 }
 

@@ -36,12 +36,12 @@ fn buffer_size_from_supported(supported: &SupportedBufferSize, frames: Option<u3
     }
 }
 
-fn pick_range_for_rate<'a>(
-    ranges: &'a [SupportedStreamConfigRange],
+fn pick_range_for_rate(
+    ranges: &[SupportedStreamConfigRange],
     channels: u16,
     format: SampleFormat,
     rate: SampleRate,
-) -> Option<&'a SupportedStreamConfigRange> {
+) -> Option<&SupportedStreamConfigRange> {
     ranges.iter().find(|r| {
         r.channels() == channels
             && r.sample_format() == format
