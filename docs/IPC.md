@@ -17,7 +17,7 @@ Use **snake_case** Rust symbols; Tauri exposes them with the same names to the f
 | `get_audio_preferences` | — | prefs object (see below) | JSON file under app config dir |
 | `set_audio_preferences` | `{ prefs }` | `()` | Same shape as `get_audio_preferences` |
 
-**`AudioPreferences`:** `preferredInputDeviceId`, `preferredInputDeviceLabel?` (cpal device name for hotplug remapping), `latencyOffsetMs`, `preferredMidiInputPortId`, `preferredMidiInputPortName?` (MIDI port name for remapping when opaque ids change). Label/name fields omit or `null` when unset; older prefs files deserialize with them missing.
+**`AudioPreferences`:** `preferredInputDeviceId`, `preferredInputDeviceLabel?` (cpal device name for hotplug remapping), `latencyOffsetMs`, `preferredMidiInputPortId`, `preferredMidiInputPortName?` (MIDI port name for remapping when opaque ids change), `backingDroneEnabled?`, `backingDroneMuted?` (Practice reference drone). Label/name fields omit or `null` when unset; older prefs files deserialize with missing keys.
 | `start_input_monitor` | `{ deviceId?: string \| null }` | `()` | Live mic level → `audio:level` ~30/s; `null` = OS default; stops mock first |
 | `stop_input_monitor` | — | `()` | Stops cpal stream thread |
 | `list_midi_input_ports` | — | `{ id, name }[]` | `id` is an opaque backend identifier (persist, don’t parse) |

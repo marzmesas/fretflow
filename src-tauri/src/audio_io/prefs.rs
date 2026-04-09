@@ -26,6 +26,12 @@ pub struct AudioPreferences {
     /// Last known MIDI port display name (remap when opaque `id` changes after reconnect).
     #[serde(default)]
     pub preferred_midi_input_port_name: Option<String>,
+    /// Practice: optional low sine “backing” drone until real stems exist.
+    #[serde(default)]
+    pub backing_drone_enabled: bool,
+    /// When true, drone gain is forced off (Practice).
+    #[serde(default)]
+    pub backing_drone_muted: bool,
 }
 
 fn prefs_path(app: &AppHandle) -> Result<PathBuf, AudioError> {
@@ -63,6 +69,8 @@ mod tests {
             latency_offset_ms: -12,
             preferred_midi_input_port_id: Some("abc".into()),
             preferred_midi_input_port_name: Some("KeyStation".into()),
+            backing_drone_enabled: true,
+            backing_drone_muted: false,
         };
         let s = serde_json::to_string(&p).unwrap();
         let q: AudioPreferences = serde_json::from_str(&s).unwrap();
@@ -80,6 +88,8 @@ mod tests {
             p.preferred_midi_input_port_name,
             q.preferred_midi_input_port_name
         );
+        assert_eq!(p.backing_drone_enabled, q.backing_drone_enabled);
+        assert_eq!(p.backing_drone_muted, q.backing_drone_muted);
     }
 
     #[test]

@@ -34,6 +34,9 @@ export type AudioPreferences = {
   preferredMidiInputPortId: string | null;
   /** Matches `MidiInputPortInfo.name` when a port was saved (hotplug remapping). */
   preferredMidiInputPortName?: string | null;
+  /** Practice: low sine drone placeholder until stems. */
+  backingDroneEnabled?: boolean;
+  backingDroneMuted?: boolean;
 };
 
 export type MidiInputPortInfo = {

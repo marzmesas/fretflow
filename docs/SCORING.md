@@ -17,6 +17,14 @@ Windows are measured from each **chart note start** (same timebase as the highwa
 - The **scrolling highway** does not shift — only MIDI/mic hit and miss detection use the offset.
 - Practice reloads this value on load and when the **window regains focus** (e.g. after changing Settings).
 
+### Tap calibration (rough)
+
+Settings → Latency → **Start tap test**: eight metronome beeps; tap **Space** on each. The suggested value is the **median** of (tap time − beep time). It is a **heuristic** for exploring offset, not a calibrated impulse / round-trip measurement. **Set offset to suggested** replaces the numeric field and saves preferences.
+
+## Backing drone (Practice)
+
+Optional **Backing drone** is a very quiet low-E sine while **playback is running** — a stand-in until real backing tracks. **Mute backing** silences it without turning the feature off. Preferences persist in the same JSON as other audio settings. The drone does **not** affect scoring.
+
 ## MIDI
 
 - Standard tuning at **concert pitch**; chart `stringIndex` + `fret` → expected MIDI note (`src/lib/chart/guitar.ts`).

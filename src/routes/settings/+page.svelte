@@ -15,6 +15,14 @@
     EVENT_INPUT_EVENT,
   } from "$lib/ipc";
   import { isTauri } from "$lib/tauri-env";
+  import { createMetronomeAudioContext, playMetronomeClick } from "$lib/chart/chart-metronome";
+  import {
+    TAP_CALIBRATION_BEATS,
+    TAP_CALIBRATION_BPM,
+    beatIntervalMs,
+    median,
+    orderedTapDeltas,
+  } from "$lib/latency-tap-calibration";
 
   let devices = $state<AudioInputDevice[]>([]);
   let defaultDevice = $state<AudioInputDevice | null>(null);
@@ -41,6 +49,11 @@
   let midiListenDesired = $state(false);
 
   let focusDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+  let tapCalRunning = $state(false);
+  let tapCalSuggested = $state<number | null>(null);
+  let tapCalTimeout: ReturnType<typeof setTimeout> | null = null;
+  let tapCalKeyHandler: ((e: KeyboardEvent) => void) | null = null;
 
   function labelForSelectedAudio(): string | null {
     if (selectedId == null) return null;
@@ -197,7 +210,70 @@
     }
   });
 
+  function stopTapCalibration() {
+    if (tapCalTimeout != null) {
+      clearTimeout(tapCalTimeout);
+      tapCalTimeout = null;
+    }
+    if (tapCalKeyHandler && typeof window !== "undefined") {
+      window.removeEventListener("keydown", tapCalKeyHandler);
+      tapCalKeyHandler = null;
+    }
+    tapCalRunning = false;
+  }
+
+  function startTapCalibration() {
+    if (typeof window === "undefined") return;
+    stopTapCalibration();
+    tapCalSuggested = null;
+    tapCalRunning = true;
+    const expectedWall: number[] = [];
+    const tapsLocal: number[] = [];
+    const ctx = createMetronomeAudioContext();
+    void ctx?.resume();
+    const beatMs = beatIntervalMs(TAP_CALIBRATION_BPM);
+
+    tapCalKeyHandler = (e: KeyboardEvent) => {
+      if (e.code !== "Space" && e.key !== " ") return;
+      e.preventDefault();
+      tapsLocal.push(performance.now());
+    };
+    window.addEventListener("keydown", tapCalKeyHandler);
+
+    let beatIndex = 0;
+    const finish = () => {
+      if (tapCalKeyHandler) {
+        window.removeEventListener("keydown", tapCalKeyHandler);
+        tapCalKeyHandler = null;
+      }
+      tapCalTimeout = null;
+      const deltas = orderedTapDeltas(expectedWall, tapsLocal);
+      tapCalSuggested = deltas.length ? Math.round(median(deltas)) : null;
+      tapCalRunning = false;
+    };
+
+    const scheduleBeat = () => {
+      if (ctx) playMetronomeClick(ctx);
+      expectedWall.push(performance.now());
+      beatIndex++;
+      if (beatIndex >= TAP_CALIBRATION_BEATS) {
+        tapCalTimeout = window.setTimeout(finish, 1500);
+        return;
+      }
+      tapCalTimeout = window.setTimeout(scheduleBeat, beatMs);
+    };
+
+    tapCalTimeout = window.setTimeout(scheduleBeat, 1000);
+  }
+
+  async function applyTapSuggestedOffset() {
+    if (tapCalSuggested == null) return;
+    latencyMs = tapCalSuggested;
+    await savePrefs();
+  }
+
   onDestroy(() => {
+    stopTapCalibration();
     if (typeof window !== "undefined") {
       window.removeEventListener("focus", scheduleWindowFocusHotplug);
     }
@@ -215,12 +291,17 @@
 
   async function savePrefs() {
     if (!isTauri()) return;
+    const base =
+      prefs ??
+      (await invoke<AudioPreferences>("get_audio_preferences").catch(() => null));
     const next: AudioPreferences = {
       preferredInputDeviceId: selectedId,
       preferredInputDeviceLabel: labelForSelectedAudio(),
       latencyOffsetMs: latencyMs,
       preferredMidiInputPortId: selectedMidiPortId,
       preferredMidiInputPortName: nameForSelectedMidi(),
+      backingDroneEnabled: base?.backingDroneEnabled ?? false,
+      backingDroneMuted: base?.backingDroneMuted ?? false,
     };
     await invoke("set_audio_preferences", { prefs: next });
     prefs = next;
@@ -352,6 +433,49 @@
   <p class="muted" style="margin-bottom: 0">
     Applied to <strong>Practice</strong> hit/miss timing (MIDI / mic rhythm). The chart highway does not shift.
   </p>
+
+  <div
+    style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--ff-border)"
+  >
+    <h3 style="margin: 0 0 0.35rem; font-size: 0.95rem">Tap calibration (rough)</h3>
+    <p class="muted" style="margin: 0 0 0.65rem; font-size: 0.82rem">
+      {TAP_CALIBRATION_BEATS} beeps at {TAP_CALIBRATION_BPM} BPM. After the 1 s count-in, tap <kbd
+        style="padding: 0.1rem 0.35rem; border-radius: 4px; border: 1px solid var(--ff-border)"
+        >Space</kbd
+      >
+      on each beep. Median (tap − beep) is a <strong>heuristic</strong> offset hint — not a lab impulse
+      measurement.
+    </p>
+    <div class="row" style="flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem">
+      <button
+        type="button"
+        class="btn btn-primary"
+        onclick={startTapCalibration}
+        disabled={tapCalRunning || browserOnly}
+      >
+        {tapCalRunning ? "Listening…" : "Start tap test"}
+      </button>
+      {#if tapCalRunning}
+        <button type="button" class="btn" onclick={stopTapCalibration}>Cancel</button>
+      {/if}
+    </div>
+    {#if tapCalSuggested != null}
+      <p style="margin: 0 0 0.5rem; font-size: 0.9rem">
+        Suggested offset: <strong>{tapCalSuggested} ms</strong>
+        <span class="muted" style="font-size: 0.82rem">
+          (positive ≈ taps after the beep on average)</span
+        >
+      </p>
+      <button
+        type="button"
+        class="btn"
+        onclick={() => void applyTapSuggestedOffset()}
+        disabled={browserOnly}
+      >
+        Set offset to suggested &amp; save
+      </button>
+    {/if}
+  </div>
 </div>
 
 <div class="panel">

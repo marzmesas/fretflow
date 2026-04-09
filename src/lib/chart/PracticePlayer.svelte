@@ -23,6 +23,7 @@
   import type { FretflowChartV1 } from "./types";
   import { validateChart } from "./validate";
   import { resolvePracticeChart } from "$lib/catalog/resolve-practice-chart";
+  import { disposeBackingDrone, syncBackingDrone } from "./chart-backing-drone";
 
   type Props = {
     /** Library `?track=` id; when set, chart title/data resolve from catalog (demo notes for now). */
@@ -66,6 +67,10 @@
   let metronomeEnabled = $state(false);
   let metronomeCtx: AudioContext | null = null;
   const beatMetronome = new ChartBeatMetronome();
+
+  let backingDroneEnabled = $state(false);
+  let backingDroneMuted = $state(false);
+  const backingLinearGain = 0.042;
 
   let pixelsPerSecond = $state(140);
 
@@ -221,7 +226,17 @@
     loopBBeat = Math.min(8, maxB);
     beatMetronome.syncAfterJump(0, next.bpm);
     resetScoringState(null);
+    syncPracticeBackingAudio();
   });
+
+  function syncPracticeBackingAudio() {
+    syncBackingDrone({
+      playing,
+      enabled: backingDroneEnabled,
+      muted: backingDroneMuted,
+      linearGain: backingLinearGain,
+    });
+  }
 
   function captureWallTime() {
     const now = performance.now();
@@ -280,6 +295,7 @@
       anchorChartSec = t;
       timeSec = t;
       lastFrameWall = 0;
+      syncPracticeBackingAudio();
       return;
     }
 
@@ -287,6 +303,7 @@
 
     applyMissesForTime(t);
     timeSec = t;
+    syncPracticeBackingAudio();
     rafId = requestAnimationFrame(tickFrame);
   }
 
@@ -296,6 +313,7 @@
       stopRaf();
       timeSec = captureWallTime();
       lastFrameWall = 0;
+      syncPracticeBackingAudio();
     } else {
       if (timeSec >= totalSec && !loopEnabled) {
         timeSec = 0;
@@ -310,6 +328,7 @@
       }
       playing = true;
       rafId = requestAnimationFrame(tickFrame);
+      syncPracticeBackingAudio();
     }
   }
 
@@ -323,6 +342,36 @@
     lastMicTriggerWall = 0;
     beatMetronome.syncAfterJump(0, chart.bpm);
     resetScoringState(null);
+    syncPracticeBackingAudio();
+  }
+
+  async function persistBackingDronePrefs() {
+    if (!isTauri()) return;
+    try {
+      const p = await invoke<AudioPreferences>("get_audio_preferences");
+      await invoke("set_audio_preferences", {
+        prefs: {
+          ...p,
+          backingDroneEnabled,
+          backingDroneMuted,
+        },
+      });
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function onBackingDroneEnabledChange(ev: Event) {
+    backingDroneEnabled = (ev.currentTarget as HTMLInputElement).checked;
+    if (!backingDroneEnabled) backingDroneMuted = false;
+    void persistBackingDronePrefs();
+    syncPracticeBackingAudio();
+  }
+
+  function onBackingDroneMutedChange(ev: Event) {
+    backingDroneMuted = (ev.currentTarget as HTMLInputElement).checked;
+    void persistBackingDronePrefs();
+    syncPracticeBackingAudio();
   }
 
   function setLoopA() {
@@ -372,6 +421,8 @@
     try {
       const p = await invoke<AudioPreferences>("get_audio_preferences");
       latencyOffsetMs = p.latencyOffsetMs;
+      backingDroneEnabled = p.backingDroneEnabled ?? false;
+      backingDroneMuted = p.backingDroneMuted ?? false;
     } catch {
       /* keep previous */
     }
@@ -400,6 +451,7 @@
     stopRaf();
     midiUnlisten?.();
     levelUnlisten?.();
+    disposeBackingDrone();
     void metronomeCtx?.close();
     metronomeCtx = null;
   });
@@ -506,6 +558,25 @@
       />
       <span>Metronome</span>
       <span class="muted" style="font-size: 0.8rem">quarter clicks in chart time (respects speed)</span>
+    </label>
+
+    <label class="row" style="gap: 0.5rem; margin-bottom: 0.35rem; cursor: pointer">
+      <input
+        type="checkbox"
+        checked={backingDroneEnabled}
+        onchange={onBackingDroneEnabledChange}
+      />
+      <span>Backing drone</span>
+      <span class="muted" style="font-size: 0.8rem">quiet low E sine while playing (placeholder until stems)</span>
+    </label>
+    <label class="row" style="gap: 0.5rem; margin-bottom: 0.65rem; cursor: pointer; padding-left: 1.5rem">
+      <input
+        type="checkbox"
+        checked={backingDroneMuted}
+        disabled={!backingDroneEnabled}
+        onchange={onBackingDroneMutedChange}
+      />
+      <span>Mute backing</span>
     </label>
 
     <label class="row" style="gap: 0.75rem; align-items: center; margin-bottom: 0.65rem">
