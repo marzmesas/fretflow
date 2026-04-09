@@ -41,6 +41,12 @@ Optional **Backing drone** is a very quiet low-E sine while **playback is runnin
 - Uses **`audio:level`** peaks (input monitor must be running in Settings).
 - **No pitch detection** — only **timing**: registers a hit for the chart note whose start is closest inside the window.
 - Poor with **chords** or overlapping notes; best on sparse lines.
+- Mutually exclusive in Practice with **Mic pitch (beta)**.
+
+## Mic pitch (beta)
+
+- Rust **YIN** on the live monitor buffer; **onset** from a short-term level rise, then `input:event` with `source: "mic"`, `kind: "note_on"`, mapped **pitch → MIDI note** (same chart matching as MIDI).
+- Enable **Mic pitch (beta)** in Practice; keep **Start monitoring** on in Settings. Tuning and noise sensitivity are heuristic (cooldown, clarity threshold).
 
 ## Session summary
 
