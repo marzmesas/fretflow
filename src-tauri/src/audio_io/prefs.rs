@@ -91,7 +91,8 @@ mod tests {
 
     #[test]
     fn prefs_deserialize_without_label_fields() {
-        let raw = r#"{"preferredInputDeviceId":"1","latencyOffsetMs":0,"preferredMidiInputPortId":"x"}"#;
+        let raw =
+            r#"{"preferredInputDeviceId":"1","latencyOffsetMs":0,"preferredMidiInputPortId":"x"}"#;
         let p: AudioPreferences = serde_json::from_str(raw).unwrap();
         assert!(p.preferred_input_device_label.is_none());
         assert!(p.preferred_midi_input_port_name.is_none());
