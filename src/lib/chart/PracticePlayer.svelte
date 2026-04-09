@@ -22,6 +22,13 @@
   import { beatToSeconds, chartLengthBeats, chartLengthSeconds, secondsToBeat } from "./time";
   import type { FretflowChartV1 } from "./types";
   import { validateChart } from "./validate";
+  import { resolvePracticeChart } from "$lib/catalog/resolve-practice-chart";
+
+  type Props = {
+    /** Library `?track=` id; when set, chart title/data resolve from catalog (demo notes for now). */
+    trackId?: string | null;
+  };
+  let { trackId = null }: Props = $props();
 
   let chart: FretflowChartV1 = $state(DEMO_CHART);
 
@@ -193,6 +200,28 @@
     if (rafId) cancelAnimationFrame(rafId);
     rafId = 0;
   }
+
+  let prevTrackId: string | null | undefined = undefined;
+  $effect(() => {
+    const id = trackId ?? null;
+    if (prevTrackId === id) return;
+    prevTrackId = id;
+
+    const { chart: next } = resolvePracticeChart(id);
+    chart = next;
+    playing = false;
+    stopRaf();
+    timeSec = 0;
+    anchorChartSec = 0;
+    lastFrameWall = 0;
+    lastAudioLevel = 0;
+    lastMicTriggerWall = 0;
+    loopABeat = 0;
+    const maxB = chartLengthBeats(next);
+    loopBBeat = Math.min(8, maxB);
+    beatMetronome.syncAfterJump(0, next.bpm);
+    resetScoringState(null);
+  });
 
   function captureWallTime() {
     const now = performance.now();

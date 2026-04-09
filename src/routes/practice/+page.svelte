@@ -1,7 +1,9 @@
 <script lang="ts">
+  import { page } from "$app/state";
   import { onDestroy, onMount } from "svelte";
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
   import PracticePlayer from "$lib/chart/PracticePlayer.svelte";
+  import { resolvePracticeChart } from "$lib/catalog/resolve-practice-chart";
   import type { InputEventPayload } from "$lib/ipc";
   import { EVENT_INPUT_EVENT } from "$lib/ipc";
   import { isTauri } from "$lib/tauri-env";
@@ -10,6 +12,9 @@
   let recent = $state<InputEventPayload[]>([]);
   let unlisten: UnlistenFn | null = null;
   let browserOnly = $state(false);
+
+  const practiceTrackId = $derived(page.url.searchParams.get("track"));
+  const trackResolve = $derived(resolvePracticeChart(practiceTrackId));
 
   onMount(async () => {
     if (!isTauri()) {
@@ -32,8 +37,15 @@
   <code>docs/CHART_SCHEMA.md</code>.
 </p>
 
+{#if trackResolve.trackRequestInvalid}
+  <p class="muted" style="margin: 0 0 0.75rem; color: #fbbf24">
+    Unknown or locked <code>track</code> — showing the demo chart. Open a free row from
+    <a href="/library">Library</a>.
+  </p>
+{/if}
+
 <div class="panel">
-  <PracticePlayer />
+  <PracticePlayer trackId={practiceTrackId} />
 </div>
 
 <div class="panel">

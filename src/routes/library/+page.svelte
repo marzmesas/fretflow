@@ -18,7 +18,7 @@
 
   function openInPractice(t: CatalogTrackStub) {
     if (isLocked(t) || t.practiceChartKey !== "demo") return;
-    void goto("/practice");
+    void goto(`/practice?track=${encodeURIComponent(t.id)}`);
   }
 </script>
 

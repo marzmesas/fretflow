@@ -24,6 +24,9 @@ jobs:
       - name: npm ci
         run: npm ci
 
+      - name: Validate static charts
+        run: npm run validate-charts
+
       - name: Format (Rust)
         run: cargo fmt --all -- --check
         working-directory: src-tauri
