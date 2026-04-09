@@ -37,6 +37,20 @@ export type AudioPreferences = {
   /** Practice: low sine drone placeholder until stems. */
   backingDroneEnabled?: boolean;
   backingDroneMuted?: boolean;
+  /** Input monitor: `null` = device default sample rate. */
+  inputStreamSampleRateHz?: number | null;
+  /** Input monitor: `null` = cpal default buffer; else fixed frames (clamped to device range when known). */
+  inputStreamBufferFrames?: number | null;
+};
+
+/** From `get_input_device_stream_info` — capabilities for the selected (or default) input device. */
+export type InputDeviceStreamInfo = {
+  defaultSampleRate: number;
+  defaultChannels: number;
+  sampleFormat: string;
+  supportedSampleRates: number[];
+  bufferFramesMin: number | null;
+  bufferFramesMax: number | null;
 };
 
 export type MidiInputPortInfo = {

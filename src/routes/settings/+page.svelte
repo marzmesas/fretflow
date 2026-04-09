@@ -6,6 +6,7 @@
     AudioInputDevice,
     AudioPreferences,
     InputConnectionStatus,
+    InputDeviceStreamInfo,
     InputEventPayload,
     MidiInputPortInfo,
   } from "$lib/ipc";
@@ -49,6 +50,13 @@
   let midiListenDesired = $state(false);
 
   let focusDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** `""` = use device default sample rate. */
+  let streamSampleRateChoice = $state("");
+  /** Empty = cpal default buffer; otherwise frames per buffer (numeric string). */
+  let streamBufferFramesStr = $state("");
+  let streamInfo = $state<InputDeviceStreamInfo | null>(null);
+  let streamInfoError = $state<string | null>(null);
 
   let tapCalRunning = $state(false);
   let tapCalSuggested = $state<number | null>(null);
@@ -166,6 +174,19 @@
     }
   }
 
+  async function refreshStreamInfo() {
+    if (!isTauri()) return;
+    streamInfoError = null;
+    try {
+      streamInfo = await invoke<InputDeviceStreamInfo>("get_input_device_stream_info", {
+        deviceId: selectedId,
+      });
+    } catch (e) {
+      streamInfo = null;
+      streamInfoError = String(e);
+    }
+  }
+
   onMount(async () => {
     if (!isTauri()) {
       browserOnly = true;
@@ -182,6 +203,14 @@
         (defaultDevice?.id === "default" ? null : defaultDevice?.id ?? null);
       latencyMs = prefs.latencyOffsetMs;
       selectedMidiPortId = prefs.preferredMidiInputPortId ?? null;
+      streamSampleRateChoice =
+        prefs.inputStreamSampleRateHz != null && prefs.inputStreamSampleRateHz !== undefined
+          ? String(prefs.inputStreamSampleRateHz)
+          : "";
+      streamBufferFramesStr =
+        prefs.inputStreamBufferFrames != null && prefs.inputStreamBufferFrames !== undefined
+          ? String(prefs.inputStreamBufferFrames)
+          : "";
       await refreshMidiPorts();
       const initialRemap = remapSelectionsAfterRefresh();
       if (initialRemap.audio || initialRemap.midi) {
@@ -205,9 +234,16 @@
       midiListening = conn.midiListenActive;
       audioMonitorDesired = conn.inputMonitorActive;
       midiListenDesired = conn.midiListenActive;
+      await refreshStreamInfo();
     } catch (e) {
       error = String(e);
     }
+  });
+
+  $effect(() => {
+    if (!isTauri() || browserOnly) return;
+    void selectedId;
+    void refreshStreamInfo();
   });
 
   function stopTapCalibration() {
@@ -289,6 +325,14 @@
     midiListenDesired = false;
   });
 
+  function parseBufferFrames(): number | null {
+    const t = streamBufferFramesStr.trim();
+    if (t === "") return null;
+    const n = Number(t);
+    if (!Number.isFinite(n) || n < 1) return null;
+    return Math.round(n);
+  }
+
   async function savePrefs() {
     if (!isTauri()) return;
     const base =
@@ -302,9 +346,29 @@
       preferredMidiInputPortName: nameForSelectedMidi(),
       backingDroneEnabled: base?.backingDroneEnabled ?? false,
       backingDroneMuted: base?.backingDroneMuted ?? false,
+      inputStreamSampleRateHz:
+        streamSampleRateChoice === "" ? null : Number(streamSampleRateChoice),
+      inputStreamBufferFrames: parseBufferFrames(),
     };
     await invoke("set_audio_preferences", { prefs: next });
     prefs = next;
+  }
+
+  /** Save stream prefs and reopen the cpal monitor so new buffer/rate apply. */
+  async function saveStreamPrefsAndRestartMonitor() {
+    if (!isTauri()) return;
+    await savePrefs();
+    if (!audioMonitorDesired && !monitoring) return;
+    try {
+      await invoke("stop_input_monitor").catch(() => {});
+      monitoring = false;
+      await invoke("start_input_monitor", { deviceId: selectedId });
+      monitoring = true;
+      audioMonitorDesired = true;
+      error = null;
+    } catch (e) {
+      error = String(e);
+    }
   }
 
   async function startMonitor() {
@@ -415,6 +479,74 @@
     {#if error}
       <p style="color: #f87171; margin-top: 0.75rem; margin-bottom: 0">{error}</p>
     {/if}
+
+    <div
+      style="margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--ff-border)"
+    >
+      <h3 style="margin: 0 0 0.35rem; font-size: 0.95rem">Advanced (cpal stream)</h3>
+      <p class="muted" style="margin: 0 0 0.65rem; font-size: 0.82rem">
+        Applies to the <strong>input monitor</strong> only. Lower buffer frames can reduce latency but may glitch on slow machines.
+        Invalid sample rates fall back to the device default.
+      </p>
+      {#if streamInfoError}
+        <p style="color: #f87171; font-size: 0.9rem; margin: 0 0 0.5rem">{streamInfoError}</p>
+      {:else if streamInfo}
+        <p class="muted" style="margin: 0 0 0.5rem; font-size: 0.82rem">
+          Device default: <strong>{streamInfo.defaultSampleRate} Hz</strong>, {streamInfo.defaultChannels}
+          ch, {streamInfo.sampleFormat}
+          {#if streamInfo.bufferFramesMin != null && streamInfo.bufferFramesMax != null}
+            · buffer range ~{streamInfo.bufferFramesMin}–{streamInfo.bufferFramesMax} frames
+          {/if}
+        </p>
+      {/if}
+      <div class="row" style="flex-wrap: wrap; gap: 0.75rem; align-items: center; margin-bottom: 0.65rem">
+        <label class="row" style="gap: 0.5rem; align-items: center">
+          <span class="muted">Sample rate</span>
+          <select
+            bind:value={streamSampleRateChoice}
+            style="padding: 0.35rem 0.5rem; border-radius: 6px; border: 1px solid var(--ff-border); background: var(--ff-bg); color: var(--ff-text)"
+          >
+            <option value="">
+              Auto ({streamInfo?.defaultSampleRate ?? "…"} Hz)
+            </option>
+            {#if streamSampleRateChoice !== "" && streamInfo && !streamInfo.supportedSampleRates.includes(Number(streamSampleRateChoice))}
+              <option value={streamSampleRateChoice}>{streamSampleRateChoice} Hz (saved)</option>
+            {/if}
+            {#if streamInfo}
+              {#each streamInfo.supportedSampleRates as hz}
+                <option value={String(hz)}>{hz} Hz</option>
+              {/each}
+            {/if}
+          </select>
+        </label>
+        <label class="row" style="gap: 0.5rem; align-items: center">
+          <span class="muted">Buffer (frames)</span>
+          <input
+            type="text"
+            inputmode="numeric"
+            placeholder="Auto"
+            bind:value={streamBufferFramesStr}
+            style="width: 5.5rem; padding: 0.35rem 0.5rem; border-radius: 6px; border: 1px solid var(--ff-border); background: var(--ff-bg); color: var(--ff-text)"
+          />
+        </label>
+      </div>
+      <div class="row" style="flex-wrap: wrap; gap: 0.5rem">
+        <button type="button" class="btn" onclick={() => void refreshStreamInfo()} disabled={browserOnly}>
+          Refresh caps
+        </button>
+        <button type="button" class="btn" onclick={() => void savePrefs()} disabled={browserOnly}>
+          Save stream prefs
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary"
+          onclick={() => void saveStreamPrefsAndRestartMonitor()}
+          disabled={browserOnly}
+        >
+          Save &amp; restart monitor
+        </button>
+      </div>
+    </div>
   {/if}
 </div>
 

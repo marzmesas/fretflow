@@ -22,6 +22,9 @@ pub enum AudioError {
     #[error("default input configuration")]
     DefaultConfig(#[from] cpal::DefaultStreamConfigError),
 
+    #[error("supported input stream configurations")]
+    SupportedStreamConfigs(#[from] cpal::SupportedStreamConfigsError),
+
     #[error("build input stream")]
     BuildStream(#[from] cpal::BuildStreamError),
 

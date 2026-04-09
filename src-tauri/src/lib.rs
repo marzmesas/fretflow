@@ -24,6 +24,7 @@ pub fn run() {
             audio_io::set_audio_preferences,
             audio_io::start_input_monitor,
             audio_io::stop_input_monitor,
+            audio_io::get_input_device_stream_info,
             midi::list_midi_input_ports,
             midi::start_midi_input_listen,
             midi::stop_midi_input_listen,

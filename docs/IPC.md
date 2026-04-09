@@ -17,14 +17,15 @@ Use **snake_case** Rust symbols; Tauri exposes them with the same names to the f
 | `get_audio_preferences` | — | prefs object (see below) | JSON file under app config dir |
 | `set_audio_preferences` | `{ prefs }` | `()` | Same shape as `get_audio_preferences` |
 
-**`AudioPreferences`:** `preferredInputDeviceId`, `preferredInputDeviceLabel?` (cpal device name for hotplug remapping), `latencyOffsetMs`, `preferredMidiInputPortId`, `preferredMidiInputPortName?` (MIDI port name for remapping when opaque ids change), `backingDroneEnabled?`, `backingDroneMuted?` (Practice reference drone). Label/name fields omit or `null` when unset; older prefs files deserialize with missing keys.
-| `start_input_monitor` | `{ deviceId?: string \| null }` | `()` | Live mic level → `audio:level` ~30/s; `null` = OS default; stops mock first |
+**`AudioPreferences`:** `preferredInputDeviceId`, `preferredInputDeviceLabel?` (cpal device name for hotplug remapping), `latencyOffsetMs`, `preferredMidiInputPortId`, `preferredMidiInputPortName?` (MIDI port name for remapping when opaque ids change), `backingDroneEnabled?`, `backingDroneMuted?` (Practice reference drone), `inputStreamSampleRateHz?` (`null` = device default), `inputStreamBufferFrames?` (`null` = cpal default buffer). Label/name fields omit or `null` when unset; older prefs files deserialize with missing keys.
+| `get_input_device_stream_info` | `{ deviceId?: string \| null }` | `{ defaultSampleRate, defaultChannels, sampleFormat, supportedSampleRates, bufferFramesMin, bufferFramesMax }` | Subset of standard rates + buffer hints for the selected or default input device |
+| `start_input_monitor` | `{ deviceId?: string \| null }` | `()` | Live mic level → `audio:level` ~30/s; `null` = OS default; uses prefs stream fields; stops mock first |
 | `stop_input_monitor` | — | `()` | Stops cpal stream thread |
 | `list_midi_input_ports` | — | `{ id, name }[]` | `id` is an opaque backend identifier (persist, don’t parse) |
 | `start_midi_input_listen` | `{ portId }` | `()` | Opens selected MIDI input; voice messages → `input:event` (see below) |
 | `stop_midi_input_listen` | — | `()` | Closes the active MIDI input connection |
 
-Future (plan): buffer size / exclusive mode, catalog fetch, etc.
+Future (plan): exclusive mode, catalog fetch, etc.
 
 ## Events (Rust → frontend)
 

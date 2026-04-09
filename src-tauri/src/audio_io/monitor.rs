@@ -15,6 +15,8 @@ use tauri::{AppHandle, Emitter};
 
 use crate::ipc;
 
+use super::prefs::load_audio_preferences;
+use super::stream_config;
 use super::AudioError;
 
 static INPUT_MONITOR: Mutex<Option<InputMonitorHandle>> = Mutex::new(None);
@@ -124,6 +126,8 @@ pub fn stop_input_monitor() -> Result<(), AudioError> {
 pub fn start_input_monitor(app: AppHandle, device_id: Option<String>) -> Result<(), AudioError> {
     stop_input_monitor()?;
 
+    let prefs = load_audio_preferences(&app)?;
+
     let stop = Arc::new(AtomicBool::new(false));
     let stop_thread = Arc::clone(&stop);
     let emit_handle = app.clone();
@@ -131,9 +135,8 @@ pub fn start_input_monitor(app: AppHandle, device_id: Option<String>) -> Result<
     let join = thread::spawn(move || {
         let run = || -> Result<(), AudioError> {
             let device = super::devices::resolve_input_device(device_id.as_deref())?;
-            let supported = device.default_input_config()?;
-            let sample_format = supported.sample_format();
-            let config: StreamConfig = supported.config();
+            let (config, sample_format) =
+                stream_config::resolve_input_stream_config_for_device(&device, &prefs)?;
 
             let level_bits = Arc::new(AtomicU32::new(0.0f32.to_bits()));
             let stream = build_input_stream(

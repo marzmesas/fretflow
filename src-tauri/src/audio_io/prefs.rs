@@ -32,6 +32,12 @@ pub struct AudioPreferences {
     /// When true, drone gain is forced off (Practice).
     #[serde(default)]
     pub backing_drone_muted: bool,
+    /// Input monitor: sample rate Hz; `None` = device default from cpal.
+    #[serde(default)]
+    pub input_stream_sample_rate_hz: Option<u32>,
+    /// Input monitor: fixed buffer in frames; `None` = cpal default buffer size.
+    #[serde(default)]
+    pub input_stream_buffer_frames: Option<u32>,
 }
 
 fn prefs_path(app: &AppHandle) -> Result<PathBuf, AudioError> {
@@ -71,6 +77,8 @@ mod tests {
             preferred_midi_input_port_name: Some("KeyStation".into()),
             backing_drone_enabled: true,
             backing_drone_muted: false,
+            input_stream_sample_rate_hz: Some(48_000),
+            input_stream_buffer_frames: Some(512),
         };
         let s = serde_json::to_string(&p).unwrap();
         let q: AudioPreferences = serde_json::from_str(&s).unwrap();
@@ -90,6 +98,14 @@ mod tests {
         );
         assert_eq!(p.backing_drone_enabled, q.backing_drone_enabled);
         assert_eq!(p.backing_drone_muted, q.backing_drone_muted);
+        assert_eq!(
+            p.input_stream_sample_rate_hz,
+            q.input_stream_sample_rate_hz
+        );
+        assert_eq!(
+            p.input_stream_buffer_frames,
+            q.input_stream_buffer_frames
+        );
     }
 
     #[test]
@@ -106,5 +122,13 @@ mod tests {
         let p: AudioPreferences = serde_json::from_str(raw).unwrap();
         assert!(p.preferred_input_device_label.is_none());
         assert!(p.preferred_midi_input_port_name.is_none());
+    }
+
+    #[test]
+    fn prefs_deserialize_without_stream_fields() {
+        let raw = r#"{"preferredInputDeviceId":null,"latencyOffsetMs":0}"#;
+        let p: AudioPreferences = serde_json::from_str(raw).unwrap();
+        assert!(p.input_stream_sample_rate_hz.is_none());
+        assert!(p.input_stream_buffer_frames.is_none());
     }
 }
