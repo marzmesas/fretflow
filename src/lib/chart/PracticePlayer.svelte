@@ -3,7 +3,12 @@
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
   import { onDestroy, onMount } from "svelte";
   import type { AudioPreferences, InputEventPayload } from "$lib/ipc";
-  import { EVENT_AUDIO_LEVEL, EVENT_INPUT_EVENT, inputEventIsMidiV1 } from "$lib/ipc";
+  import {
+    EVENT_AUDIO_LEVEL,
+    EVENT_INPUT_EVENT,
+    inputEventIsMicPitchV1,
+    inputEventIsMidiV1,
+  } from "$lib/ipc";
   import { isTauri } from "$lib/tauri-env";
   import ChartHighway from "./ChartHighway.svelte";
   import {
@@ -42,6 +47,7 @@
   let scoringEnabled = $state(true);
   let scoringMode = $state<ScoringModeId>("practice");
   let micRhythmBeta = $state(false);
+  let micPitchBeta = $state(false);
   let maxComboEver = 0;
   let lastAudioLevel = 0;
   let lastMicTriggerWall = 0;
@@ -124,11 +130,15 @@
     lastFeedback = `${src}Hit ${sign}${hit.deltaMs.toFixed(0)} ms · combo ${combo}`;
   }
 
-  function handleMidiScoring(ev: { payload: InputEventPayload }) {
+  function handleInputScoring(ev: { payload: InputEventPayload }) {
     if (!scoringEnabled || !playing) return;
     const p = ev.payload;
-    if (!inputEventIsMidiV1(p)) return;
-    if (p.kind !== "note_on" || p.velocity === 0) return;
+    if (p.schemaVersion !== 1 || p.kind !== "note_on" || p.velocity === 0) return;
+
+    const useMidi = inputEventIsMidiV1(p);
+    const useMicPitch = micPitchBeta && inputEventIsMicPitchV1(p);
+    if (!useMidi && !useMicPitch) return;
+
     const t = captureWallTime();
     const hit = findHitNoteIndex(
       chart,
@@ -140,11 +150,11 @@
       latencyOffsetMs,
     );
     if (!hit) return;
-    registerHit(hit, "midi");
+    registerHit(hit, useMicPitch ? "mic" : "midi");
   }
 
   function handleAudioLevel(ev: { payload: number }) {
-    if (!scoringEnabled || !playing || !micRhythmBeta) return;
+    if (!scoringEnabled || !playing || !micRhythmBeta || micPitchBeta) return;
     const level = Math.min(1, Math.max(0, ev.payload));
     const th = 0.34;
     const now = performance.now();
@@ -438,7 +448,7 @@
     window.addEventListener("focus", onWindowFocusCalib);
     void (async () => {
       if (isTauri()) {
-        midiUnlisten = await listen<InputEventPayload>(EVENT_INPUT_EVENT, handleMidiScoring);
+        midiUnlisten = await listen<InputEventPayload>(EVENT_INPUT_EVENT, handleInputScoring);
         levelUnlisten = await listen<number>(EVENT_AUDIO_LEVEL, handleAudioLevel);
       }
     })();
@@ -521,14 +531,20 @@
     </div>
     {#if isTauri()}
       <label class="row" style="gap: 0.5rem; cursor: pointer; margin-bottom: 0.5rem">
-        <input type="checkbox" bind:checked={micRhythmBeta} />
+        <input type="checkbox" bind:checked={micRhythmBeta} disabled={micPitchBeta} />
         <span>Mic rhythm (beta)</span>
-        <span class="muted" style="font-size: 0.8rem">needs input monitor + level peaks; no pitch</span>
+        <span class="muted" style="font-size: 0.8rem">level peaks only; disabled when mic pitch is on</span>
+      </label>
+      <label class="row" style="gap: 0.5rem; cursor: pointer; margin-bottom: 0.5rem">
+        <input type="checkbox" bind:checked={micPitchBeta} disabled={micRhythmBeta} />
+        <span>Mic pitch (beta)</span>
+        <span class="muted" style="font-size: 0.8rem">monitor + YIN onset → same scoring as MIDI</span>
       </label>
     {/if}
     <p class="muted" style="margin: 0; font-size: 0.85rem">
       {#if isTauri()}
-        MIDI: <strong>Settings → MIDI → Start listening</strong>. Mic beta: <strong>Settings → Start monitoring</strong>.
+        MIDI: <strong>Settings → MIDI → Start listening</strong>. Mic: <strong>Settings → Start monitoring</strong>
+        (rhythm and/or pitch betas).
       {:else}
         Scoring needs the desktop app (MIDI and mic use Tauri events).
       {/if}

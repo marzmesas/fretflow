@@ -74,3 +74,8 @@ export type InputEventPayload = {
 export function inputEventIsMidiV1(e: InputEventPayload): boolean {
   return e.schemaVersion === 1 && e.source === "midi";
 }
+
+/** Live monitor + YIN pitch → `note_on` with `pitchHz` / `confidence`. */
+export function inputEventIsMicPitchV1(e: InputEventPayload): boolean {
+  return e.schemaVersion === 1 && e.source === "mic" && e.kind === "note_on";
+}
