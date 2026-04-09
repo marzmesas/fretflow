@@ -2,6 +2,7 @@
 
 mod devices;
 mod error;
+pub(crate) mod mic_pitch;
 pub(crate) mod monitor;
 mod prefs;
 mod stream_config;
