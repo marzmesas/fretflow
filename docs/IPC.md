@@ -24,8 +24,13 @@ Use **snake_case** Rust symbols; Tauri exposes them with the same names to the f
 | `list_midi_input_ports` | — | `{ id, name }[]` | `id` is an opaque backend identifier (persist, don’t parse) |
 | `start_midi_input_listen` | `{ portId }` | `()` | Opens selected MIDI input; voice messages → `input:event` (see below) |
 | `stop_midi_input_listen` | — | `()` | Closes the active MIDI input connection |
+| `get_session` | — | `AppSession` | Local stub: reads `session.json` in app config dir |
+| `dev_sign_in` | `{ payload: { displayName?: string \| null } }` | `AppSession` | Writes dev session + placeholder entitlements (`local:*`) |
+| `sign_out` | — | `AppSession` | Removes `session.json` |
 
-Future (plan): exclusive mode, catalog fetch, etc.
+**`AppSession`:** `schemaVersion`, `signedIn`, `authKind` (`"dev"` when signed in, else `null`), `displayName`, `signedInAtUnixMs`, `entitlements` (string array — stub until backend).
+
+Future (plan): exclusive mode, catalog fetch, real OAuth, server-backed entitlements, etc.
 
 ## Events (Rust → frontend)
 

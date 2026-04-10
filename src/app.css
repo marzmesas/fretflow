@@ -79,6 +79,17 @@ a:hover {
   border: 1px solid var(--ff-border);
 }
 
+a.session-account-pill {
+  color: var(--ff-muted);
+  text-decoration: none;
+  font-size: 0.78rem;
+}
+a.session-account-pill:hover {
+  text-decoration: none;
+  color: var(--ff-text);
+  border-color: var(--ff-accent-dim);
+}
+
 .connection-pill--on {
   color: var(--ff-text);
   border-color: var(--ff-success);

@@ -10,7 +10,7 @@ Source: internal phased plan. This file is the **committed** checklist; keep it 
 4. ~~**Impulse / tap latency calibration**~~ — Done (v1): Settings **Tap calibration** eight-beat Space test → median ms hint → **Set offset to suggested** (heuristic; not lab impulse).
 5. ~~**cpal buffer / sample rate**~~ — Done: prefs `inputStreamSampleRateHz` / `inputStreamBufferFrames`; Settings **Advanced (cpal stream)** + `get_input_device_stream_info`; input monitor resolves stream via `stream_config`.
 6. ~~**Mic pitch + onset path**~~ — Done (v1): monitor thread YIN + onset → `input:event` `source: "mic"`; Practice **Mic pitch (beta)** shares `findHitNoteIndex` with MIDI. Rhythm vs pitch betas are mutually exclusive.
-7. **Auth + entitlements stub** — Local “dev login” or OAuth placeholder before real backend. *(Phase 5.)*
+7. ~~**Auth + entitlements stub**~~ — Done (v1): `get_session` / `dev_sign_in` / `sign_out`, `session.json`, **Account** route + header link; placeholder `entitlements` for future gating. *(Real OAuth / backend: later Phase 5.)*
 8. **Backend + Stripe + offline grace** — Full Phase 5 exit.
 9. **Content pipeline** — Importers, dev QA tool. *(Phase 6.)*
 10. **Release hardening** — Second OS, signing, updater, a11y, profiling. *(Phase 7.)*
@@ -33,3 +33,4 @@ Source: internal phased plan. This file is the **committed** checklist; keep it 
 - Backing drone + mute (Practice + prefs), Settings tap-to-beat latency hint, `chart-backing-drone` / `latency-tap-calibration` helpers.
 - Input monitor: persisted sample rate + buffer frames, `stream_config` + `get_input_device_stream_info`, Settings Advanced section.
 - Mic pitch (v1): `mic_pitch` + YIN in `monitor`, `InputEvent::from_mic_note_on`, Practice **Mic pitch (beta)** vs **Mic rhythm (beta)**.
+- Session stub: `session.rs`, Account page, shell “Sign in” / dev label, `local:*` entitlements placeholder.

@@ -4,6 +4,7 @@ mod input_event;
 mod ipc;
 mod meter_mock;
 mod midi;
+mod session;
 
 use commands::{
     get_app_info, get_input_connection_status, start_mock_audio_meter, stop_mock_audio_meter,
@@ -28,6 +29,9 @@ pub fn run() {
             midi::list_midi_input_ports,
             midi::start_midi_input_listen,
             midi::stop_midi_input_listen,
+            session::get_session,
+            session::dev_sign_in,
+            session::sign_out,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

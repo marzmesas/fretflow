@@ -14,6 +14,17 @@ export type AppInfo = {
   displayName: string;
 };
 
+/** From `get_session` / `dev_sign_in` / `sign_out` — local stub until real auth. */
+export type AppSession = {
+  schemaVersion: number;
+  signedIn: boolean;
+  authKind: string | null;
+  displayName: string | null;
+  signedInAtUnixMs: number | null;
+  /** Placeholder capability strings for future gating (dev login fills local:*). */
+  entitlements: string[];
+};
+
 /** From `get_input_connection_status` — cpal monitor and MIDI listener threads. */
 export type InputConnectionStatus = {
   inputMonitorActive: boolean;
