@@ -27,10 +27,15 @@ Use **snake_case** Rust symbols; Tauri exposes them with the same names to the f
 | `get_session` | — | `AppSession` | Local stub: reads `session.json` in app config dir |
 | `dev_sign_in` | `{ payload: { displayName?: string \| null } }` | `AppSession` | Writes dev session + placeholder entitlements (`local:*`) |
 | `sign_out` | — | `AppSession` | Removes `session.json` |
+| `get_subscription_state` | — | `SubscriptionState` | Reads `subscription_cache.json`; uses last successful sync + grace rules |
+| `sync_subscription_now` | — | `SubscriptionState` | `GET {apiBaseUrl}/api/v1/subscription` (blocking HTTP); updates cache |
+| `set_subscription_api_base` | `{ payload: { url: string } }` | `SubscriptionState` | Persists API base in cache (must be `http://` or `https://`) |
 
 **`AppSession`:** `schemaVersion`, `signedIn`, `authKind` (`"dev"` when signed in, else `null`), `displayName`, `signedInAtUnixMs`, `entitlements` (string array — stub until backend).
 
-Future (plan): exclusive mode, catalog fetch, real OAuth, server-backed entitlements, etc.
+**`SubscriptionState`:** `schemaVersion`, `apiBaseUrl`, `graceDays`, `subscriptionStatus`, `tier`, `validUntilUnixMs`, `lastSyncOkUnixMs`, `lastSyncError`, `lastSyncSucceeded`, `offlineGraceActive`, `entitled`. Offline grace applies when the last sync attempt failed but a prior sync had `active`/`trialing` and `lastSyncOkUnixMs` is within `graceDays`.
+
+Future (plan): exclusive mode, catalog fetch, real OAuth, Stripe-backed subscription rows, etc.
 
 ## Events (Rust → frontend)
 

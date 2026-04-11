@@ -11,7 +11,7 @@ Source: internal phased plan. This file is the **committed** checklist; keep it 
 5. ~~**cpal buffer / sample rate**~~ — Done: prefs `inputStreamSampleRateHz` / `inputStreamBufferFrames`; Settings **Advanced (cpal stream)** + `get_input_device_stream_info`; input monitor resolves stream via `stream_config`.
 6. ~~**Mic pitch + onset path**~~ — Done (v1): monitor thread YIN + onset → `input:event` `source: "mic"`; Practice **Mic pitch (beta)** shares `findHitNoteIndex` with MIDI. Rhythm vs pitch betas are mutually exclusive.
 7. ~~**Auth + entitlements stub**~~ — Done (v1): `get_session` / `dev_sign_in` / `sign_out`, `session.json`, **Account** route + header link; placeholder `entitlements` for future gating. *(Real OAuth / backend: later Phase 5.)*
-8. **Backend + Stripe + offline grace** — Full Phase 5 exit.
+8. **Backend + Stripe + offline grace** — **In progress:** `server/` Express stub (`/health`, `/api/v1/subscription`, `/api/stripe/webhook`), desktop `subscription_cache.json` + `get_subscription_state` / `sync_subscription_now` / `set_subscription_api_base` + offline grace. **Remaining:** real Stripe Checkout, persisted customers, production API.
 9. **Content pipeline** — Importers, dev QA tool. *(Phase 6.)*
 10. **Release hardening** — Second OS, signing, updater, a11y, profiling. *(Phase 7.)*
 11. **Differentiation tracks** — Pedagogy / social / pro audio. *(Phase 8.)*
@@ -34,3 +34,4 @@ Source: internal phased plan. This file is the **committed** checklist; keep it 
 - Input monitor: persisted sample rate + buffer frames, `stream_config` + `get_input_device_stream_info`, Settings Advanced section.
 - Mic pitch (v1): `mic_pitch` + YIN in `monitor`, `InputEvent::from_mic_note_on`, Practice **Mic pitch (beta)** vs **Mic rhythm (beta)**.
 - Session stub: `session.rs`, Account page, shell “Sign in” / dev label, `local:*` entitlements placeholder.
+- Phase 5 scaffold: `server/` npm package, `subscription.rs` + reqwest sync, Account subscription UI, `subscription_cache.json` grace rules.

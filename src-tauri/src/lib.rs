@@ -5,6 +5,7 @@ mod ipc;
 mod meter_mock;
 mod midi;
 mod session;
+mod subscription;
 
 use commands::{
     get_app_info, get_input_connection_status, start_mock_audio_meter, stop_mock_audio_meter,
@@ -32,6 +33,9 @@ pub fn run() {
             session::get_session,
             session::dev_sign_in,
             session::sign_out,
+            subscription::get_subscription_state,
+            subscription::sync_subscription_now,
+            subscription::set_subscription_api_base,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

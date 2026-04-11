@@ -25,6 +25,21 @@ export type AppSession = {
   entitlements: string[];
 };
 
+/** From `get_subscription_state` / `sync_subscription_now` / `set_subscription_api_base`. */
+export type SubscriptionState = {
+  schemaVersion: number;
+  apiBaseUrl: string;
+  graceDays: number;
+  subscriptionStatus: string;
+  tier: string | null;
+  validUntilUnixMs: number | null;
+  lastSyncOkUnixMs: number;
+  lastSyncError: string | null;
+  lastSyncSucceeded: boolean;
+  offlineGraceActive: boolean;
+  entitled: boolean;
+};
+
 /** From `get_input_connection_status` — cpal monitor and MIDI listener threads. */
 export type InputConnectionStatus = {
   inputMonitorActive: boolean;

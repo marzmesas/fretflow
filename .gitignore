@@ -6,6 +6,8 @@ docs-internal/
 
 .DS_Store
 node_modules
+/server/node_modules
+/server/dist
 /build
 /.svelte-kit
 /package

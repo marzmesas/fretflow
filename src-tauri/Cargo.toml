@@ -26,3 +26,4 @@ thiserror = "2"
 cpal = "0.15"
 midir = "0.10"
 pitch-detection = "0.3"
+reqwest = { version = "0.12", default-features = false, features = ["json", "blocking", "rustls-tls"] }

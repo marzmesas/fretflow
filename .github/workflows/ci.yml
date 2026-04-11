@@ -24,6 +24,10 @@ jobs:
       - name: npm ci
         run: npm ci
 
+      - name: Server TypeScript
+        run: npm ci && npm run check
+        working-directory: server
+
       - name: Validate static charts
         run: npm run validate-charts
 
