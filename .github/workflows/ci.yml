@@ -31,6 +31,9 @@ jobs:
       - name: Validate static charts
         run: npm run validate-charts
 
+      - name: MIDI → chart (smoke fixture)
+        run: npm run midi-to-chart -- static/fixtures/smoke.mid /tmp/midi-smoke-chart.json
+
       - name: Format (Rust)
         run: cargo fmt --all -- --check
         working-directory: src-tauri
