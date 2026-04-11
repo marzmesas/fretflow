@@ -63,6 +63,11 @@
   <strong>Practice</strong> (one-shot handoff). Same checks as <code>npm run validate-charts</code> for bundled
   files under <code>static/charts/</code>.
 </p>
+<p class="muted" style="margin: 0 0 1rem">
+  From a <code>.mid</code> file, generate a draft chart with
+  <code>npm run midi-to-chart -- path/to/song.mid out.json</code> (skips MIDI channel 10 drums; constant BPM from
+  the first tempo meta; guitar positions are heuristic). Paste the result here to validate or open in Practice.
+</p>
 
 <div class="panel" style="max-width: 52rem">
   <div class="row" style="flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem">
