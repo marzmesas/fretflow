@@ -5,13 +5,14 @@
  *   npm run midi-to-chart -- <file.mid> [out.json]
  *
  * Options (flags anywhere):
- *   --bpm=120        Override BPM (default: first setTempo in file, else 120)
+ *   --bpm=120        Override BPM (default: match wall-clock from tempo map + note span)
  *   --title="Name"   Chart title (default: first track name, else .mid basename)
  *   --track=0        Only read this track index (0-based); default: merge all tracks
  *
- * Limitations (v1): constant tempo from first setTempo; skips MIDI channel 10 (drums,
- * 0-based channel 9); one guitar position per pitch (prefers lower fret); ignores
- * pitch bend and polyphonic string assignment.
+ * Heuristics: piecewise-constant tempo from all setTempo events; effective BPM so that
+ * chart seconds (beat*60/bpm) match integrated MIDI time to the last note end. Greedy
+ * fingering prefers small fret/string moves between successive notes (sorted by time).
+ * Skips MIDI channel 10 (drums, 0-based channel 9). Ignores pitch bend.
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { basename } from "node:path";
@@ -21,6 +22,7 @@ import type { ChartNoteV1, FretflowChartV1 } from "../src/lib/chart/types";
 import { getChartValidationIssues, validateChart } from "../src/lib/chart/validate";
 
 const DRUM_CHANNEL = 9; // General MIDI percussion (0-based)
+const DEFAULT_MICROS = 500_000;
 
 function usage(): void {
   console.error(`Usage: midi-to-chart <file.mid> [out.json] [--bpm=N] [--title=T] [--track=N]
@@ -57,17 +59,56 @@ function parseArgs(argv: string[]): {
   return { inPath, outPath, bpmOverride, titleOverride, trackIndex };
 }
 
-function midiPitchToChartNote(pitch: number): Pick<ChartNoteV1, "stringIndex" | "fret"> | null {
-  let best: { stringIndex: number; fret: number; score: number } | null = null;
+type Pos = Pick<ChartNoteV1, "stringIndex" | "fret">;
+
+function allGuitarPositions(midi: number): Pos[] {
+  const out: Pos[] = [];
   for (let s = 0; s <= 5; s++) {
-    const fret = pitch - OPEN_STRING_MIDI[s]!;
-    if (fret < 0 || fret > 24 || !Number.isInteger(fret)) continue;
-    const score = fret * 64 + s;
-    if (!best || score < best.score) {
-      best = { stringIndex: s, fret, score };
+    const fret = midi - OPEN_STRING_MIDI[s]!;
+    if (fret >= 0 && fret <= 24 && Number.isInteger(fret)) {
+      out.push({ stringIndex: s, fret });
     }
   }
-  return best;
+  return out;
+}
+
+function scoreTransition(prev: Pos | null, p: Pos): number {
+  if (!prev) {
+    return Math.abs(p.fret - 5) + p.stringIndex * 0.5;
+  }
+  return Math.abs(p.fret - prev.fret) + 2.5 * Math.abs(p.stringIndex - prev.stringIndex);
+}
+
+type RawNote = { startBeat: number; durationBeats: number; midi: number };
+
+function assignFingering(raw: RawNote[]): ChartNoteV1[] {
+  const sorted = [...raw].sort((a, b) => {
+    if (a.startBeat !== b.startBeat) return a.startBeat - b.startBeat;
+    return a.midi - b.midi;
+  });
+  const out: ChartNoteV1[] = [];
+  let prev: Pos | null = null;
+  for (const r of sorted) {
+    const candidates = allGuitarPositions(r.midi);
+    if (candidates.length === 0) continue;
+    let best = candidates[0]!;
+    let bestScore = Infinity;
+    for (const c of candidates) {
+      const sc = scoreTransition(prev, c);
+      if (sc < bestScore) {
+        bestScore = sc;
+        best = c;
+      }
+    }
+    out.push({
+      startBeat: r.startBeat,
+      durationBeats: r.durationBeats,
+      stringIndex: best.stringIndex,
+      fret: best.fret,
+    });
+    prev = best;
+  }
+  return out;
 }
 
 function eventRank(e: MidiEvent): number {
@@ -95,6 +136,76 @@ function flattenTracks(midi: MidiData, onlyTrack: number | null): { tick: number
   return out;
 }
 
+/** Sorted, de-duplicated by tick (later event wins). */
+function extractTempoTimeline(timed: { tick: number; e: MidiEvent }[]): { tick: number; micros: number }[] {
+  const raw: { tick: number; micros: number }[] = [];
+  for (const { tick, e } of timed) {
+    if (e.type === "setTempo" && "microsecondsPerBeat" in e && e.microsecondsPerBeat > 0) {
+      raw.push({ tick, micros: e.microsecondsPerBeat });
+    }
+  }
+  raw.sort((a, b) => a.tick - b.tick);
+  const out: { tick: number; micros: number }[] = [];
+  for (const p of raw) {
+    const last = out[out.length - 1];
+    if (last && last.tick === p.tick) {
+      last.micros = p.micros;
+    } else {
+      out.push({ ...p });
+    }
+  }
+  return out;
+}
+
+/** Wall-clock seconds from tick 0 to endTick under piecewise-constant setTempo map. */
+function integrateSecondsToTick(
+  endTick: number,
+  ppq: number,
+  timeline: { tick: number; micros: number }[],
+): number {
+  if (endTick <= 0) return 0;
+  let pts = timeline.slice().sort((a, b) => a.tick - b.tick);
+  if (pts.length === 0) {
+    return (endTick / ppq) * (DEFAULT_MICROS / 1e6);
+  }
+  if (pts[0]!.tick > 0) {
+    pts = [{ tick: 0, micros: DEFAULT_MICROS }, ...pts];
+  }
+  let sec = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const start = pts[i]!.tick;
+    const micros = pts[i]!.micros;
+    const segEnd = i + 1 < pts.length ? Math.min(endTick, pts[i + 1]!.tick) : endTick;
+    if (segEnd <= start) continue;
+    if (endTick <= start) break;
+    const from = Math.max(start, 0);
+    const to = Math.min(segEnd, endTick);
+    if (to > from) {
+      sec += ((to - from) / ppq) * (micros / 1e6);
+    }
+    if (segEnd >= endTick) break;
+  }
+  return sec;
+}
+
+function effectiveBpmFromTimeline(
+  endBeat: number,
+  endTick: number,
+  ppq: number,
+  timeline: { tick: number; micros: number }[],
+): number {
+  if (endBeat <= 1e-9) {
+    const m = timeline[0]?.micros ?? DEFAULT_MICROS;
+    return Math.max(1, Math.round((60 * 1e6) / m));
+  }
+  const totalSec = integrateSecondsToTick(endTick, ppq, timeline);
+  if (totalSec <= 1e-9) {
+    const m = timeline[0]?.micros ?? DEFAULT_MICROS;
+    return Math.max(1, Math.round((60 * 1e6) / m));
+  }
+  return Math.max(1, Math.round((endBeat * 60) / totalSec));
+}
+
 function buildChart(
   midi: MidiData,
   opts: { bpmOverride: number | null; titleOverride: string | null; trackIndex: number | null; midBasename: string },
@@ -104,28 +215,18 @@ function buildChart(
     throw new Error("Need ticks-per-quarter time division (re-export MIDI without SMPTE frames).");
   }
 
-  let microsForBpm = 500_000;
-  let sawTempo = false;
   let timeSignature: [number, number] = [4, 4];
   let sawTimeSig = false;
   let title = opts.titleOverride ?? opts.midBasename.replace(/\.(mid|midi)$/i, "");
   let titleFromTrack = false;
 
   const timed = flattenTracks(midi, opts.trackIndex);
+  const tempoTimeline = extractTempoTimeline(timed);
   const pending = new Map<string, number>();
-  const notes: ChartNoteV1[] = [];
+  const rawNotes: RawNote[] = [];
   let skippedUnmapped = 0;
 
   for (const { tick, e } of timed) {
-    if (
-      !sawTempo &&
-      e.type === "setTempo" &&
-      "microsecondsPerBeat" in e &&
-      e.microsecondsPerBeat > 0
-    ) {
-      microsForBpm = e.microsecondsPerBeat;
-      sawTempo = true;
-    }
     if (!sawTimeSig && e.type === "timeSignature" && "numerator" in e && "denominator" in e) {
       timeSignature = [e.numerator, e.denominator];
       sawTimeSig = true;
@@ -149,23 +250,32 @@ function buildChart(
       const durationTicks = Math.max(1, tick - start);
       const startBeat = start / ppq;
       const durationBeats = durationTicks / ppq;
-      const pos = midiPitchToChartNote(e.noteNumber);
-      if (!pos) {
+      if (allGuitarPositions(e.noteNumber).length === 0) {
         skippedUnmapped += 1;
         continue;
       }
-      notes.push({
+      rawNotes.push({
         startBeat,
         durationBeats,
-        stringIndex: pos.stringIndex,
-        fret: pos.fret,
+        midi: e.noteNumber,
       });
     }
   }
 
+  const notes = assignFingering(rawNotes);
   notes.sort((a, b) => a.startBeat - b.startBeat || a.stringIndex - b.stringIndex);
 
-  const bpm = opts.bpmOverride ?? Math.max(1, Math.round((60 * 1_000_000) / microsForBpm));
+  let endBeat = 0;
+  for (const n of notes) {
+    endBeat = Math.max(endBeat, n.startBeat + n.durationBeats);
+  }
+  const endTick = endBeat * ppq;
+
+  let bpm = opts.bpmOverride ?? effectiveBpmFromTimeline(endBeat, endTick, ppq, tempoTimeline);
+  if (bpm > 400) {
+    console.error(`midi-to-chart: clamping BPM ${bpm} → 400 (schema max).`);
+    bpm = 400;
+  }
 
   const chart: FretflowChartV1 = {
     schemaVersion: 1,

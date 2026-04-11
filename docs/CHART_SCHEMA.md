@@ -37,7 +37,7 @@ Hits and misses tint notes on the highway; **loop A–B** resets scoring each wr
 
 The app uses `validateChart()` in `src/lib/chart/validate.ts` before accepting a loaded file.
 
-For **Standard MIDI** sources, run `npm run midi-to-chart -- file.mid out.json` to produce a draft v1 chart (then validate in **Chart QA** or `npm run validate-charts` after copying into `static/charts/`).
+For **Standard MIDI** sources, run `npm run midi-to-chart -- file.mid out.json` to produce a draft v1 chart (integrates `setTempo` for wall-clock BPM, greedy fingering; then validate in **Chart QA** or `npm run validate-charts` after copying into `static/charts/`).
 
 ## Example
 

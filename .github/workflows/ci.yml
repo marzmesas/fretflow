@@ -34,6 +34,11 @@ jobs:
       - name: MIDI → chart (smoke fixture)
         run: npm run midi-to-chart -- static/fixtures/smoke.mid /tmp/midi-smoke-chart.json
 
+      - name: MIDI tempo map (ramp fixture → effective BPM)
+        run: |
+          npm run midi-to-chart -- static/fixtures/tempo-ramp.mid /tmp/midi-tempo-ramp.json
+          node -e "const j=require('/tmp/midi-tempo-ramp.json'); if(j.bpm!==80){console.error(j);process.exit(1)}"
+
       - name: Format (Rust)
         run: cargo fmt --all -- --check
         working-directory: src-tauri
