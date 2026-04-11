@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "title": "One open low E",
+  "bpm": 100,
+  "timeSignature": [4, 4],
+  "notes": [{ "startBeat": 0, "durationBeats": 1, "stringIndex": 5, "fret": 0 }]
+}

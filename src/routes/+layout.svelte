@@ -11,6 +11,7 @@
     { href: "/", label: "Home" },
     { href: "/library", label: "Library" },
     { href: "/practice", label: "Practice" },
+    { href: "/dev/chart-qa", label: "Chart QA" },
     { href: "/settings", label: "Settings" },
     { href: "/account", label: "Account" },
   ];

@@ -26,6 +26,7 @@
   import { loadLastSession, saveLastSession, type SessionSummaryV1 } from "./session-storage";
   import { beatToSeconds, chartLengthBeats, chartLengthSeconds, secondsToBeat } from "./time";
   import type { FretflowChartV1 } from "./types";
+  import { consumePendingPracticeChartJson } from "./practice-chart-transfer";
   import { validateChart } from "./validate";
   import { resolvePracticeChart } from "$lib/catalog/resolve-practice-chart";
   import { disposeBackingDrone, syncBackingDrone } from "./chart-backing-drone";
@@ -217,12 +218,8 @@
   }
 
   let prevTrackId: string | null | undefined = undefined;
-  $effect(() => {
-    const id = trackId ?? null;
-    if (prevTrackId === id) return;
-    prevTrackId = id;
 
-    const { chart: next } = resolvePracticeChart(id);
+  function resetPlayerToChart(next: FretflowChartV1) {
     chart = next;
     playing = false;
     stopRaf();
@@ -237,6 +234,30 @@
     beatMetronome.syncAfterJump(0, next.bpm);
     resetScoringState(null);
     syncPracticeBackingAudio();
+  }
+
+  $effect(() => {
+    const id = trackId ?? null;
+
+    const pendingRaw = consumePendingPracticeChartJson();
+    if (pendingRaw != null) {
+      try {
+        const data = JSON.parse(pendingRaw) as unknown;
+        if (validateChart(data)) {
+          resetPlayerToChart(data);
+          prevTrackId = id;
+          return;
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+
+    if (prevTrackId === id) return;
+    prevTrackId = id;
+
+    const { chart: next } = resolvePracticeChart(id);
+    resetPlayerToChart(next);
   });
 
   function syncPracticeBackingAudio() {

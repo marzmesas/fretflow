@@ -12,7 +12,7 @@ Source: internal phased plan. This file is the **committed** checklist; keep it 
 6. ~~**Mic pitch + onset path**~~ — Done (v1): monitor thread YIN + onset → `input:event` `source: "mic"`; Practice **Mic pitch (beta)** shares `findHitNoteIndex` with MIDI. Rhythm vs pitch betas are mutually exclusive.
 7. ~~**Auth + entitlements stub**~~ — Done (v1): `get_session` / `dev_sign_in` / `sign_out`, `session.json`, **Account** route + header link; placeholder `entitlements` for future gating. *(Real OAuth / backend: later Phase 5.)*
 8. ~~**Backend + Stripe + offline grace**~~ — **Deferred (product):** not shipping a subscription or checkout model at launch; focus stays on practice, charts, and app quality. **Infra in repo (optional / dormant):** `server/` stub, `subscription.rs` + IPC — revisit only when monetization is planned.
-9. **Content pipeline** — Importers, dev QA tool. *(Phase 6.)*
+9. **Content pipeline** — **In progress:** dev **Chart QA** (`/dev/chart-qa`): paste / file JSON, detailed validation, **Open in Practice** (session handoff). CI still runs `validate-charts` on `static/charts/*.json`. **Next:** importers (e.g. MIDI → draft chart), richer QA (diff, fixtures).
 10. **Release hardening** — Second OS, signing, updater, a11y, profiling. *(Phase 7.)*
 11. **Differentiation tracks** — Pedagogy / social / pro audio. *(Phase 8.)*
 
