@@ -10,8 +10,9 @@
  *   --track=0        Only read this track index (0-based); default: merge all tracks
  *
  * Heuristics: piecewise-constant tempo from all setTempo events; effective BPM so that
- * chart seconds (beat*60/bpm) match integrated MIDI time to the last note end. Greedy
- * fingering prefers small fret/string moves between successive notes (sorted by time).
+ * chart seconds (beat*60/bpm) match integrated MIDI time to the last note end. Notes
+ * sharing the same start beat are voiced as a chord: prefer distinct strings, then
+ * greedy transitions from bass note upward within the chord and across chords.
  * Skips MIDI channel 10 (drums, 0-based channel 9). Ignores pitch bend.
  */
 import { readFileSync, writeFileSync } from "node:fs";
@@ -81,33 +82,54 @@ function scoreTransition(prev: Pos | null, p: Pos): number {
 
 type RawNote = { startBeat: number; durationBeats: number; midi: number };
 
+function beatGroupKey(startBeat: number): number {
+  return Math.round(startBeat * 1e9) / 1e9;
+}
+
 function assignFingering(raw: RawNote[]): ChartNoteV1[] {
-  const sorted = [...raw].sort((a, b) => {
-    if (a.startBeat !== b.startBeat) return a.startBeat - b.startBeat;
-    return a.midi - b.midi;
-  });
+  const groups = new Map<number, RawNote[]>();
+  for (const r of raw) {
+    const k = beatGroupKey(r.startBeat);
+    const g = groups.get(k);
+    if (g) g.push(r);
+    else groups.set(k, [r]);
+  }
+  const orderedKeys = [...groups.keys()].sort((a, b) => a - b);
   const out: ChartNoteV1[] = [];
   let prev: Pos | null = null;
-  for (const r of sorted) {
-    const candidates = allGuitarPositions(r.midi);
-    if (candidates.length === 0) continue;
-    let best = candidates[0]!;
-    let bestScore = Infinity;
-    for (const c of candidates) {
-      const sc = scoreTransition(prev, c);
-      if (sc < bestScore) {
-        bestScore = sc;
-        best = c;
+
+  for (const k of orderedKeys) {
+    const chord = groups.get(k)!;
+    chord.sort((a, b) => a.midi - b.midi);
+    const usedStrings = new Set<number>();
+    for (const r of chord) {
+      const all = allGuitarPositions(r.midi);
+      if (all.length === 0) continue;
+      let candidates = all.filter((c) => !usedStrings.has(c.stringIndex));
+      if (candidates.length === 0) {
+        candidates = all;
       }
+      let best = candidates[0]!;
+      let bestScore = Infinity;
+      for (const c of candidates) {
+        const sc = scoreTransition(prev, c);
+        if (sc < bestScore) {
+          bestScore = sc;
+          best = c;
+        }
+      }
+      usedStrings.add(best.stringIndex);
+      out.push({
+        startBeat: r.startBeat,
+        durationBeats: r.durationBeats,
+        stringIndex: best.stringIndex,
+        fret: best.fret,
+      });
+      prev = best;
     }
-    out.push({
-      startBeat: r.startBeat,
-      durationBeats: r.durationBeats,
-      stringIndex: best.stringIndex,
-      fret: best.fret,
-    });
-    prev = best;
   }
+
+  out.sort((a, b) => a.startBeat - b.startBeat || a.stringIndex - b.stringIndex);
   return out;
 }
 

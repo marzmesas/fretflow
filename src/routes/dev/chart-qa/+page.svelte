@@ -127,8 +127,9 @@
 </p>
 <p class="muted" style="margin: 0 0 1rem">
   From a <code>.mid</code> file, run <code>npm run midi-to-chart -- path/to/song.mid out.json</code> (skips channel 10
-  drums). BPM matches wall-clock from all <code>setTempo</code> segments vs. note span; fingering prefers small
-  fret/string moves. Paste the JSON here to validate or open in Practice.
+  drums). BPM matches wall-clock from all <code>setTempo</code> segments vs. note span; simultaneous notes prefer
+  distinct strings. Regression tests: <code>npm run assert-midi-golden</code>. Paste the JSON here to validate or open
+  in Practice.
 </p>
 
 <div class="panel" style="max-width: 52rem">

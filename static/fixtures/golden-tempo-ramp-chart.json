@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "title": "tempo-ramp",
+  "bpm": 80,
+  "timeSignature": [
+    4,
+    4
+  ],
+  "notes": [
+    {
+      "startBeat": 0,
+      "durationBeats": 4,
+      "stringIndex": 1,
+      "fret": 5
+    }
+  ]
+}
