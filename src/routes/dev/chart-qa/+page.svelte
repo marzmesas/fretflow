@@ -7,9 +7,11 @@
   import { getChartValidationIssues, validateChart } from "$lib/chart/validate";
 
   let jsonText = $state(JSON.stringify(DEMO_CHART, null, 2));
+  let compareJson = $state("");
   let issues = $state<string[]>([]);
   let parseError = $state<string | null>(null);
   let lastValid = $state<FretflowChartV1 | null>(null);
+  let compareSummary = $state<string | null>(null);
 
   function runValidate() {
     parseError = null;
@@ -55,6 +57,66 @@
     stageChartForPractice(lastValid);
     void goto("/practice");
   }
+
+  function runCompare() {
+    compareSummary = null;
+    let a: unknown;
+    let b: unknown;
+    try {
+      a = JSON.parse(jsonText);
+    } catch (e) {
+      compareSummary = `Chart A: ${e instanceof Error ? e.message : String(e)}`;
+      return;
+    }
+    try {
+      b = JSON.parse(compareJson.trim() || "{}");
+    } catch (e) {
+      compareSummary = `Chart B: ${e instanceof Error ? e.message : String(e)}`;
+      return;
+    }
+    if (compareJson.trim() === "") {
+      compareSummary = "Chart B: empty (paste a second chart JSON).";
+      return;
+    }
+    const ia = getChartValidationIssues(a);
+    const ib = getChartValidationIssues(b);
+    if (ia.length > 0 || ib.length > 0) {
+      compareSummary = `A: ${ia.length} validation issue(s). B: ${ib.length} validation issue(s). Fix both to compare structure.`;
+      return;
+    }
+    if (!validateChart(a) || !validateChart(b)) {
+      compareSummary = "Unexpected validation state.";
+      return;
+    }
+    const A = a as FretflowChartV1;
+    const B = b as FretflowChartV1;
+    const lines = [
+      `title: "${A.title}" vs "${B.title}"`,
+      `BPM: ${A.bpm} vs ${B.bpm}`,
+      `time sig: ${A.timeSignature.join("/")} vs ${B.timeSignature.join("/")}`,
+      `notes: ${A.notes.length} vs ${B.notes.length}`,
+      `length (beats): ${chartLengthBeats(A).toFixed(2)} vs ${chartLengthBeats(B).toFixed(2)}`,
+    ];
+    const n = Math.min(A.notes.length, B.notes.length);
+    let diffAtIndex = 0;
+    for (let i = 0; i < n; i++) {
+      const x = A.notes[i]!;
+      const y = B.notes[i]!;
+      if (
+        x.startBeat !== y.startBeat ||
+        x.durationBeats !== y.durationBeats ||
+        x.stringIndex !== y.stringIndex ||
+        x.fret !== y.fret
+      ) {
+        diffAtIndex += 1;
+      }
+    }
+    lines.push(`notes differing among first ${n} indices: ${diffAtIndex}`);
+    if (A.notes.length !== B.notes.length) {
+      lines.push("(index compare truncated by shorter note list)");
+    }
+    compareSummary = lines.join("\n");
+  }
 </script>
 
 <h1 style="margin: 0 0 0.5rem; font-size: 1.5rem">Chart QA</h1>
@@ -64,9 +126,9 @@
   files under <code>static/charts/</code>.
 </p>
 <p class="muted" style="margin: 0 0 1rem">
-  From a <code>.mid</code> file, generate a draft chart with
-  <code>npm run midi-to-chart -- path/to/song.mid out.json</code> (skips MIDI channel 10 drums; constant BPM from
-  the first tempo meta; guitar positions are heuristic). Paste the result here to validate or open in Practice.
+  From a <code>.mid</code> file, run <code>npm run midi-to-chart -- path/to/song.mid out.json</code> (skips channel 10
+  drums). BPM matches wall-clock from all <code>setTempo</code> segments vs. note span; fingering prefers small
+  fret/string moves. Paste the JSON here to validate or open in Practice.
 </p>
 
 <div class="panel" style="max-width: 52rem">
@@ -110,6 +172,49 @@
     style="
       width: 100%;
       min-height: 18rem;
+      font-family: ui-monospace, monospace;
+      font-size: 0.82rem;
+      padding: 0.6rem 0.65rem;
+      border-radius: 8px;
+      border: 1px solid var(--ff-border);
+      background: var(--ff-bg);
+      color: var(--ff-text);
+      resize: vertical;
+      box-sizing: border-box;
+    "
+  ></textarea>
+
+  <h2 style="margin: 1.5rem 0 0.5rem; font-size: 1.1rem">Compare two charts</h2>
+  <p class="muted" style="margin: 0 0 0.5rem; font-size: 0.88rem">
+    Optional second JSON (same schema). Both must validate; you get a short field diff and a count of note rows
+    that differ by index.
+  </p>
+  <div class="row" style="flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem">
+    <button type="button" class="btn" onclick={runCompare}>Compare</button>
+  </div>
+  {#if compareSummary}
+    <pre
+      style="
+        margin: 0 0 1rem;
+        padding: 0.65rem 0.75rem;
+        border-radius: 8px;
+        border: 1px solid var(--ff-border);
+        background: var(--ff-bg);
+        color: var(--ff-text);
+        font-size: 0.82rem;
+        white-space: pre-wrap;
+      ">{compareSummary}</pre>
+  {/if}
+  <label for="chart-qa-compare" class="muted" style="display: block; margin-bottom: 0.35rem; font-size: 0.88rem"
+    >Chart B JSON</label
+  >
+  <textarea
+    id="chart-qa-compare"
+    bind:value={compareJson}
+    spellcheck="false"
+    style="
+      width: 100%;
+      min-height: 10rem;
       font-family: ui-monospace, monospace;
       font-size: 0.82rem;
       padding: 0.6rem 0.65rem;
