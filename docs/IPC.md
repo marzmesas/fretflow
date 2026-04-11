@@ -16,8 +16,6 @@ Use **snake_case** Rust symbols; Tauri exposes them with the same names to the f
 | `get_default_audio_input_device` | — | `{ id, label } \| null` | `id` is `"default"` when present |
 | `get_audio_preferences` | — | prefs object (see below) | JSON file under app config dir |
 | `set_audio_preferences` | `{ prefs }` | `()` | Same shape as `get_audio_preferences` |
-
-**`AudioPreferences`:** `preferredInputDeviceId`, `preferredInputDeviceLabel?` (cpal device name for hotplug remapping), `latencyOffsetMs`, `preferredMidiInputPortId`, `preferredMidiInputPortName?` (MIDI port name for remapping when opaque ids change), `backingDroneEnabled?`, `backingDroneMuted?` (Practice reference drone), `inputStreamSampleRateHz?` (`null` = device default), `inputStreamBufferFrames?` (`null` = cpal default buffer). Label/name fields omit or `null` when unset; older prefs files deserialize with missing keys.
 | `get_input_device_stream_info` | `{ deviceId?: string \| null }` | `{ defaultSampleRate, defaultChannels, sampleFormat, supportedSampleRates, bufferFramesMin, bufferFramesMax }` | Subset of standard rates + buffer hints for the selected or default input device |
 | `start_input_monitor` | `{ deviceId?: string \| null }` | `()` | Live mic level → `audio:level` ~30/s; pluck/onset + YIN pitch → `input:event` `source: "mic"`; `null` = OS default; uses prefs stream fields; stops mock first |
 | `stop_input_monitor` | — | `()` | Stops cpal stream thread |
@@ -27,15 +25,24 @@ Use **snake_case** Rust symbols; Tauri exposes them with the same names to the f
 | `get_session` | — | `AppSession` | Local stub: reads `session.json` in app config dir |
 | `dev_sign_in` | `{ payload: { displayName?: string \| null } }` | `AppSession` | Writes dev session + placeholder entitlements (`local:*`) |
 | `sign_out` | — | `AppSession` | Removes `session.json` |
-| `get_subscription_state` | — | `SubscriptionState` | Reads `subscription_cache.json`; uses last successful sync + grace rules |
-| `sync_subscription_now` | — | `SubscriptionState` | `GET {apiBaseUrl}/api/v1/subscription` (blocking HTTP); updates cache |
-| `set_subscription_api_base` | `{ payload: { url: string } }` | `SubscriptionState` | Persists API base in cache (must be `http://` or `https://`) |
+
+**`AudioPreferences`:** `preferredInputDeviceId`, `preferredInputDeviceLabel?` (cpal device name for hotplug remapping), `latencyOffsetMs`, `preferredMidiInputPortId`, `preferredMidiInputPortName?` (MIDI port name for remapping when opaque ids change), `backingDroneEnabled?`, `backingDroneMuted?` (Practice reference drone), `inputStreamSampleRateHz?` (`null` = device default), `inputStreamBufferFrames?` (`null` = cpal default buffer). Label/name fields omit or `null` when unset; older prefs files deserialize with missing keys.
 
 **`AppSession`:** `schemaVersion`, `signedIn`, `authKind` (`"dev"` when signed in, else `null`), `displayName`, `signedInAtUnixMs`, `entitlements` (string array — stub until backend).
 
-**`SubscriptionState`:** `schemaVersion`, `apiBaseUrl`, `graceDays`, `subscriptionStatus`, `tier`, `validUntilUnixMs`, `lastSyncOkUnixMs`, `lastSyncError`, `lastSyncSucceeded`, `offlineGraceActive`, `entitled`. Offline grace applies when the last sync attempt failed but a prior sync had `active`/`trialing` and `lastSyncOkUnixMs` is within `graceDays`.
+### Subscription / billing (deferred — not in product UI)
 
-Future (plan): exclusive mode, catalog fetch, real OAuth, Stripe-backed subscription rows, etc.
+These commands exist for future monetization work; the app does **not** surface checkout or plans at launch.
+
+| Command | Payload | Returns | Notes |
+|--------|---------|---------|--------|
+| `get_subscription_state` | — | `SubscriptionState` | Reads `subscription_cache.json` |
+| `sync_subscription_now` | — | `SubscriptionState` | `GET {apiBaseUrl}/api/v1/subscription` (blocking HTTP) |
+| `set_subscription_api_base` | `{ payload: { url: string } }` | `SubscriptionState` | Persists API base (`http://` or `https://`) |
+
+**`SubscriptionState`:** `schemaVersion`, `apiBaseUrl`, `graceDays`, `subscriptionStatus`, `tier`, `validUntilUnixMs`, `lastSyncOkUnixMs`, `lastSyncError`, `lastSyncSucceeded`, `offlineGraceActive`, `entitled`.
+
+Future (plan): exclusive mode, catalog fetch, real OAuth; Stripe only when subscription model is intentional.
 
 ## Events (Rust → frontend)
 

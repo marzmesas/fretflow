@@ -1,17 +1,13 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
   import { onMount } from "svelte";
-  import type { AppSession, SubscriptionState } from "$lib/ipc";
+  import type { AppSession } from "$lib/ipc";
   import { isTauri } from "$lib/tauri-env";
 
   let session = $state<AppSession | null>(null);
-  let subscription = $state<SubscriptionState | null>(null);
   let displayName = $state("");
-  let apiBaseInput = $state("");
   let busy = $state(false);
-  let subBusy = $state(false);
   let error = $state<string | null>(null);
-  let subError = $state<string | null>(null);
 
   async function refreshSession() {
     if (!isTauri()) {
@@ -25,27 +21,6 @@
       session = null;
       error = e instanceof Error ? e.message : String(e);
     }
-  }
-
-  async function refreshSubscription() {
-    if (!isTauri()) {
-      subscription = null;
-      return;
-    }
-    try {
-      subscription = await invoke<SubscriptionState>("get_subscription_state");
-      if (subscription) {
-        apiBaseInput = subscription.apiBaseUrl;
-      }
-      subError = null;
-    } catch (e) {
-      subscription = null;
-      subError = e instanceof Error ? e.message : String(e);
-    }
-  }
-
-  async function refreshAll() {
-    await Promise.all([refreshSession(), refreshSubscription()]);
   }
 
   async function devSignIn() {
@@ -78,48 +53,15 @@
     }
   }
 
-  async function saveApiBase() {
-    if (!isTauri()) return;
-    subBusy = true;
-    subError = null;
-    try {
-      subscription = await invoke<SubscriptionState>("set_subscription_api_base", {
-        payload: { url: apiBaseInput.trim() },
-      });
-    } catch (e) {
-      subError = e instanceof Error ? e.message : String(e);
-    } finally {
-      subBusy = false;
-    }
-  }
-
-  async function syncSubscription() {
-    if (!isTauri()) return;
-    subBusy = true;
-    subError = null;
-    try {
-      subscription = await invoke<SubscriptionState>("sync_subscription_now");
-      if (subscription) {
-        apiBaseInput = subscription.apiBaseUrl;
-      }
-    } catch (e) {
-      subError = e instanceof Error ? e.message : String(e);
-    } finally {
-      subBusy = false;
-    }
-  }
-
   onMount(() => {
-    void refreshAll();
+    void refreshSession();
   });
 </script>
 
 <h1 style="margin: 0 0 0.5rem; font-size: 1.5rem">Account</h1>
 <p class="muted" style="margin: 0 0 1rem">
-  Dev session (<code>session.json</code>) and subscription sync against the Phase 5 API scaffold (<code>server/</code>,
-  default <code>http://127.0.0.1:8787</code>). Run <code>cd server &amp;&amp; npm run dev</code> then use <strong
-    >Sync subscription</strong
-  >.
+  Local <strong>dev sign-in</strong> for testing (<code>session.json</code> in the app config directory). Billing and subscriptions are
+  <strong>not</strong> part of the initial product — we are focusing on practice, charts, and desktop quality first.
 </p>
 
 {#if !isTauri()}
@@ -129,55 +71,7 @@
     <p style="color: #f87171; margin: 0 0 1rem">{error}</p>
   {/if}
 
-  <div class="panel" style="max-width: 32rem; margin-bottom: 1.25rem">
-    <h2 style="margin: 0 0 0.5rem; font-size: 1.05rem">Subscription (Phase 5)</h2>
-    {#if subError}
-      <p style="color: #f87171; margin: 0 0 0.5rem; font-size: 0.9rem">{subError}</p>
-    {/if}
-    {#if subscription}
-      <p style="margin: 0 0 0.35rem; font-size: 0.9rem">
-        Status: <strong>{subscription.subscriptionStatus}</strong>
-        {#if subscription.tier}
-          · tier <code>{subscription.tier}</code>
-        {/if}
-      </p>
-      <p class="muted" style="margin: 0 0 0.35rem; font-size: 0.82rem">
-        Entitled: <strong>{subscription.entitled ? "yes" : "no"}</strong>
-        · last sync OK: <strong>{subscription.lastSyncSucceeded ? "yes" : "no"}</strong>
-        {#if subscription.offlineGraceActive}
-          · <span style="color: var(--ff-accent)">offline grace</span>
-        {/if}
-      </p>
-      {#if subscription.lastSyncError}
-        <p class="muted" style="margin: 0 0 0.5rem; font-size: 0.82rem">Last error: {subscription.lastSyncError}</p>
-      {/if}
-      <p class="muted" style="margin: 0 0 0.5rem; font-size: 0.8rem">
-        Grace window: <strong>{subscription.graceDays}</strong> days after last successful sync · cache:
-        <code>subscription_cache.json</code>
-      </p>
-    {:else}
-      <p class="muted" style="margin: 0 0 0.5rem">Loading…</p>
-    {/if}
-    <label style="display: block; margin: 0.5rem 0">
-      <span class="muted" style="display: block; margin-bottom: 0.25rem; font-size: 0.88rem">API base URL</span>
-      <input
-        type="url"
-        bind:value={apiBaseInput}
-        placeholder="http://127.0.0.1:8787"
-        disabled={subBusy}
-        style="width: 100%; max-width: 24rem; padding: 0.4rem 0.55rem; border-radius: 6px; border: 1px solid var(--ff-border); background: var(--ff-bg); color: var(--ff-text)"
-      />
-    </label>
-    <div class="row" style="gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem">
-      <button type="button" class="btn" onclick={saveApiBase} disabled={subBusy}>Save API URL</button>
-      <button type="button" class="btn btn-primary" onclick={syncSubscription} disabled={subBusy}>
-        {subBusy ? "…" : "Sync subscription"}
-      </button>
-    </div>
-  </div>
-
   <div class="panel" style="max-width: 28rem">
-    <h2 style="margin: 0 0 0.5rem; font-size: 1.05rem">Session (dev)</h2>
     {#if session}
       {#if session.signedIn}
         <p style="margin: 0 0 0.5rem">
