@@ -3,7 +3,7 @@
   import { DEMO_CHART } from "$lib/chart/demo-chart";
   import { stageChartForPractice } from "$lib/chart/practice-chart-transfer";
   import type { FretflowChartV1 } from "$lib/chart/types";
-  import { firstCanonicalJsonLineDiff } from "$lib/chart/chart-json-canonical";
+  import { firstCanonicalJsonLineDiff, stableStringifyChart } from "$lib/chart/chart-json-canonical";
   import { chartLengthBeats } from "$lib/chart/time";
   import { getChartValidationIssues, validateChart } from "$lib/chart/validate";
 
@@ -13,6 +13,7 @@
   let parseError = $state<string | null>(null);
   let lastValid = $state<FretflowChartV1 | null>(null);
   let compareSummary = $state<string | null>(null);
+  let copyCanonicalFeedback = $state<string | null>(null);
 
   function runValidate() {
     parseError = null;
@@ -57,6 +58,20 @@
     if (!lastValid) return;
     stageChartForPractice(lastValid);
     void goto("/practice");
+  }
+
+  async function copyCanonicalJson() {
+    if (!lastValid) return;
+    copyCanonicalFeedback = null;
+    try {
+      await navigator.clipboard.writeText(stableStringifyChart(lastValid));
+      copyCanonicalFeedback = "Copied canonical JSON.";
+    } catch {
+      copyCanonicalFeedback = "Copy failed (clipboard permission).";
+    }
+    setTimeout(() => {
+      copyCanonicalFeedback = null;
+    }, 2500);
   }
 
   function runCompare() {
@@ -139,6 +154,9 @@
   <div class="row" style="flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem">
     <button type="button" class="btn btn-primary" onclick={runValidate}>Validate</button>
     <button type="button" class="btn" onclick={loadDemo}>Load demo JSON</button>
+    <button type="button" class="btn" disabled={!lastValid} onclick={() => void copyCanonicalJson()}>
+      Copy canonical JSON
+    </button>
     <button type="button" class="btn" class:btn-primary={!!lastValid} disabled={!lastValid} onclick={openInPractice}>
       Open in Practice
     </button>
@@ -147,6 +165,10 @@
       <input type="file" accept="application/json,.json" onchange={onJsonFile} />
     </label>
   </div>
+
+  {#if copyCanonicalFeedback}
+    <p class="muted" style="margin: 0 0 0.5rem; font-size: 0.88rem">{copyCanonicalFeedback}</p>
+  {/if}
 
   {#if parseError}
     <p style="color: #f87171; margin: 0 0 0.75rem">JSON parse error: {parseError}</p>

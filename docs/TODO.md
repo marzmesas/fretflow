@@ -12,7 +12,7 @@ Source: internal phased plan. This file is the **committed** checklist; keep it 
 6. ~~**Mic pitch + onset path**~~ — Done (v1): monitor thread YIN + onset → `input:event` `source: "mic"`; Practice **Mic pitch (beta)** shares `findHitNoteIndex` with MIDI. Rhythm vs pitch betas are mutually exclusive.
 7. ~~**Auth + entitlements stub**~~ — Done (v1): `get_session` / `dev_sign_in` / `sign_out`, `session.json`, **Account** route + header link; placeholder `entitlements` for future gating. *(Real OAuth / backend: later Phase 5.)*
 8. ~~**Backend + Stripe + offline grace**~~ — **Deferred (product):** not shipping a subscription or checkout model at launch; focus stays on practice, charts, and app quality. **Infra in repo (optional / dormant):** `server/` stub, `subscription.rs` + IPC — revisit only when monetization is planned.
-9. **Content pipeline** — **In progress:** **Chart QA** (validate + A/B compare + canonical line diff + Practice); **`midi-to-chart`** + **`assert-midi-golden`** (`smoke`, `tempo-ramp`, `chord-smoke` fixtures). **Next:** importer v2 (pitch bend, position DP), deeper diff / golden coverage.
+9. ~~**Content pipeline**~~ — **Done (v1):** Chart QA (validate, A/B + canonical diff + copy canonical + Practice handoff); `midi-to-chart` + `assert-midi-golden` (`smoke`, `tempo-ramp`, `chord-smoke`); lookahead voicing; pitch-bend notice in importer. **Defer:** MusicXML, bend→Hz in charts, DP voicing, more goldens.
 10. **Release hardening** — Second OS, signing, updater, a11y, profiling. *(Phase 7.)*
 11. **Differentiation tracks** — Pedagogy / social / pro audio. *(Phase 8.)*
 
@@ -21,9 +21,9 @@ Source: internal phased plan. This file is the **committed** checklist; keep it 
 | Phase | Open items |
 |-------|------------|
 | 1 | — |
-| 4 | Full mic+MIDI engine parity (polish, edge cases) |
+| 4 | Mic+MIDI parity (pitch bend shipped on MIDI); edge cases, mic nuance |
 | 5 | Real OAuth / production API when needed; Stripe deferred |
-| 6 | `midi-to-chart`, chord fixture + golden asserts, Chart QA canonical diff; importers / preview |
+| 6 | ~~Chart pipeline v1~~; later: MusicXML, preview polish |
 | 7 | Win/Linux, signing, updater, crashes, a11y, profiling |
 | 8 | Choose pedagogy / social / pro-audio tracks |
 
