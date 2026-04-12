@@ -3,6 +3,10 @@
  * committed golden JSON (guards importer regressions).
  *
  *   npm run assert-midi-golden
+ *
+ * After intentional importer changes, refresh goldens:
+ *   npm run midi-to-chart -- static/fixtures/smoke.mid static/fixtures/golden-smoke-chart.json
+ *   (repeat for tempo-ramp.mid and chord-smoke.mid)
  */
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -33,6 +37,7 @@ function loadGolden(jsonRelative: string): unknown {
 const pairs: readonly [string, string][] = [
   ["static/fixtures/smoke.mid", "static/fixtures/golden-smoke-chart.json"],
   ["static/fixtures/tempo-ramp.mid", "static/fixtures/golden-tempo-ramp-chart.json"],
+  ["static/fixtures/chord-smoke.mid", "static/fixtures/golden-chord-smoke-chart.json"],
 ];
 
 let failed = false;

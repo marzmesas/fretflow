@@ -13,6 +13,7 @@
     "assert-midi-golden": "tsx scripts/assert-midi-golden.ts",
     "generate-smoke-mid": "tsx scripts/generate-smoke-mid.ts",
     "generate-tempo-ramp-mid": "tsx scripts/generate-tempo-ramp-mid.ts",
+    "generate-chord-smoke-mid": "tsx scripts/generate-chord-smoke-mid.ts",
     "lint": "npm run check",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "tauri": "tauri"

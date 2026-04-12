@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "title": "chord-smoke",
+  "bpm": 120,
+  "timeSignature": [
+    4,
+    4
+  ],
+  "notes": [
+    {
+      "startBeat": 0,
+      "durationBeats": 1,
+      "stringIndex": 0,
+      "fret": 3
+    },
+    {
+      "startBeat": 0,
+      "durationBeats": 1,
+      "stringIndex": 1,
+      "fret": 5
+    },
+    {
+      "startBeat": 0,
+      "durationBeats": 1,
+      "stringIndex": 2,
+      "fret": 5
+    }
+  ]
+}
