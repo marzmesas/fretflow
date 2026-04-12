@@ -3,6 +3,7 @@
   import { DEMO_CHART } from "$lib/chart/demo-chart";
   import { stageChartForPractice } from "$lib/chart/practice-chart-transfer";
   import type { FretflowChartV1 } from "$lib/chart/types";
+  import { firstCanonicalJsonLineDiff } from "$lib/chart/chart-json-canonical";
   import { chartLengthBeats } from "$lib/chart/time";
   import { getChartValidationIssues, validateChart } from "$lib/chart/validate";
 
@@ -115,6 +116,8 @@
     if (A.notes.length !== B.notes.length) {
       lines.push("(index compare truncated by shorter note list)");
     }
+    lines.push("---");
+    lines.push(firstCanonicalJsonLineDiff(A, B));
     compareSummary = lines.join("\n");
   }
 </script>
@@ -187,8 +190,9 @@
 
   <h2 style="margin: 1.5rem 0 0.5rem; font-size: 1.1rem">Compare two charts</h2>
   <p class="muted" style="margin: 0 0 0.5rem; font-size: 0.88rem">
-    Optional second JSON (same schema). Both must validate; you get a short field diff and a count of note rows
-    that differ by index.
+    Optional second JSON (same schema). Both must validate; you get a short field diff, a count of note rows that
+    differ by index, and the first mismatch in <strong>canonical</strong> multiline JSON (sorted notes, stable key
+    order) so reordered arrays still compare meaningfully.
   </p>
   <div class="row" style="flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem">
     <button type="button" class="btn" onclick={runCompare}>Compare</button>
