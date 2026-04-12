@@ -37,7 +37,7 @@ Hits and misses tint notes on the highway; **loop A–B** resets scoring each wr
 
 The app uses `validateChart()` in `src/lib/chart/validate.ts` before accepting a loaded file.
 
-For **Standard MIDI** sources, run `npm run midi-to-chart -- file.mid out.json` to produce a draft v1 chart (integrates `setTempo` for wall-clock BPM, chord-aware fingering). CI runs `npm run assert-midi-golden` against checked-in outputs for `smoke`, `tempo-ramp`, and `chord-smoke` fixtures under `static/fixtures/`. Validate in **Chart QA** or `npm run validate-charts` after copying into `static/charts/`.
+For **Standard MIDI** sources, run `npm run midi-to-chart -- file.mid out.json` to produce a draft v1 chart (integrates `setTempo` for wall-clock BPM, chord-aware fingering with one-beat lookahead when moving to the next chord). If the file contains **pitch bend**, the CLI logs once; charts remain twelve-tone. CI runs `npm run assert-midi-golden` on `smoke`, `tempo-ramp`, and `chord-smoke` under `static/fixtures/`. Validate in **Chart QA** or `npm run validate-charts` after copying into `static/charts/`.
 
 ## Example
 

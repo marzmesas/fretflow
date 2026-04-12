@@ -13,7 +13,8 @@
  * chart seconds (beat*60/bpm) match integrated MIDI time to the last note end. Notes
  * sharing the same start beat are voiced as a chord: prefer distinct strings, then
  * greedy transitions from bass note upward within the chord and across chords.
- * Skips MIDI channel 10 (drums, 0-based channel 9). Ignores pitch bend.
+ * Skips MIDI channel 10 (drums, 0-based channel 9). Logs once if the file contains pitch bend
+ * (chart stays equal-temperament; bends are not applied).
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { basename } from "node:path";
@@ -80,11 +81,38 @@ function scoreTransition(prev: Pos | null, p: Pos): number {
   return Math.abs(p.fret - prev.fret) + 2.5 * Math.abs(p.stringIndex - prev.stringIndex);
 }
 
+/** Best transition cost from `from` into any valid position for `nextMidi`. */
+function minTransitionToMidi(from: Pos, nextMidi: number): number {
+  const nextPos = allGuitarPositions(nextMidi);
+  if (nextPos.length === 0) {
+    return 0;
+  }
+  let m = Infinity;
+  for (const d of nextPos) {
+    m = Math.min(m, scoreTransition(from, d));
+  }
+  return m;
+}
+
 type RawNote = { startBeat: number; durationBeats: number; midi: number };
 
 function beatGroupKey(startBeat: number): number {
   return Math.round(startBeat * 1e9) / 1e9;
 }
+
+function nextChordLeadMidi(groups: Map<number, RawNote[]>, orderedKeys: number[], ki: number): number | null {
+  if (ki + 1 >= orderedKeys.length) {
+    return null;
+  }
+  const next = groups.get(orderedKeys[ki + 1]!);
+  if (!next || next.length === 0) {
+    return null;
+  }
+  const sorted = [...next].sort((a, b) => a.midi - b.midi);
+  return sorted[0]!.midi;
+}
+
+const LOOKAHEAD_WEIGHT = 0.35;
 
 function assignFingering(raw: RawNote[]): ChartNoteV1[] {
   const groups = new Map<number, RawNote[]>();
@@ -98,21 +126,31 @@ function assignFingering(raw: RawNote[]): ChartNoteV1[] {
   const out: ChartNoteV1[] = [];
   let prev: Pos | null = null;
 
-  for (const k of orderedKeys) {
+  for (let ki = 0; ki < orderedKeys.length; ki++) {
+    const k = orderedKeys[ki]!;
     const chord = groups.get(k)!;
     chord.sort((a, b) => a.midi - b.midi);
+    const nextLead = nextChordLeadMidi(groups, orderedKeys, ki);
     const usedStrings = new Set<number>();
-    for (const r of chord) {
+    for (let idx = 0; idx < chord.length; idx++) {
+      const r = chord[idx]!;
       const all = allGuitarPositions(r.midi);
       if (all.length === 0) continue;
       let candidates = all.filter((c) => !usedStrings.has(c.stringIndex));
       if (candidates.length === 0) {
         candidates = all;
       }
+      const lastInChord = idx === chord.length - 1;
+      const useLookahead =
+        nextLead != null && (chord.length === 1 || lastInChord) && allGuitarPositions(nextLead).length > 0;
+
       let best = candidates[0]!;
       let bestScore = Infinity;
       for (const c of candidates) {
-        const sc = scoreTransition(prev, c);
+        let sc = scoreTransition(prev, c);
+        if (useLookahead) {
+          sc += LOOKAHEAD_WEIGHT * minTransitionToMidi(c, nextLead);
+        }
         if (sc < bestScore) {
           bestScore = sc;
           best = c;
@@ -244,6 +282,17 @@ function buildChart(
 
   const timed = flattenTracks(midi, opts.trackIndex);
   const tempoTimeline = extractTempoTimeline(timed);
+  let sawPitchBendInFile = false;
+  for (const { e } of timed) {
+    if (e.type === "pitchBend") {
+      sawPitchBendInFile = true;
+    }
+  }
+  if (sawPitchBendInFile) {
+    console.error(
+      "midi-to-chart: source contains pitch bend; chart uses equal temperament (per-note pitch bends not applied).",
+    );
+  }
   const pending = new Map<string, number>();
   const rawNotes: RawNote[] = [];
   let skippedUnmapped = 0;
