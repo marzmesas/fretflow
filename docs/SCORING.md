@@ -29,6 +29,7 @@ Optional **Backing drone** is a very quiet low-E sine while **playback is runnin
 
 - Standard tuning at **concert pitch**; chart `stringIndex` + `fret` → expected MIDI note (`src/lib/chart/guitar.ts`).
 - Requires **Settings → MIDI → Start listening** and the **desktop** app. Voice messages are delivered as **`input:event`** with `source: "midi"` (`docs/IPC.md`).
+- **`pitch_bend`** events are forwarded for diagnostics but **do not** affect hit/miss scoring (only `note_on` with velocity greater than zero does).
 
 ## Metronome (Practice)
 

@@ -57,7 +57,7 @@ Throttle UI updates (e.g. **30–60 Hz**) for meters and playhead-style traffic.
 | `input:event` | `InputEvent` (see below) | Unified realtime playing input: **MIDI** (`source: "midi"`) and **mic** (`source: "mic"`, monitor running). |
 | `practice:tick` | TBD | Phase 3+ scoring / playhead sync |
 
-**`input:event` payload (`schemaVersion` 1):** `schemaVersion`, `source` (`"midi"` \| `"mic"`), `kind` (`note_on` \| `note_off`), `channel`, `note`, `velocity`, `timestampUs` (midir µs for MIDI; `0` for mic). **MIDI:** `pitchHz` / `confidence` omitted. **Mic:** `note_on` only today; includes `pitchHz` and `confidence` (YIN); emitted on level onset while the input monitor is active.
+**`input:event` payload (`schemaVersion` 1):** `schemaVersion`, `source` (`"midi"` \| `"mic"`), `kind`, `channel`, `note`, `velocity`, `timestampUs` (midir µs for MIDI; `0` for mic). **MIDI voice:** `kind` is `note_on`, `note_off`, or `pitch_bend`. For **`pitch_bend`**, `note` is the 7-bit LSB and `velocity` the 7-bit MSB of the 14-bit value (`raw14 = note \| (velocity << 7)`, center `8192`). Practice scoring listens to **`note_on`** only; pitch bend is for diagnostics / future pitch-aware scoring. **MIDI:** `pitchHz` / `confidence` omitted. **Mic:** `note_on` only today; includes `pitchHz` and `confidence` (YIN); emitted on level onset while the input monitor is active.
 
 ## Chart data (frontend)
 

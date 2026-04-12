@@ -14,6 +14,7 @@
     EVENT_AUDIO_INPUT_ERROR,
     EVENT_AUDIO_LEVEL,
     EVENT_INPUT_EVENT,
+    inputEventMidiPitchBendRaw14,
   } from "$lib/ipc";
   import { isTauri } from "$lib/tauri-env";
   import { createMetronomeAudioContext, playMetronomeClick } from "$lib/chart/chart-metronome";
@@ -657,12 +658,18 @@
     </div>
 
     {#if recentMidiNotes.length > 0}
-      <p class="muted" style="margin-bottom: 0.35rem">Recent notes (newest first)</p>
+      <p class="muted" style="margin-bottom: 0.35rem">Recent MIDI events (newest first)</p>
       <ul style="margin: 0; padding-left: 1.25rem; font-size: 0.9rem">
         {#each recentMidiNotes as n}
           <li>
-            {n.source} · {n.kind} ch{n.channel} note {n.note} vel {n.velocity}
-            <span class="muted">({n.timestampUs} µs)</span>
+            {#if n.kind === "pitch_bend"}
+              {n.source} · pitch bend ch{n.channel} raw14 {inputEventMidiPitchBendRaw14(n) ?? "?"}
+              <span class="muted">(center 8192)</span>
+              <span class="muted">({n.timestampUs} µs)</span>
+            {:else}
+              {n.source} · {n.kind} ch{n.channel} note {n.note} vel {n.velocity}
+              <span class="muted">({n.timestampUs} µs)</span>
+            {/if}
           </li>
         {/each}
       </ul>

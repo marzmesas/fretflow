@@ -51,6 +51,13 @@ pub fn voice_message_to_ipc(timestamp_us: u64, bytes: &[u8]) -> Option<MidiNoteI
                 })
             }
         }
+        0xE0 => Some(MidiNoteIpc {
+            kind: "pitch_bend".into(),
+            channel,
+            note: note & 0x7F,
+            velocity: velocity & 0x7F,
+            timestamp_us,
+        }),
         _ => None,
     }
 }

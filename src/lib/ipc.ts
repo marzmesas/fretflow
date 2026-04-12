@@ -105,3 +105,11 @@ export function inputEventIsMidiV1(e: InputEventPayload): boolean {
 export function inputEventIsMicPitchV1(e: InputEventPayload): boolean {
   return e.schemaVersion === 1 && e.source === "mic" && e.kind === "note_on";
 }
+
+/** MIDI `pitch_bend`: 14-bit unsigned `0..16383` packed in `note` (LSB) and `velocity` (MSB); center = 8192. */
+export function inputEventMidiPitchBendRaw14(e: InputEventPayload): number | null {
+  if (e.schemaVersion !== 1 || e.source !== "midi" || e.kind !== "pitch_bend") {
+    return null;
+  }
+  return e.note | (e.velocity << 7);
+}

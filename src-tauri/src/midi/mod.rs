@@ -132,4 +132,15 @@ mod tests {
         assert_eq!(ev.kind, "note_off");
         assert_eq!(ev.channel, 1);
     }
+
+    #[test]
+    fn pitch_bend_center() {
+        let ev = voice_message_to_ipc(0, &[0xE0, 0, 64]).expect("bend");
+        assert_eq!(ev.kind, "pitch_bend");
+        assert_eq!(ev.channel, 0);
+        assert_eq!(ev.note, 0);
+        assert_eq!(ev.velocity, 64);
+        let raw14 = u16::from(ev.note) | (u16::from(ev.velocity) << 7);
+        assert_eq!(raw14, 8192);
+    }
 }
