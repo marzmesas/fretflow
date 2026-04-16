@@ -21,7 +21,7 @@ Source: internal phased plan. This file is the **committed** checklist; keep it 
 | Phase | Open items |
 |-------|------------|
 | 1 | — |
-| 4 | Mic+MIDI parity (pitch bend shipped on MIDI); edge cases, mic nuance |
+| 4 | ~~Mic+MIDI parity~~ — mic `note_off` on pitch change + monitor stop; MIDI pitch bend in IPC. *Later:* edge cases, sustain-aware mic |
 | 5 | Real OAuth / production API when needed; Stripe deferred |
 | 6 | ~~Chart pipeline v1~~; later: MusicXML, preview polish |
 | 7 | Win/Linux, signing, updater, crashes, a11y, profiling |
@@ -33,5 +33,6 @@ Source: internal phased plan. This file is the **committed** checklist; keep it 
 - Backing drone + mute (Practice + prefs), Settings tap-to-beat latency hint, `chart-backing-drone` / `latency-tap-calibration` helpers.
 - Input monitor: persisted sample rate + buffer frames, `stream_config` + `get_input_device_stream_info`, Settings Advanced section.
 - Mic pitch (v1): `mic_pitch` + YIN in `monitor`, `InputEvent::from_mic_note_on`, Practice **Mic pitch (beta)** vs **Mic rhythm (beta)**.
+- Phase 4: mic `note_off` pairs legato / monitor teardown; docs `IPC.md` / `SCORING.md`; Practice **Input debug** panel.
 - Session stub: `session.rs`, Account page, shell “Sign in” / dev label, `local:*` entitlements placeholder.
 - Phase 5 infra (dormant): `server/` stub, `subscription.rs` + `subscription_cache.json` — no subscription UI; billing deferred.

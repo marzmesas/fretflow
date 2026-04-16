@@ -47,6 +47,7 @@ Optional **Backing drone** is a very quiet low-E sine while **playback is runnin
 ## Mic pitch (beta)
 
 - Rust **YIN** on the live monitor buffer; **onset** from a short-term level rise, then `input:event` with `source: "mic"`, `kind: "note_on"`, mapped **pitch → MIDI note** (same chart matching as MIDI).
+- **`note_off`** events are emitted for **MIDI parity** (pitch change to another note, monitor stop); scoring still uses **`note_on`** only (same as MIDI `note_off`).
 - Enable **Mic pitch (beta)** in Practice; keep **Start monitoring** on in Settings. Tuning and noise sensitivity are heuristic (cooldown, clarity threshold).
 
 ## Session summary
