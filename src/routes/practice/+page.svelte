@@ -49,12 +49,17 @@
 </div>
 
 <div class="panel">
-  <h2>MIDI debug</h2>
+  <h2>Input debug</h2>
   {#if browserOnly}
-    <p class="muted" style="margin-bottom: 0">Run the desktop app and start MIDI listening in Settings to see events here.</p>
+    <p class="muted" style="margin-bottom: 0">
+      Run the desktop app: enable <strong>Start monitoring</strong> (mic) and/or <strong>Start listening</strong> (MIDI) in
+      <strong>Settings</strong> to see events here.
+    </p>
   {:else if recent.length === 0}
     <p class="muted" style="margin-bottom: 0">
-      No MIDI notes yet. In <strong>Settings</strong>, pick a port and choose <strong>Start listening</strong>.
+      No input events yet. In <strong>Settings</strong>, start the input monitor (mic) and/or MIDI listening; with
+      <strong>Mic pitch (beta)</strong> on in Practice you will see <code>mic</code> <code>note_on</code> /
+      <code>note_off</code>.
     </p>
   {:else}
     <p class="muted" style="margin-bottom: 0.5rem">Last {maxNotes} events (global; same stream as Settings)</p>
@@ -62,6 +67,9 @@
       {#each recent as n}
         <li>
           {n.source} · {n.kind} ch{n.channel} note {n.note} vel {n.velocity}
+          {#if n.pitchHz != null && n.confidence != null}
+            <span class="muted"> — {n.pitchHz.toFixed(1)} Hz, conf {n.confidence.toFixed(2)}</span>
+          {/if}
           <span class="muted">({n.timestampUs} µs)</span>
         </li>
       {/each}

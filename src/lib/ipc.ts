@@ -4,7 +4,7 @@
 export const EVENT_AUDIO_LEVEL = "audio:level";
 /** cpal stream / monitor failure — payload is a human-readable string */
 export const EVENT_AUDIO_INPUT_ERROR = "audio:input_error";
-/** Unified input stream (MIDI today; mic / other sources later). */
+/** Unified input stream (MIDI + mic pitch events). */
 export const EVENT_INPUT_EVENT = "input:event";
 export const EVENT_PRACTICE_TICK = "practice:tick";
 
@@ -104,6 +104,11 @@ export function inputEventIsMidiV1(e: InputEventPayload): boolean {
 /** Live monitor + YIN pitch → `note_on` with `pitchHz` / `confidence`. */
 export function inputEventIsMicPitchV1(e: InputEventPayload): boolean {
   return e.schemaVersion === 1 && e.source === "mic" && e.kind === "note_on";
+}
+
+/** Mic legato / teardown — `note_off`, no `pitchHz` in payload. */
+export function inputEventIsMicNoteOffV1(e: InputEventPayload): boolean {
+  return e.schemaVersion === 1 && e.source === "mic" && e.kind === "note_off";
 }
 
 /** MIDI `pitch_bend`: 14-bit unsigned `0..16383` packed in `note` (LSB) and `velocity` (MSB); center = 8192. */
