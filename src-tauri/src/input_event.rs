@@ -62,6 +62,22 @@ impl InputEvent {
             confidence: Some(confidence),
         }
     }
+
+    /// Emitted when YIN detects a **new** pitch so the previous mic `note_on` is paired (MIDI-like legato).
+    #[must_use]
+    pub fn from_mic_note_off(note: u8) -> Self {
+        Self {
+            schema_version: INPUT_EVENT_SCHEMA_VERSION,
+            source: INPUT_SOURCE_MIC,
+            kind: "note_off".into(),
+            channel: 0,
+            note,
+            velocity: 0,
+            timestamp_us: 0,
+            pitch_hz: None,
+            confidence: None,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -87,5 +103,15 @@ mod tests {
         assert!((hz - 329.63f64).abs() < 0.1);
         let conf = s["confidence"].as_f64().expect("confidence");
         assert!((conf - 0.85f64).abs() < 0.01);
+    }
+
+    #[test]
+    fn input_event_mic_note_off_omits_pitch() {
+        let ev = InputEvent::from_mic_note_off(60);
+        let s = serde_json::to_value(&ev).unwrap();
+        assert_eq!(s["kind"], "note_off");
+        assert_eq!(s["note"], 60);
+        assert_eq!(s["velocity"], 0);
+        assert!(!s.as_object().unwrap().contains_key("pitchHz"));
     }
 }

@@ -16,7 +16,7 @@ use tauri::{AppHandle, Emitter};
 use crate::ipc;
 
 use super::mic_pitch::{
-    mic_capture_lock, new_yin_detector, process_mic_pitch_trigger, MicCaptureState, WINDOW,
+    mic_capture_lock, process_mic_pitch_trigger, MicCaptureState, MicPitchThreadState,
 };
 use super::prefs::load_audio_preferences;
 use super::stream_config;
@@ -507,23 +507,23 @@ pub fn start_input_monitor(app: AppHandle, device_id: Option<String>) -> Result<
             )?;
             stream.play()?;
 
-            let mut yin = new_yin_detector();
-            let mut scratch = [0.0f32; WINDOW];
-            let mut last_pitch_emit = None::<Instant>;
+            let mut mic_pitch = MicPitchThreadState::new();
 
             while !stop_thread.load(Ordering::SeqCst) {
                 process_mic_pitch_trigger(
                     &pitch_trigger,
                     &capture,
                     sample_rate,
-                    &mut yin,
-                    &mut scratch,
-                    &mut last_pitch_emit,
+                    &mut mic_pitch,
                     &emit_handle,
                 );
                 let v = f32::from_bits(level_bits.load(Ordering::Relaxed));
                 let _ = emit_handle.emit(ipc::AUDIO_LEVEL, v);
                 thread::sleep(Duration::from_millis(33));
+            }
+            if let Some(n) = mic_pitch.last_sounded_note.take() {
+                let off = crate::input_event::InputEvent::from_mic_note_off(n);
+                let _ = emit_handle.emit(ipc::INPUT_EVENT, &off);
             }
             drop(stream);
             Ok(())

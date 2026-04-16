@@ -89,14 +89,38 @@ pub fn mic_capture_lock(mic: &Mutex<MicCaptureState>) -> MutexGuard<'_, MicCaptu
     mic.lock().unwrap_or_else(|e| e.into_inner())
 }
 
+/// YIN + cooldown + last sounded note — owned by the input monitor thread only.
+pub struct MicPitchThreadState {
+    pub yin: YINDetector<f32>,
+    pub scratch: [f32; WINDOW],
+    pub last_emit: Option<Instant>,
+    pub last_sounded_note: Option<u8>,
+}
+
+impl MicPitchThreadState {
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            yin: new_yin_detector(),
+            scratch: [0.0f32; WINDOW],
+            last_emit: None,
+            last_sounded_note: None,
+        }
+    }
+}
+
+impl Default for MicPitchThreadState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// If `trigger` was set by the stream callback, run YIN and maybe emit `input:event` (`source: mic`).
 pub fn process_mic_pitch_trigger(
     trigger: &AtomicBool,
     capture: &Mutex<MicCaptureState>,
     sample_rate: u32,
-    yin: &mut YINDetector<f32>,
-    scratch: &mut [f32; WINDOW],
-    last_emit: &mut Option<Instant>,
+    state: &mut MicPitchThreadState,
     app: &AppHandle,
 ) {
     if !trigger.swap(false, Ordering::AcqRel) {
@@ -104,7 +128,7 @@ pub fn process_mic_pitch_trigger(
     }
 
     let now = Instant::now();
-    if let Some(t) = *last_emit {
+    if let Some(t) = state.last_emit {
         if now.duration_since(t) < EMIT_COOLDOWN {
             return;
         }
@@ -112,13 +136,13 @@ pub fn process_mic_pitch_trigger(
 
     {
         let cap = mic_capture_lock(capture);
-        if !cap.copy_ring_chronological(scratch) {
+        if !cap.copy_ring_chronological(&mut state.scratch) {
             return;
         }
     }
 
-    let Some(pitch) = yin.get_pitch(
-        scratch.as_slice(),
+    let Some(pitch) = state.yin.get_pitch(
+        state.scratch.as_slice(),
         sample_rate as usize,
         POWER_THRESHOLD,
         CLARITY_THRESHOLD,
@@ -143,9 +167,17 @@ pub fn process_mic_pitch_trigger(
     };
     let vel = (block_peak * 220.0).clamp(1.0, 127.0) as u8;
 
+    if let Some(prev) = state.last_sounded_note {
+        if prev != note {
+            let off = InputEvent::from_mic_note_off(prev);
+            let _ = app.emit(ipc::INPUT_EVENT, &off);
+        }
+    }
+
     let ev = InputEvent::from_mic_note_on(note, vel, hz, conf);
     let _ = app.emit(ipc::INPUT_EVENT, &ev);
-    *last_emit = Some(now);
+    state.last_emit = Some(now);
+    state.last_sounded_note = Some(note);
 }
 
 /// Build a YIN detector sized for [`WINDOW`].
