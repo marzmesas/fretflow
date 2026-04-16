@@ -33,8 +33,8 @@
 
 <h1 style="margin: 0 0 0.5rem; font-size: 1.5rem">Practice</h1>
 <p class="muted">
-  Phase 3: embedded chart + scrolling highway. Phase 4 adds scoring against mic/MIDI. Chart schema:
-  <code>docs/CHART_SCHEMA.md</code>.
+  Play along with the scrolling highway. Turn on scoring for MIDI or mic (betas below the chart). Latency offset lives in
+  <a href="/settings">Settings</a>. Chart JSON format: <code>docs/CHART_SCHEMA.md</code>.
 </p>
 
 {#if trackResolve.trackRequestInvalid}

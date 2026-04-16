@@ -70,7 +70,7 @@
       <span class="muted"> — v{appInfo.version}</span>
     </p>
     <p class="muted" style="margin-bottom: 0">
-      Updater and signed releases will plug in here (Phase 7).
+      Signed installers and in-app updates will show here once release builds are wired up.
     </p>
   </div>
 

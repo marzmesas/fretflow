@@ -2,7 +2,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
   import { onDestroy, onMount } from "svelte";
-  import type { AudioPreferences, InputEventPayload } from "$lib/ipc";
+  import type { AudioPreferences, InputConnectionStatus, InputEventPayload } from "$lib/ipc";
   import {
     EVENT_AUDIO_LEVEL,
     EVENT_INPUT_EVENT,
@@ -56,6 +56,10 @@
   let midiUnlisten: UnlistenFn | null = null;
   let levelUnlisten: UnlistenFn | null = null;
 
+  /** Refreshed on focus and on an interval while Practice is open (same command as the header pills). */
+  let inputConn = $state<InputConnectionStatus | null>(null);
+  let inputConnPoll: ReturnType<typeof setInterval> | null = null;
+
   let lastSessionSnapshot = $state<SessionSummaryV1 | null>(null);
 
   /** From Settings → Latency; applied to hit/miss only (highway unchanged). */
@@ -90,6 +94,25 @@
   const totalSec = $derived(chartLengthSeconds(chart));
   const totalBeats = $derived(chartLengthBeats(chart));
   const timingWindows = $derived(TIMING_BY_MODE[scoringMode]);
+
+  const readinessIssues = $derived.by(() => {
+    if (!isTauri()) return [];
+    const c = inputConn;
+    if (!c) return [];
+    const out: string[] = [];
+    const midiScoringPath = scoringEnabled && !micPitchBeta && !micRhythmBeta;
+    if (midiScoringPath && !c.midiListenActive) {
+      out.push(
+        "Scoring is on (MIDI mode) but no MIDI port is listening. In Settings → MIDI, pick a port and choose Start listening.",
+      );
+    }
+    if ((micPitchBeta || micRhythmBeta) && !c.inputMonitorActive) {
+      out.push(
+        "A mic scoring mode is on but the input monitor is off. In Settings → Audio input, choose Start monitoring so the app can hear you.",
+      );
+    }
+    return out;
+  });
 
   function resetScoringState(feedback: string | null = null) {
     consumedNoteIndices.clear();
@@ -459,16 +482,28 @@
     }
   }
 
-  function onWindowFocusCalib() {
+  async function refreshInputConnection() {
+    if (!isTauri()) return;
+    try {
+      inputConn = await invoke<InputConnectionStatus>("get_input_connection_status");
+    } catch {
+      inputConn = null;
+    }
+  }
+
+  function onWindowFocusPractice() {
     void refreshCalibrationFromPrefs();
+    void refreshInputConnection();
   }
 
   onMount(() => {
     lastSessionSnapshot = loadLastSession();
     void refreshCalibrationFromPrefs();
-    window.addEventListener("focus", onWindowFocusCalib);
+    window.addEventListener("focus", onWindowFocusPractice);
     void (async () => {
       if (isTauri()) {
+        void refreshInputConnection();
+        inputConnPoll = setInterval(() => void refreshInputConnection(), 2500);
         midiUnlisten = await listen<InputEventPayload>(EVENT_INPUT_EVENT, handleInputScoring);
         levelUnlisten = await listen<number>(EVENT_AUDIO_LEVEL, handleAudioLevel);
       }
@@ -477,7 +512,11 @@
 
   onDestroy(() => {
     if (typeof window !== "undefined") {
-      window.removeEventListener("focus", onWindowFocusCalib);
+      window.removeEventListener("focus", onWindowFocusPractice);
+    }
+    if (inputConnPoll != null) {
+      clearInterval(inputConnPoll);
+      inputConnPoll = null;
     }
     stopRaf();
     midiUnlisten?.();
@@ -512,11 +551,26 @@
     missIndices={missIndicesDisplay}
   />
 
+  {#if isTauri() && readinessIssues.length > 0}
+    <div class="practice-readiness" role="status">
+      <p class="practice-readiness__title">Before you play</p>
+      <ul class="practice-readiness__list">
+        {#each readinessIssues as line}
+          <li>{line}</li>
+        {/each}
+      </ul>
+      <p class="practice-readiness__link muted">
+        <a href="/settings">Open Settings</a>
+        — Mic and MIDI status also appear as pills in the header.
+      </p>
+    </div>
+  {/if}
+
   <div class="scoring-block">
     <label class="row" style="gap: 0.5rem; cursor: pointer; margin-bottom: 0.5rem">
       <input type="checkbox" bind:checked={scoringEnabled} />
-      <span>MIDI scoring</span>
-      <span class="muted" style="font-size: 0.85rem">(standard tuning · concert pitch)</span>
+      <span>Scoring</span>
+      <span class="muted" style="font-size: 0.85rem">MIDI by default; optional mic modes below</span>
     </label>
     {#if isTauri()}
       <p class="muted" style="margin: 0 0 0.5rem; font-size: 0.82rem">
@@ -727,5 +781,29 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 0.25rem;
+  }
+  .practice-readiness {
+    margin-top: 1rem;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, #f59e0b 55%, var(--ff-border));
+    background: color-mix(in srgb, #f59e0b 12%, var(--ff-surface));
+  }
+  .practice-readiness__title {
+    margin: 0 0 0.4rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--ff-text);
+  }
+  .practice-readiness__list {
+    margin: 0 0 0.5rem;
+    padding-left: 1.2rem;
+    font-size: 0.86rem;
+    color: var(--ff-text);
+    line-height: 1.45;
+  }
+  .practice-readiness__link {
+    margin: 0;
+    font-size: 0.82rem;
   }
 </style>
