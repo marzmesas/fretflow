@@ -62,7 +62,11 @@ fn process_f32_input(
                 count += 1;
             }
         }
-        let rms = if count > 0 { (sum_sq / count as f32).sqrt() } else { 0.0 };
+        let rms = if count > 0 {
+            (sum_sq / count as f32).sqrt()
+        } else {
+            0.0
+        };
         if cap.note_buffer_end(peak, rms) {
             trigger.store(true, Ordering::Release);
         }
@@ -100,7 +104,11 @@ fn process_i16_input(
                 count += 1;
             }
         }
-        let rms = if count > 0 { (sum_sq / count as f32).sqrt() } else { 0.0 };
+        let rms = if count > 0 {
+            (sum_sq / count as f32).sqrt()
+        } else {
+            0.0
+        };
         if cap.note_buffer_end(peak, rms) {
             trigger.store(true, Ordering::Release);
         }
@@ -142,7 +150,11 @@ fn process_u16_input(
                 count += 1;
             }
         }
-        let rms = if count > 0 { (sum_sq / count as f32).sqrt() } else { 0.0 };
+        let rms = if count > 0 {
+            (sum_sq / count as f32).sqrt()
+        } else {
+            0.0
+        };
         if cap.note_buffer_end(peak, rms) {
             trigger.store(true, Ordering::Release);
         }
@@ -180,7 +192,11 @@ fn process_i32_input(
                 count += 1;
             }
         }
-        let rms = if count > 0 { (sum_sq / count as f32).sqrt() } else { 0.0 };
+        let rms = if count > 0 {
+            (sum_sq / count as f32).sqrt()
+        } else {
+            0.0
+        };
         if cap.note_buffer_end(peak, rms) {
             trigger.store(true, Ordering::Release);
         }
@@ -221,7 +237,11 @@ fn process_u32_input(
                 count += 1;
             }
         }
-        let rms = if count > 0 { (sum_sq / count as f32).sqrt() } else { 0.0 };
+        let rms = if count > 0 {
+            (sum_sq / count as f32).sqrt()
+        } else {
+            0.0
+        };
         if cap.note_buffer_end(peak, rms) {
             trigger.store(true, Ordering::Release);
         }
@@ -259,7 +279,11 @@ fn process_i64_input(
                 count += 1;
             }
         }
-        let rms = if count > 0 { (sum_sq / count as f32).sqrt() } else { 0.0 };
+        let rms = if count > 0 {
+            (sum_sq / count as f32).sqrt()
+        } else {
+            0.0
+        };
         if cap.note_buffer_end(peak, rms) {
             trigger.store(true, Ordering::Release);
         }
@@ -300,7 +324,11 @@ fn process_u64_input(
                 count += 1;
             }
         }
-        let rms = if count > 0 { (sum_sq / count as f32).sqrt() } else { 0.0 };
+        let rms = if count > 0 {
+            (sum_sq / count as f32).sqrt()
+        } else {
+            0.0
+        };
         if cap.note_buffer_end(peak, rms) {
             trigger.store(true, Ordering::Release);
         }
@@ -337,7 +365,11 @@ fn process_f64_input(
                 count += 1;
             }
         }
-        let rms = if count > 0 { (sum_sq / count as f32).sqrt() } else { 0.0 };
+        let rms = if count > 0 {
+            (sum_sq / count as f32).sqrt()
+        } else {
+            0.0
+        };
         if cap.note_buffer_end(peak, rms) {
             trigger.store(true, Ordering::Release);
         }
