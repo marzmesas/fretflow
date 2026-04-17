@@ -11,9 +11,7 @@
     { href: "/", label: "Home" },
     { href: "/library", label: "Library" },
     { href: "/practice", label: "Practice" },
-    { href: "/dev/chart-qa", label: "Chart QA" },
     { href: "/settings", label: "Settings" },
-    { href: "/account", label: "Account" },
   ];
 
   let connectionStatus = $state<InputConnectionStatus | null>(null);
@@ -71,7 +69,7 @@
           class="connection-pill session-account-pill"
           class:connection-pill--on={session?.signedIn ?? false}
           aria-current={$page.url.pathname === "/account" ? "page" : undefined}
-          title="Account (dev stub)"
+          title="Account"
         >
           {#if session?.signedIn}
             {session.displayName || "Dev"}
