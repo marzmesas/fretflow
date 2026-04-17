@@ -4,6 +4,7 @@
   import { onDestroy, onMount } from "svelte";
   import type { AudioPreferences, InputConnectionStatus, InputEventPayload } from "$lib/ipc";
   import {
+    EVENT_AUDIO_INPUT_ERROR,
     EVENT_AUDIO_LEVEL,
     EVENT_INPUT_EVENT,
     inputEventIsMicPitchV1,
@@ -55,6 +56,10 @@
 
   let midiUnlisten: UnlistenFn | null = null;
   let levelUnlisten: UnlistenFn | null = null;
+  let unlistenAudioError: UnlistenFn | null = null;
+
+  /** cpal / monitor thread failure (dismissible). */
+  let audioStreamError = $state<string | null>(null);
 
   /** Refreshed on focus and on an interval while Practice is open (same command as the header pills). */
   let inputConn = $state<InputConnectionStatus | null>(null);
@@ -241,6 +246,7 @@
   }
 
   let prevTrackId: string | null | undefined = undefined;
+  let bundledFetchSeq = 0;
 
   function resetPlayerToChart(next: FretflowChartV1) {
     chart = next;
@@ -279,8 +285,33 @@
     if (prevTrackId === id) return;
     prevTrackId = id;
 
-    const { chart: next } = resolvePracticeChart(id);
-    resetPlayerToChart(next);
+    const resolved = resolvePracticeChart(id);
+    const bundledUrl = resolved.bundledChartUrl;
+    if (bundledUrl) {
+      const seq = ++bundledFetchSeq;
+      resetPlayerToChart(resolved.chart);
+      void (async () => {
+        try {
+          const r = await fetch(bundledUrl);
+          if (seq !== bundledFetchSeq) return;
+          const data = (await r.json()) as unknown;
+          if (seq !== bundledFetchSeq) return;
+          if (validateChart(data)) {
+            resetPlayerToChart(data);
+          } else {
+            resetScoringState("Bundled chart failed validation — loaded embedded demo.");
+            resetPlayerToChart(DEMO_CHART);
+          }
+        } catch {
+          if (seq !== bundledFetchSeq) return;
+          resetScoringState("Could not load bundled chart — loaded embedded demo.");
+          resetPlayerToChart(DEMO_CHART);
+        }
+      })();
+      return;
+    }
+
+    resetPlayerToChart(resolved.chart);
   });
 
   function syncPracticeBackingAudio() {
@@ -506,6 +537,9 @@
         inputConnPoll = setInterval(() => void refreshInputConnection(), 2500);
         midiUnlisten = await listen<InputEventPayload>(EVENT_INPUT_EVENT, handleInputScoring);
         levelUnlisten = await listen<number>(EVENT_AUDIO_LEVEL, handleAudioLevel);
+        unlistenAudioError = await listen<string>(EVENT_AUDIO_INPUT_ERROR, (ev) => {
+          audioStreamError = ev.payload;
+        });
       }
     })();
   });
@@ -521,6 +555,7 @@
     stopRaf();
     midiUnlisten?.();
     levelUnlisten?.();
+    unlistenAudioError?.();
     disposeBackingDrone();
     void metronomeCtx?.close();
     metronomeCtx = null;
@@ -550,6 +585,18 @@
     hitIndices={hitIndicesDisplay}
     missIndices={missIndicesDisplay}
   />
+
+  {#if isTauri() && audioStreamError}
+    <div class="practice-audio-error" role="alert">
+      <div class="practice-audio-error__row">
+        <p class="practice-audio-error__text"><strong>Input monitor error.</strong> {audioStreamError}</p>
+        <button type="button" class="btn" onclick={() => (audioStreamError = null)}>Dismiss</button>
+      </div>
+      <p class="muted practice-audio-error__hint">
+        Fix device or stream settings in <a href="/settings">Settings</a>, then start monitoring again.
+      </p>
+    </div>
+  {/if}
 
   {#if isTauri() && readinessIssues.length > 0}
     <div class="practice-readiness" role="status">
@@ -804,6 +851,32 @@
   }
   .practice-readiness__link {
     margin: 0;
+    font-size: 0.82rem;
+  }
+  .practice-audio-error {
+    margin-top: 1rem;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, #f87171 50%, var(--ff-border));
+    background: color-mix(in srgb, #f87171 10%, var(--ff-surface));
+  }
+  .practice-audio-error__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+  }
+  .practice-audio-error__text {
+    margin: 0;
+    flex: 1;
+    min-width: 12rem;
+    font-size: 0.86rem;
+    color: var(--ff-text);
+    line-height: 1.45;
+  }
+  .practice-audio-error__hint {
+    margin: 0.5rem 0 0;
     font-size: 0.82rem;
   }
 </style>

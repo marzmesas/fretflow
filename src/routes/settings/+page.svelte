@@ -32,6 +32,8 @@
   let selectedId = $state<string | null>(null);
   let latencyMs = $state(0);
   let error = $state<string | null>(null);
+  /** Input monitor / cpal stream failures from `audio:input_error` (dismissible). */
+  let monitorStreamError = $state<string | null>(null);
   let browserOnly = $state(false);
   let monitoring = $state(false);
   let audioLevel = $state(0);
@@ -112,6 +114,7 @@
         await invoke("start_input_monitor", { deviceId: selectedId });
         monitoring = true;
         error = null;
+        monitorStreamError = null;
       } catch (e) {
         error = String(e);
       }
@@ -222,7 +225,7 @@
         audioLevel = Math.min(1, Math.max(0, ev.payload));
       });
       unlistenInputError = await listen<string>(EVENT_AUDIO_INPUT_ERROR, (ev) => {
-        error = ev.payload;
+        monitorStreamError = ev.payload;
         monitoring = false;
         audioLevel = 0;
         /* Keep audioMonitorDesired so a window focus can retry after hotplug / stream errors. */
@@ -375,6 +378,7 @@
   async function startMonitor() {
     if (!isTauri()) return;
     error = null;
+    monitorStreamError = null;
     try {
       await savePrefs();
       await invoke("start_input_monitor", {
@@ -471,6 +475,25 @@
       </button>
       <button type="button" class="btn" onclick={stopMonitor} disabled={!monitoring}>Stop</button>
     </div>
+
+    {#if monitorStreamError}
+      <div
+        class="stream-error-banner"
+        role="alert"
+        style="margin-bottom: 1rem; padding: 0.65rem 0.85rem; border-radius: 8px; border: 1px solid color-mix(in srgb, #f87171 50%, var(--ff-border)); background: color-mix(in srgb, #f87171 10%, var(--ff-surface))"
+      >
+        <div class="row" style="flex-wrap: wrap; justify-content: space-between; gap: 0.5rem 1rem; align-items: flex-start">
+          <p style="margin: 0; flex: 1; min-width: 10rem; font-size: 0.88rem; color: var(--ff-text)">
+            <strong>Monitor error.</strong>
+            {monitorStreamError}
+          </p>
+          <button type="button" class="btn" onclick={() => (monitorStreamError = null)}>Dismiss</button>
+        </div>
+        <p class="muted" style="margin: 0.45rem 0 0; font-size: 0.8rem">
+          Try another device, sample rate, or buffer size below, then start again.
+        </p>
+      </div>
+    {/if}
 
     <p class="muted" style="margin-bottom: 0.35rem">Live level (~30/s)</p>
     <div class="meter" aria-label="Input level">
@@ -676,7 +699,10 @@
     {/if}
 
     {#if midiError}
-      <p style="color: #f87171; margin-top: 0.75rem; margin-bottom: 0">{midiError}</p>
+      <div class="row" style="margin-top: 0.75rem; flex-wrap: wrap; gap: 0.5rem 1rem; align-items: flex-start">
+        <p style="color: #f87171; margin: 0; flex: 1">{midiError}</p>
+        <button type="button" class="btn" onclick={() => (midiError = null)}>Dismiss</button>
+      </div>
     {/if}
   {/if}
 </div>

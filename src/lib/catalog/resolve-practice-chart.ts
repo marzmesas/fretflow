@@ -8,6 +8,8 @@ export type ResolvedPracticeChart = {
   catalogTrackId: string | null;
   /** `?track=` was set but id is unknown or not playable (e.g. premium). */
   trackRequestInvalid: boolean;
+  /** When set, Practice loads this URL then replaces `chart` (bundled static JSON). */
+  bundledChartUrl: string | null;
 };
 
 /**
@@ -17,15 +19,51 @@ export type ResolvedPracticeChart = {
 export function resolvePracticeChart(trackId: string | null | undefined): ResolvedPracticeChart {
   const id = typeof trackId === "string" && trackId.trim() !== "" ? trackId.trim() : null;
   if (!id) {
-    return { chart: DEMO_CHART, catalogTrackId: null, trackRequestInvalid: false };
+    return {
+      chart: DEMO_CHART,
+      catalogTrackId: null,
+      trackRequestInvalid: false,
+      bundledChartUrl: null,
+    };
   }
   const row = MOCK_CATALOG.find((r) => r.id === id);
-  if (!row || row.tier === "premium" || row.practiceChartKey !== "demo") {
-    return { chart: DEMO_CHART, catalogTrackId: null, trackRequestInvalid: true };
+  if (!row || row.tier === "premium") {
+    return {
+      chart: DEMO_CHART,
+      catalogTrackId: null,
+      trackRequestInvalid: true,
+      bundledChartUrl: null,
+    };
+  }
+  if (row.practiceChartKey === "none") {
+    return {
+      chart: DEMO_CHART,
+      catalogTrackId: null,
+      trackRequestInvalid: true,
+      bundledChartUrl: null,
+    };
+  }
+  if (row.practiceChartKey === "bundled") {
+    const file = row.bundledChartFile?.trim();
+    if (!file || file.includes("/") || file.includes("..")) {
+      return {
+        chart: DEMO_CHART,
+        catalogTrackId: null,
+        trackRequestInvalid: true,
+        bundledChartUrl: null,
+      };
+    }
+    return {
+      chart: { ...DEMO_CHART, title: row.title },
+      catalogTrackId: id,
+      trackRequestInvalid: false,
+      bundledChartUrl: `/charts/${file}`,
+    };
   }
   return {
     chart: { ...DEMO_CHART, title: row.title },
     catalogTrackId: id,
     trackRequestInvalid: false,
+    bundledChartUrl: null,
   };
 }

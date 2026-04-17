@@ -17,6 +17,22 @@ export const MOCK_CATALOG: CatalogTrackStub[] = [
     practiceChartKey: "demo",
   },
   {
+    id: "bundled-one-note",
+    title: "One open low E (static chart)",
+    artist: "Fretflow",
+    tier: "free",
+    practiceChartKey: "bundled",
+    bundledChartFile: "one-note.json",
+  },
+  {
+    id: "bundled-ladder",
+    title: "Demo: ladder & sustain (static file)",
+    artist: "Fretflow",
+    tier: "free",
+    practiceChartKey: "bundled",
+    bundledChartFile: "demo-chart.json",
+  },
+  {
     id: "premium-blues",
     title: "Blues turnaround in A",
     artist: "Catalog preview",

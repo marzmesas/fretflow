@@ -18,9 +18,12 @@ const PADDING: usize = WINDOW / 2;
 /// Raw peak thresholds (same domain as cpal samples, before meter ×5).
 const ONSET_LOW: f32 = 0.055;
 const ONSET_HIGH: f32 = 0.10;
-const POWER_THRESHOLD: f32 = 1.5;
-const CLARITY_THRESHOLD: f32 = 0.66;
-const EMIT_COOLDOWN: Duration = Duration::from_millis(82);
+/** YIN power floor — slightly lower accepts quieter plucks (tradeoff: more false triggers). */
+const POWER_THRESHOLD: f32 = 1.42;
+/** Clarity 0..1 — slightly lower tolerates noisy rooms / harmonics. */
+const CLARITY_THRESHOLD: f32 = 0.62;
+/** Min time between mic pitch emits after a successful detection. */
+const EMIT_COOLDOWN: Duration = Duration::from_millis(72);
 
 #[inline]
 fn hz_to_midi_note(hz: f32) -> u8 {

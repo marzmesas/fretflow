@@ -16,23 +16,32 @@
     return t.tier === "premium" || Boolean(t.locked);
   }
 
+  function canOpenInPractice(t: CatalogTrackStub): boolean {
+    if (isLocked(t)) return false;
+    if (t.practiceChartKey === "demo") return true;
+    if (t.practiceChartKey === "bundled") {
+      return Boolean(t.bundledChartFile?.trim());
+    }
+    return false;
+  }
+
   function openInPractice(t: CatalogTrackStub) {
-    if (isLocked(t) || t.practiceChartKey !== "demo") return;
+    if (!canOpenInPractice(t)) return;
     void goto(`/practice?track=${encodeURIComponent(t.id)}`);
   }
 </script>
 
 <h1 style="margin: 0 0 0.5rem; font-size: 1.5rem">Library</h1>
 <p class="muted" style="margin: 0 0 1rem">
-  Mock catalog for Phase 5. Tiers and locks are UI-only — auth, downloads, and real entitlements
-  come later.
+  Local catalog (no network). Some rows use the embedded demo chart; others load JSON from
+  <code>static/charts/</code>. Premium rows are UI-only locks until entitlements exist.
 </p>
 
 <div class="panel">
   <h2>Browse</h2>
   <p class="muted" style="margin-bottom: 0.75rem">
-    Free tracks open <strong>Practice</strong> with the embedded demo chart. Premium rows preview how
-    locked content will look.
+    Free tracks open <strong>Practice</strong> with either the built-in demo chart or a bundled file.
+    Premium rows preview locked content.
   </p>
 
   <div class="row catalog-filters" style="margin-bottom: 1rem">
@@ -83,10 +92,12 @@
               </svg>
               Locked
             </span>
-          {:else}
+          {:else if canOpenInPractice(t)}
             <button type="button" class="btn btn-primary" onclick={() => openInPractice(t)}>
               Practice
             </button>
+          {:else}
+            <span class="locked-label" title="No chart wired for this row">Soon</span>
           {/if}
         </div>
       </li>
