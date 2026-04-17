@@ -35,7 +35,7 @@
     if (!ctx) return;
     const dpr = window.devicePixelRatio || 1;
     const w = Math.max(280, wrap.clientWidth);
-    const h = 300;
+    const h = 360;
     canvas.width = Math.floor(w * dpr);
     canvas.height = Math.floor(h * dpr);
     canvas.style.width = `${w}px`;
