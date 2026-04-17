@@ -20,4 +20,6 @@ export type FretflowChartV1 = {
   /** If omitted, length is derived from the last note end */
   lengthBeats?: number;
   notes: ChartNoteV1[];
+  /** Relative URL to an audio backing track (e.g. `/charts/audio/song.mp3`). Played in sync with the highway when present. */
+  backingAudioUrl?: string;
 };

@@ -31,6 +31,15 @@
   import { consumePendingPracticeChartJson } from "./practice-chart-transfer";
   import { validateChart } from "./validate";
   import { resolvePracticeChart } from "$lib/catalog/resolve-practice-chart";
+  import {
+    disposeBackingAudio,
+    isBackingAudioLoaded,
+    loadBackingAudio,
+    playBackingAudio,
+    setBackingAudioSpeed,
+    setBackingAudioVolume,
+    stopBackingAudio,
+  } from "./chart-backing-audio";
   import { disposeBackingDrone, syncBackingDrone } from "./chart-backing-drone";
 
   type Props = {
@@ -89,6 +98,10 @@
   let backingDroneMuted = $state(false);
   const backingLinearGain = 0.042;
 
+  let backingAudioAvailable = $state(false);
+  let backingAudioVolume = $state(0.7);
+  let backingAudioMuted = $state(false);
+
   let pixelsPerSecond = $state(140);
 
   /** Last frame interval (ms) — large values mean background throttling */
@@ -109,12 +122,22 @@
     const midiScoringPath = scoringEnabled && !micPitchBeta && !micRhythmBeta;
     if (midiScoringPath && !c.midiListenActive) {
       out.push(
-        "Scoring is on (MIDI mode) but no MIDI port is listening. In Settings → MIDI, pick a port and choose Start listening.",
+        "MIDI scoring is on but no port is listening — open Settings → MIDI, pick a port, and press Start listening.",
       );
     }
-    if ((micPitchBeta || micRhythmBeta) && !c.inputMonitorActive) {
+    if (micPitchBeta && !c.inputMonitorActive) {
       out.push(
-        "A mic scoring mode is on but the input monitor is off. In Settings → Audio input, choose Start monitoring so the app can hear you.",
+        "Mic pitch is on but the input monitor is off — open Settings → Audio input and press Start monitoring.",
+      );
+    }
+    if (micRhythmBeta && !micPitchBeta && !c.inputMonitorActive) {
+      out.push(
+        "Mic rhythm is on but the input monitor is off — open Settings → Audio input and press Start monitoring.",
+      );
+    }
+    if (micPitchBeta && c.inputMonitorActive && midiScoringPath && c.midiListenActive) {
+      out.push(
+        "Both MIDI and mic pitch are active — MIDI note_on events and mic pitch will both trigger scoring.",
       );
     }
     return out;
@@ -281,6 +304,7 @@
     chart = next;
     playing = false;
     stopRaf();
+    stopBackingAudio();
     timeSec = 0;
     anchorChartSec = 0;
     lastFrameWall = 0;
@@ -292,6 +316,26 @@
     beatMetronome.syncAfterJump(0, next.bpm);
     resetScoringState(null);
     syncPracticeBackingAudio();
+    void loadChartBackingAudio(next);
+  }
+
+  async function loadChartBackingAudio(c: FretflowChartV1) {
+    if (c.backingAudioUrl) {
+      backingAudioAvailable = await loadBackingAudio(c.backingAudioUrl);
+    } else {
+      backingAudioAvailable = false;
+    }
+  }
+
+  function syncFileBackingAudio() {
+    if (!backingAudioAvailable || !isBackingAudioLoaded()) return;
+    if (!playing) {
+      stopBackingAudio();
+      return;
+    }
+    const vol = backingAudioMuted ? 0 : backingAudioVolume;
+    setBackingAudioVolume(vol);
+    setBackingAudioSpeed(speed);
   }
 
   $effect(() => {
@@ -400,6 +444,9 @@
       anchorChartSec = t;
       anchorWallMs = now;
       beatMetronome.syncAfterJump(t, chart.bpm);
+      if (backingAudioAvailable && !backingAudioMuted) {
+        playBackingAudio({ offsetSec: t, speed, volume: backingAudioVolume });
+      }
     } else if (!loopEnabled && t >= totalSec) {
       t = totalSec;
       const lateSec = timingWindows.lateMs / 1000;
@@ -407,6 +454,7 @@
       finalizeSessionSummary();
       playing = false;
       stopRaf();
+      stopBackingAudio();
       anchorChartSec = t;
       timeSec = t;
       lastFrameWall = 0;
@@ -426,6 +474,7 @@
     if (playing) {
       playing = false;
       stopRaf();
+      stopBackingAudio();
       timeSec = captureWallTime();
       lastFrameWall = 0;
       syncPracticeBackingAudio();
@@ -445,12 +494,20 @@
       playing = true;
       rafId = requestAnimationFrame(tickFrame);
       syncPracticeBackingAudio();
+      if (backingAudioAvailable && !backingAudioMuted) {
+        playBackingAudio({
+          offsetSec: anchorChartSec,
+          speed,
+          volume: backingAudioVolume,
+        });
+      }
     }
   }
 
   function restart() {
     playing = false;
     stopRaf();
+    stopBackingAudio();
     timeSec = 0;
     anchorChartSec = 0;
     lastFrameWall = 0;
@@ -587,6 +644,7 @@
     midiUnlisten?.();
     levelUnlisten?.();
     unlistenAudioError?.();
+    disposeBackingAudio();
     disposeBackingDrone();
     void metronomeCtx?.close();
     metronomeCtx = null;
@@ -645,7 +703,9 @@
   {/if}
 
   <div class="scoring-block">
-    <label class="row" style="gap: 0.5rem; cursor: pointer; margin-bottom: 0.5rem">
+    <label class="row" style="gap: 0.5rem; cursor: pointer; margin-bottom: 0.5rem"
+      title="When on, incoming notes are matched against the chart. MIDI works out of the box; mic modes are optional betas below."
+    >
       <input type="checkbox" bind:checked={scoringEnabled} />
       <span>Scoring</span>
       <span class="muted" style="font-size: 0.85rem">MIDI by default; optional mic modes below</span>
@@ -683,15 +743,19 @@
       <span class="muted" style="font-size: 0.8rem">{SCORING_MODE_LABEL[scoringMode]}</span>
     </div>
     {#if isTauri()}
-      <label class="row" style="gap: 0.5rem; cursor: pointer; margin-bottom: 0.5rem">
+      <label class="row" style="gap: 0.5rem; cursor: pointer; margin-bottom: 0.5rem"
+        title="Triggers hits on audio level peaks (timing only, no pitch). Needs input monitor running in Settings."
+      >
         <input type="checkbox" bind:checked={micRhythmBeta} disabled={micPitchBeta} />
         <span>Mic rhythm (beta)</span>
         <span class="muted" style="font-size: 0.8rem">level peaks only; disabled when mic pitch is on</span>
       </label>
-      <label class="row" style="gap: 0.5rem; cursor: pointer; margin-bottom: 0.5rem">
+      <label class="row" style="gap: 0.5rem; cursor: pointer; margin-bottom: 0.5rem"
+        title="Uses YIN pitch detection on the mic input to match MIDI notes in the chart. Needs input monitor running in Settings."
+      >
         <input type="checkbox" bind:checked={micPitchBeta} disabled={micRhythmBeta} />
         <span>Mic pitch (beta)</span>
-        <span class="muted" style="font-size: 0.8rem">monitor + YIN onset → same scoring as MIDI</span>
+        <span class="muted" style="font-size: 0.8rem">monitor + YIN pitch detection → same scoring as MIDI</span>
       </label>
     {/if}
     <p class="muted" style="margin: 0; font-size: 0.85rem">
@@ -734,24 +798,51 @@
       <span class="muted" style="font-size: 0.8rem">quarter clicks in chart time (respects speed)</span>
     </label>
 
-    <label class="row" style="gap: 0.5rem; margin-bottom: 0.35rem; cursor: pointer">
-      <input
-        type="checkbox"
-        checked={backingDroneEnabled}
-        onchange={onBackingDroneEnabledChange}
-      />
-      <span>Backing drone</span>
-      <span class="muted" style="font-size: 0.8rem">quiet low E sine while playing (placeholder until stems)</span>
-    </label>
-    <label class="row" style="gap: 0.5rem; margin-bottom: 0.65rem; cursor: pointer; padding-left: 1.5rem">
-      <input
-        type="checkbox"
-        checked={backingDroneMuted}
-        disabled={!backingDroneEnabled}
-        onchange={onBackingDroneMutedChange}
-      />
-      <span>Mute backing</span>
-    </label>
+    {#if backingAudioAvailable}
+      <label class="row" style="gap: 0.5rem; margin-bottom: 0.35rem; cursor: pointer">
+        <input
+          type="checkbox"
+          checked={!backingAudioMuted}
+          onchange={(ev) => { backingAudioMuted = !(ev.currentTarget as HTMLInputElement).checked; syncFileBackingAudio(); }}
+        />
+        <span>Backing track</span>
+        <span class="muted" style="font-size: 0.8rem">audio file bundled with chart</span>
+      </label>
+      <label class="row" style="gap: 0.75rem; align-items: center; margin-bottom: 0.65rem; padding-left: 1.5rem">
+        <span class="muted" style="font-size: 0.82rem">Volume</span>
+        <input
+          type="range"
+          min="0"
+          max="1"
+          step="0.05"
+          bind:value={backingAudioVolume}
+          oninput={() => syncFileBackingAudio()}
+          style="flex: 1; max-width: 10rem"
+        />
+        <span class="muted" style="min-width: 2.5rem; font-size: 0.82rem; font-variant-numeric: tabular-nums">{Math.round(backingAudioVolume * 100)}%</span>
+      </label>
+    {:else}
+      <label class="row" style="gap: 0.5rem; margin-bottom: 0.35rem; cursor: pointer"
+        title="Low E sine reference tone — replaced by a real backing track when the chart includes one"
+      >
+        <input
+          type="checkbox"
+          checked={backingDroneEnabled}
+          onchange={onBackingDroneEnabledChange}
+        />
+        <span>Backing drone</span>
+        <span class="muted" style="font-size: 0.8rem">reference tone (no backing track on this chart)</span>
+      </label>
+      <label class="row" style="gap: 0.5rem; margin-bottom: 0.65rem; cursor: pointer; padding-left: 1.5rem">
+        <input
+          type="checkbox"
+          checked={backingDroneMuted}
+          disabled={!backingDroneEnabled}
+          onchange={onBackingDroneMutedChange}
+        />
+        <span>Mute drone</span>
+      </label>
+    {/if}
 
     <label class="row" style="gap: 0.75rem; align-items: center; margin-bottom: 0.65rem">
       <span class="muted" style="min-width: 5rem">Speed</span>
