@@ -422,7 +422,8 @@
 
 <h1 style="margin: 0 0 0.5rem; font-size: 1.5rem">Settings</h1>
 <p class="muted">
-  Audio input, MIDI monitoring, and latency offset (used for Practice scoring timing; not in audio DSP). Monitoring and MIDI stay active when you switch routes — use <strong>Stop</strong> here or close the app.
+  Configure your audio input, MIDI controller, and latency offset for Practice scoring.
+  Monitoring and MIDI connections stay active when you navigate away — stop them here or close the app.
 </p>
 
 <div class="panel">
@@ -576,6 +577,10 @@
 
 <div class="panel">
   <h2>Latency</h2>
+  <p class="muted" style="margin: 0 0 0.65rem; font-size: 0.88rem">
+    Shifts Practice hit/miss timing for MIDI and mic. The chart highway stays unchanged.
+    Positive values delay the expected hit (use if you're consistently early).
+  </p>
   <label class="row" style="gap: 0.75rem; align-items: center">
     <span class="muted">Offset (ms)</span>
     <input
@@ -586,9 +591,6 @@
     />
     <button type="button" class="btn" onclick={savePrefs}>Save</button>
   </label>
-  <p class="muted" style="margin-bottom: 0">
-    Applied to <strong>Practice</strong> hit/miss timing (MIDI / mic rhythm). The chart highway does not shift.
-  </p>
 
   <div
     style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--ff-border)"
@@ -663,7 +665,7 @@
       <button type="button" class="btn" onclick={refreshMidiPorts}>Refresh MIDI ports</button>
     </div>
     <p class="muted" style="margin: -0.5rem 0 1rem; font-size: 0.82rem">
-      Saving stores the port name; if the backend assigns a new id after reconnect, refocus this window or Refresh to remap and reopen listening.
+      Port names are saved so connections survive id changes after unplug/replug. Refocusing this window or using Refresh remaps and reopens.
     </p>
 
     <div class="row" style="margin-bottom: 0.75rem">

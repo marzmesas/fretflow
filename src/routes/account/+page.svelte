@@ -60,8 +60,8 @@
 
 <h1 style="margin: 0 0 0.5rem; font-size: 1.5rem">Account</h1>
 <p class="muted" style="margin: 0 0 1rem">
-  Local <strong>dev sign-in</strong> for testing (<code>session.json</code> in the app config directory). Billing and subscriptions are
-  <strong>not</strong> part of the initial product — we are focusing on practice, charts, and desktop quality first.
+  Local session stored in the app config directory. Sign in for dev testing; cloud accounts and
+  subscriptions are not part of the current release.
 </p>
 
 {#if !isTauri()}
@@ -85,12 +85,14 @@
             Since {new Date(session.signedInAtUnixMs).toLocaleString()}
           </p>
         {/if}
-        <p class="muted" style="margin: 0 0 0.5rem; font-size: 0.85rem">Entitlements (stub)</p>
-        <ul style="margin: 0 0 1rem; padding-left: 1.25rem; font-size: 0.88rem">
-          {#each session.entitlements as e (e)}
-            <li><code>{e}</code></li>
-          {/each}
-        </ul>
+        {#if session.entitlements.length > 0}
+          <p class="muted" style="margin: 0 0 0.5rem; font-size: 0.85rem">Capabilities</p>
+          <ul style="margin: 0 0 1rem; padding-left: 1.25rem; font-size: 0.88rem">
+            {#each session.entitlements as e (e)}
+              <li><code>{e}</code></li>
+            {/each}
+          </ul>
+        {/if}
         <button type="button" class="btn" onclick={signOut} disabled={busy}>Sign out</button>
       {:else}
         <label style="display: block; margin-bottom: 0.5rem">
