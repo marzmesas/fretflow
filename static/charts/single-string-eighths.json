@@ -199,5 +199,6 @@
       "stringIndex": 5,
       "fret": 10
     }
-  ]
+  ],
+  "backingAudioUrl": "/charts/audio/single-string-eighths.wav"
 }

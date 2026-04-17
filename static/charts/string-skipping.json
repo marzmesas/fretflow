@@ -295,5 +295,6 @@
       "stringIndex": 5,
       "fret": 0
     }
-  ]
+  ],
+  "backingAudioUrl": "/charts/audio/string-skipping.wav"
 }

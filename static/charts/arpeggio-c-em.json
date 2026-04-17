@@ -295,5 +295,6 @@
       "stringIndex": 4,
       "fret": 2
     }
-  ]
+  ],
+  "backingAudioUrl": "/charts/audio/arpeggio-c-em.wav"
 }
