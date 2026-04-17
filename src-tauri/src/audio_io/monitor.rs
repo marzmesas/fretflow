@@ -42,21 +42,28 @@ fn process_f32_input(
     level_bits: &Arc<AtomicU32>,
 ) {
     let mut peak = 0.0f32;
+    let mut sum_sq = 0.0f32;
+    let mut count = 0u32;
     {
         let mut cap = mic_capture_lock(capture);
         if channels <= 1 {
             for &s in data {
                 cap.feed_mono_sample(s);
                 peak = peak.max(s.abs());
+                sum_sq += s * s;
+                count += 1;
             }
         } else {
             for frame in data.chunks(channels) {
                 let mono = frame.iter().copied().sum::<f32>() / channels as f32;
                 cap.feed_mono_sample(mono);
                 peak = peak.max(mono.abs());
+                sum_sq += mono * mono;
+                count += 1;
             }
         }
-        if cap.note_buffer_end(peak) {
+        let rms = if count > 0 { (sum_sq / count as f32).sqrt() } else { 0.0 };
+        if cap.note_buffer_end(peak, rms) {
             trigger.store(true, Ordering::Release);
         }
     }
@@ -72,6 +79,8 @@ fn process_i16_input(
 ) {
     let scale = 1.0 / i16::MAX as f32;
     let mut peak = 0.0f32;
+    let mut sum_sq = 0.0f32;
+    let mut count = 0u32;
     {
         let mut cap = mic_capture_lock(capture);
         if channels <= 1 {
@@ -79,15 +88,20 @@ fn process_i16_input(
                 let v = s as f32 * scale;
                 cap.feed_mono_sample(v);
                 peak = peak.max(v.abs());
+                sum_sq += v * v;
+                count += 1;
             }
         } else {
             for frame in data.chunks(channels) {
                 let mono = frame.iter().map(|&s| s as f32 * scale).sum::<f32>() / channels as f32;
                 cap.feed_mono_sample(mono);
                 peak = peak.max(mono.abs());
+                sum_sq += mono * mono;
+                count += 1;
             }
         }
-        if cap.note_buffer_end(peak) {
+        let rms = if count > 0 { (sum_sq / count as f32).sqrt() } else { 0.0 };
+        if cap.note_buffer_end(peak, rms) {
             trigger.store(true, Ordering::Release);
         }
     }
@@ -103,6 +117,8 @@ fn process_u16_input(
 ) {
     let scale = 1.0 / u16::MAX as f32;
     let mut peak = 0.0f32;
+    let mut sum_sq = 0.0f32;
+    let mut count = 0u32;
     {
         let mut cap = mic_capture_lock(capture);
         if channels <= 1 {
@@ -110,6 +126,8 @@ fn process_u16_input(
                 let v = (s as f32 * scale) * 2.0 - 1.0;
                 cap.feed_mono_sample(v);
                 peak = peak.max(v.abs());
+                sum_sq += v * v;
+                count += 1;
             }
         } else {
             for frame in data.chunks(channels) {
@@ -120,9 +138,12 @@ fn process_u16_input(
                     / channels as f32;
                 cap.feed_mono_sample(mono);
                 peak = peak.max(mono.abs());
+                sum_sq += mono * mono;
+                count += 1;
             }
         }
-        if cap.note_buffer_end(peak) {
+        let rms = if count > 0 { (sum_sq / count as f32).sqrt() } else { 0.0 };
+        if cap.note_buffer_end(peak, rms) {
             trigger.store(true, Ordering::Release);
         }
     }
@@ -138,6 +159,8 @@ fn process_i32_input(
 ) {
     let scale = 1.0 / i32::MAX as f32;
     let mut peak = 0.0f32;
+    let mut sum_sq = 0.0f32;
+    let mut count = 0u32;
     {
         let mut cap = mic_capture_lock(capture);
         if channels <= 1 {
@@ -145,15 +168,20 @@ fn process_i32_input(
                 let v = s as f32 * scale;
                 cap.feed_mono_sample(v);
                 peak = peak.max(v.abs());
+                sum_sq += v * v;
+                count += 1;
             }
         } else {
             for frame in data.chunks(channels) {
                 let mono = frame.iter().map(|&s| s as f32 * scale).sum::<f32>() / channels as f32;
                 cap.feed_mono_sample(mono);
                 peak = peak.max(mono.abs());
+                sum_sq += mono * mono;
+                count += 1;
             }
         }
-        if cap.note_buffer_end(peak) {
+        let rms = if count > 0 { (sum_sq / count as f32).sqrt() } else { 0.0 };
+        if cap.note_buffer_end(peak, rms) {
             trigger.store(true, Ordering::Release);
         }
     }
@@ -168,6 +196,8 @@ fn process_u32_input(
     level_bits: &Arc<AtomicU32>,
 ) {
     let mut peak = 0.0f32;
+    let mut sum_sq = 0.0f32;
+    let mut count = 0u32;
     {
         let mut cap = mic_capture_lock(capture);
         if channels <= 1 {
@@ -175,6 +205,8 @@ fn process_u32_input(
                 let v = (s as f64 / u32::MAX as f64) as f32 * 2.0 - 1.0;
                 cap.feed_mono_sample(v);
                 peak = peak.max(v.abs());
+                sum_sq += v * v;
+                count += 1;
             }
         } else {
             for frame in data.chunks(channels) {
@@ -185,9 +217,12 @@ fn process_u32_input(
                     / channels as f32;
                 cap.feed_mono_sample(mono);
                 peak = peak.max(mono.abs());
+                sum_sq += mono * mono;
+                count += 1;
             }
         }
-        if cap.note_buffer_end(peak) {
+        let rms = if count > 0 { (sum_sq / count as f32).sqrt() } else { 0.0 };
+        if cap.note_buffer_end(peak, rms) {
             trigger.store(true, Ordering::Release);
         }
     }
@@ -203,6 +238,8 @@ fn process_i64_input(
 ) {
     let scale = 1.0 / i64::MAX as f32;
     let mut peak = 0.0f32;
+    let mut sum_sq = 0.0f32;
+    let mut count = 0u32;
     {
         let mut cap = mic_capture_lock(capture);
         if channels <= 1 {
@@ -210,15 +247,20 @@ fn process_i64_input(
                 let v = s as f32 * scale;
                 cap.feed_mono_sample(v);
                 peak = peak.max(v.abs());
+                sum_sq += v * v;
+                count += 1;
             }
         } else {
             for frame in data.chunks(channels) {
                 let mono = frame.iter().map(|&s| s as f32 * scale).sum::<f32>() / channels as f32;
                 cap.feed_mono_sample(mono);
                 peak = peak.max(mono.abs());
+                sum_sq += mono * mono;
+                count += 1;
             }
         }
-        if cap.note_buffer_end(peak) {
+        let rms = if count > 0 { (sum_sq / count as f32).sqrt() } else { 0.0 };
+        if cap.note_buffer_end(peak, rms) {
             trigger.store(true, Ordering::Release);
         }
     }
@@ -233,6 +275,8 @@ fn process_u64_input(
     level_bits: &Arc<AtomicU32>,
 ) {
     let mut peak = 0.0f32;
+    let mut sum_sq = 0.0f32;
+    let mut count = 0u32;
     {
         let mut cap = mic_capture_lock(capture);
         if channels <= 1 {
@@ -240,6 +284,8 @@ fn process_u64_input(
                 let v = (s as f64 / u64::MAX as f64) as f32 * 2.0 - 1.0;
                 cap.feed_mono_sample(v);
                 peak = peak.max(v.abs());
+                sum_sq += v * v;
+                count += 1;
             }
         } else {
             for frame in data.chunks(channels) {
@@ -250,9 +296,12 @@ fn process_u64_input(
                     / channels as f32;
                 cap.feed_mono_sample(mono);
                 peak = peak.max(mono.abs());
+                sum_sq += mono * mono;
+                count += 1;
             }
         }
-        if cap.note_buffer_end(peak) {
+        let rms = if count > 0 { (sum_sq / count as f32).sqrt() } else { 0.0 };
+        if cap.note_buffer_end(peak, rms) {
             trigger.store(true, Ordering::Release);
         }
     }
@@ -267,6 +316,8 @@ fn process_f64_input(
     level_bits: &Arc<AtomicU32>,
 ) {
     let mut peak = 0.0f32;
+    let mut sum_sq = 0.0f32;
+    let mut count = 0u32;
     {
         let mut cap = mic_capture_lock(capture);
         if channels <= 1 {
@@ -274,15 +325,20 @@ fn process_f64_input(
                 let v = s as f32;
                 cap.feed_mono_sample(v);
                 peak = peak.max(v.abs());
+                sum_sq += v * v;
+                count += 1;
             }
         } else {
             for frame in data.chunks(channels) {
                 let mono = frame.iter().map(|&s| s as f32).sum::<f32>() / channels as f32;
                 cap.feed_mono_sample(mono);
                 peak = peak.max(mono.abs());
+                sum_sq += mono * mono;
+                count += 1;
             }
         }
-        if cap.note_buffer_end(peak) {
+        let rms = if count > 0 { (sum_sq / count as f32).sqrt() } else { 0.0 };
+        if cap.note_buffer_end(peak, rms) {
             trigger.store(true, Ordering::Release);
         }
     }

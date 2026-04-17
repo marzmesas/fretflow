@@ -15,15 +15,28 @@ use crate::ipc;
 pub const WINDOW: usize = 1024;
 const PADDING: usize = WINDOW / 2;
 
-/// Raw peak thresholds (same domain as cpal samples, before meter ×5).
-const ONSET_LOW: f32 = 0.055;
-const ONSET_HIGH: f32 = 0.10;
-/** YIN power floor — slightly lower accepts quieter plucks (tradeoff: more false triggers). */
+const ONSET_LOW_BASE: f32 = 0.055;
+const ONSET_HIGH_BASE: f32 = 0.10;
 const POWER_THRESHOLD: f32 = 1.42;
-/** Clarity 0..1 — slightly lower tolerates noisy rooms / harmonics. */
 const CLARITY_THRESHOLD: f32 = 0.62;
-/** Min time between mic pitch emits after a successful detection. */
-const EMIT_COOLDOWN: Duration = Duration::from_millis(72);
+const EMIT_COOLDOWN: Duration = Duration::from_millis(68);
+
+/// Ambient RMS exponential-average decay per callback (~23ms at 44.1kHz/1024).
+const AMBIENT_ALPHA: f32 = 0.005;
+/// Minimum multiplier on onset thresholds from ambient floor.
+const AMBIENT_ONSET_SCALE_MIN: f32 = 1.0;
+/// Maximum multiplier — noisy rooms raise thresholds but not unboundedly.
+const AMBIENT_ONSET_SCALE_MAX: f32 = 4.0;
+
+/// Below this RMS for SILENCE_POLLS consecutive monitor polls → note_off.
+const SILENCE_RMS_THRESHOLD: f32 = 0.012;
+const SILENCE_POLLS: u32 = 5; // ~165ms at 33ms poll
+
+/// Require N consecutive YIN frames agreeing on a *different* note before emitting.
+const STABILITY_FRAMES: u32 = 2;
+
+/// Cents dead-zone around last emitted note to suppress vibrato jitter.
+const VIBRATO_HYSTERESIS_CENTS: f32 = 50.0;
 
 #[inline]
 fn hz_to_midi_note(hz: f32) -> u8 {
@@ -34,11 +47,33 @@ fn hz_to_midi_note(hz: f32) -> u8 {
     v.round().clamp(0.0, 127.0) as u8
 }
 
+#[inline]
+fn hz_to_midi_float(hz: f32) -> f32 {
+    12.0 * (hz / 440.0).log2() + 69.0
+}
+
+/// Check if `hz` is within ±`cents` of `reference_note` (MIDI integer).
+#[inline]
+fn within_cents(hz: f32, reference_note: u8, cents: f32) -> bool {
+    let midi_f = hz_to_midi_float(hz);
+    let diff = (midi_f - reference_note as f32).abs() * 100.0; // semitones → cents
+    diff <= cents
+}
+
 fn ring_copy_chronological(ring: &[f32; WINDOW], write: usize, out: &mut [f32]) {
     debug_assert_eq!(out.len(), WINDOW);
     let w = write;
     out[..WINDOW - w].copy_from_slice(&ring[w..]);
     out[WINDOW - w..].copy_from_slice(&ring[..w]);
+}
+
+/// Compute RMS of a buffer.
+fn compute_rms(buf: &[f32]) -> f32 {
+    if buf.is_empty() {
+        return 0.0;
+    }
+    let sum_sq: f32 = buf.iter().map(|s| s * s).sum();
+    (sum_sq / buf.len() as f32).sqrt()
 }
 
 /// Shared between cpal callback (writer) and monitor thread (reader for YIN).
@@ -47,6 +82,8 @@ pub struct MicCaptureState {
     write: usize,
     samples_seen: u32,
     prev_block_peak: f32,
+    /// Slow-moving ambient RMS for adaptive onset.
+    ambient_rms: f32,
 }
 
 impl MicCaptureState {
@@ -57,6 +94,7 @@ impl MicCaptureState {
             write: 0,
             samples_seen: 0,
             prev_block_peak: 0.0,
+            ambient_rms: 0.0,
         }
     }
 
@@ -66,9 +104,17 @@ impl MicCaptureState {
         self.samples_seen = self.samples_seen.saturating_add(1);
     }
 
-    /// After processing a full cpal buffer: update onset history and return whether to run YIN.
-    pub fn note_buffer_end(&mut self, block_peak: f32) -> bool {
-        let rising = self.prev_block_peak < ONSET_LOW && block_peak >= ONSET_HIGH;
+    /// After processing a full cpal buffer: update onset history, ambient RMS, and return
+    /// whether to run YIN.
+    pub fn note_buffer_end(&mut self, block_peak: f32, block_rms: f32) -> bool {
+        self.ambient_rms = self.ambient_rms * (1.0 - AMBIENT_ALPHA) + block_rms * AMBIENT_ALPHA;
+
+        let scale = (self.ambient_rms * 15.0)
+            .clamp(AMBIENT_ONSET_SCALE_MIN, AMBIENT_ONSET_SCALE_MAX);
+        let onset_low = ONSET_LOW_BASE * scale;
+        let onset_high = ONSET_HIGH_BASE * scale;
+
+        let rising = self.prev_block_peak < onset_low && block_peak >= onset_high;
         self.prev_block_peak = block_peak;
         rising && self.samples_seen >= WINDOW as u32
     }
@@ -92,12 +138,19 @@ pub fn mic_capture_lock(mic: &Mutex<MicCaptureState>) -> MutexGuard<'_, MicCaptu
     mic.lock().unwrap_or_else(|e| e.into_inner())
 }
 
-/// YIN + cooldown + last sounded note — owned by the input monitor thread only.
+/// YIN + cooldown + stability + silence tracking — owned by the input monitor thread only.
 pub struct MicPitchThreadState {
     pub yin: YINDetector<f32>,
     pub scratch: [f32; WINDOW],
     pub last_emit: Option<Instant>,
     pub last_sounded_note: Option<u8>,
+    /// Pending trigger that arrived during cooldown.
+    pending_retrigger: bool,
+    /// Candidate note for stability filter (must see STABILITY_FRAMES before emitting a *change*).
+    candidate_note: Option<u8>,
+    candidate_count: u32,
+    /// Consecutive monitor polls with RMS below silence threshold.
+    silence_count: u32,
 }
 
 impl MicPitchThreadState {
@@ -108,6 +161,10 @@ impl MicPitchThreadState {
             scratch: [0.0f32; WINDOW],
             last_emit: None,
             last_sounded_note: None,
+            pending_retrigger: false,
+            candidate_note: None,
+            candidate_count: 0,
+            silence_count: 0,
         }
     }
 }
@@ -118,7 +175,7 @@ impl Default for MicPitchThreadState {
     }
 }
 
-/// If `trigger` was set by the stream callback, run YIN and maybe emit `input:event` (`source: mic`).
+/// Called every ~33ms from the monitor loop. Handles silence detection and pitch triggers.
 pub fn process_mic_pitch_trigger(
     trigger: &AtomicBool,
     capture: &Mutex<MicCaptureState>,
@@ -126,8 +183,34 @@ pub fn process_mic_pitch_trigger(
     state: &mut MicPitchThreadState,
     app: &AppHandle,
 ) {
-    if !trigger.swap(false, Ordering::AcqRel) {
+    let triggered = trigger.swap(false, Ordering::AcqRel);
+
+    // Silence-based note_off: compute RMS and track silence duration.
+    {
+        let cap = mic_capture_lock(capture);
+        if cap.samples_seen >= WINDOW as u32 {
+            let rms = compute_rms(&cap.ring);
+            if rms < SILENCE_RMS_THRESHOLD {
+                state.silence_count = state.silence_count.saturating_add(1);
+            } else {
+                state.silence_count = 0;
+            }
+        }
+    }
+
+    if state.silence_count >= SILENCE_POLLS {
+        if let Some(n) = state.last_sounded_note.take() {
+            let off = InputEvent::from_mic_note_off(n);
+            let _ = app.emit(ipc::INPUT_EVENT, &off);
+        }
+        state.candidate_note = None;
+        state.candidate_count = 0;
         return;
+    }
+
+    // Trigger buffering: if in cooldown, save the trigger for after cooldown expires.
+    if triggered {
+        state.pending_retrigger = true;
     }
 
     let now = Instant::now();
@@ -136,6 +219,11 @@ pub fn process_mic_pitch_trigger(
             return;
         }
     }
+
+    if !state.pending_retrigger {
+        return;
+    }
+    state.pending_retrigger = false;
 
     {
         let cap = mic_capture_lock(capture);
@@ -163,6 +251,41 @@ pub fn process_mic_pitch_trigger(
     if note == 0 {
         return;
     }
+
+    // Vibrato hysteresis: if we have a sounded note and detected Hz is close, keep it.
+    if let Some(prev) = state.last_sounded_note {
+        if prev == note || within_cents(hz, prev, VIBRATO_HYSTERESIS_CENTS) {
+            // Same note or vibrato wobble — refresh timing but don't emit new events.
+            state.last_emit = Some(now);
+            state.candidate_note = None;
+            state.candidate_count = 0;
+            return;
+        }
+    }
+
+    // Octave stability filter: require STABILITY_FRAMES consecutive detections of the
+    // same *new* note before accepting a pitch change.
+    if state.last_sounded_note.is_some() {
+        match state.candidate_note {
+            Some(cn) if cn == note => {
+                state.candidate_count += 1;
+                if state.candidate_count < STABILITY_FRAMES {
+                    return;
+                }
+                // Passed stability check — fall through to emit.
+            }
+            _ => {
+                state.candidate_note = Some(note);
+                state.candidate_count = 1;
+                if STABILITY_FRAMES > 1 {
+                    return;
+                }
+            }
+        }
+    }
+
+    state.candidate_note = None;
+    state.candidate_count = 0;
 
     let block_peak = {
         let cap = mic_capture_lock(capture);
