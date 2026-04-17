@@ -11,6 +11,10 @@ export type SessionSummaryV1 = {
   misses: number;
   accuracyPercent: number;
   maxCombo: number;
+  /** Added later — total notes in the chart at the time of the run. */
+  totalNotes?: number;
+  /** e.g. "midi", "mic-pitch", "mic-rhythm" — absent in older sessions. */
+  inputSource?: string;
 };
 
 export function saveLastSession(summary: SessionSummaryV1): void {

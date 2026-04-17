@@ -23,7 +23,7 @@
     findHitNoteIndex,
     findRhythmHitNoteIndex,
   } from "./midi-scoring";
-  import { MIDI_SCORING_LABEL, TIMING_BY_MODE, type ScoringModeId } from "./scoring-modes";
+  import { SCORING_MODE_LABEL, TIMING_BY_MODE, type ScoringModeId } from "./scoring-modes";
   import { loadLastSession, saveLastSession, type SessionSummaryV1 } from "./session-storage";
   import { beatToSeconds, chartLengthBeats, chartLengthSeconds, secondsToBeat } from "./time";
   import type { FretflowChartV1 } from "./types";
@@ -209,13 +209,19 @@
     lastAudioLevel = level;
   }
 
+  function resolveInputSourceLabel(): string {
+    if (micPitchBeta) return "mic-pitch";
+    if (micRhythmBeta) return "mic-rhythm";
+    return "midi";
+  }
+
   function finalizeSessionSummary() {
     if (!scoringEnabled) return;
     const hits = hitIndicesDisplay.length;
-    const misses = missIndicesDisplay.length;
-    const judged = hits + misses;
-    if (judged === 0) return;
-    const accuracyPercent = Math.round((100 * hits) / judged);
+    const total = chart.notes.length;
+    if (total === 0) return;
+    const misses = total - hits;
+    const accuracyPercent = Math.round((100 * hits) / total);
     const summary: SessionSummaryV1 = {
       schemaVersion: 1,
       at: new Date().toISOString(),
@@ -225,10 +231,12 @@
       misses,
       accuracyPercent,
       maxCombo: maxComboEver,
+      totalNotes: total,
+      inputSource: resolveInputSourceLabel(),
     };
     saveLastSession(summary);
     lastSessionSnapshot = summary;
-    lastFeedback = `Run complete · ${accuracyPercent}% · ${hits} hits / ${misses} misses · max combo ${maxComboEver}`;
+    lastFeedback = `Run complete · ${accuracyPercent}% · ${hits}/${total} hits · max combo ${maxComboEver}`;
   }
 
   function normalizeLoopBeats() {
@@ -373,7 +381,8 @@
       beatMetronome.syncAfterJump(t, chart.bpm);
     } else if (!loopEnabled && t >= totalSec) {
       t = totalSec;
-      applyMissesForTime(t);
+      const lateSec = timingWindows.lateMs / 1000;
+      applyMissesForTime(t + lateSec);
       finalizeSessionSummary();
       playing = false;
       stopRaf();
@@ -402,6 +411,7 @@
     } else {
       if (timeSec >= totalSec && !loopEnabled) {
         timeSec = 0;
+        resetScoringState(null);
       }
       anchorChartSec = timeSec;
       anchorWallMs = performance.now();
@@ -649,7 +659,7 @@
           <span>{m === "practice" ? "Practice" : "Performance"}</span>
         </label>
       {/each}
-      <span class="muted" style="font-size: 0.8rem">{MIDI_SCORING_LABEL[scoringMode]}</span>
+      <span class="muted" style="font-size: 0.8rem">{SCORING_MODE_LABEL[scoringMode]}</span>
     </div>
     {#if isTauri()}
       <label class="row" style="gap: 0.5rem; cursor: pointer; margin-bottom: 0.5rem">
@@ -678,8 +688,10 @@
       <h3 style="margin: 0 0 0.35rem; font-size: 0.95rem">Last session</h3>
       <p style="margin: 0; font-size: 0.88rem; color: var(--ff-muted)">
         <strong style="color: var(--ff-text)">{lastSessionSnapshot.chartTitle}</strong>
-        · {lastSessionSnapshot.accuracyPercent}% · {lastSessionSnapshot.hits}H / {lastSessionSnapshot.misses}M · combo
-        {lastSessionSnapshot.maxCombo} · {lastSessionSnapshot.scoringMode}
+        · {lastSessionSnapshot.accuracyPercent}%
+        · {lastSessionSnapshot.hits}/{lastSessionSnapshot.totalNotes ?? (lastSessionSnapshot.hits + lastSessionSnapshot.misses)} hits
+        · combo {lastSessionSnapshot.maxCombo}
+        · {lastSessionSnapshot.scoringMode}{lastSessionSnapshot.inputSource ? ` · ${lastSessionSnapshot.inputSource}` : ""}
       </p>
       <p style="margin: 0.25rem 0 0; font-size: 0.8rem; color: var(--ff-muted)">
         {new Date(lastSessionSnapshot.at).toLocaleString()}

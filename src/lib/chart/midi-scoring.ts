@@ -35,11 +35,13 @@ export function findHitNoteIndex(
   latencyOffsetMs: number = 0,
 ): { index: number; deltaMs: number } | null {
   let best: { index: number; deltaMs: number; abs: number } | null = null;
+  const earlyLimitSec = chartTimeSec + windowMs.earlyMs / 1000;
   for (let i = 0; i < chart.notes.length; i++) {
     if (consumed.has(i) || missed.has(i)) continue;
     const n = chart.notes[i]!;
-    if (chartNoteToMidi(n) !== midiNote) continue;
     const judgedStart = judgedNoteStartSeconds(n, chart.bpm, latencyOffsetMs);
+    if (judgedStart > earlyLimitSec) continue;
+    if (chartNoteToMidi(n) !== midiNote) continue;
     const deltaMs = (chartTimeSec - judgedStart) * 1000;
     if (deltaMs < -windowMs.earlyMs || deltaMs > windowMs.lateMs) continue;
     const abs = Math.abs(deltaMs);
@@ -63,10 +65,12 @@ export function findRhythmHitNoteIndex(
   latencyOffsetMs: number = 0,
 ): { index: number; deltaMs: number } | null {
   let best: { index: number; deltaMs: number; abs: number } | null = null;
+  const earlyLimitSec = chartTimeSec + windowMs.earlyMs / 1000;
   for (let i = 0; i < chart.notes.length; i++) {
     if (consumed.has(i) || missed.has(i)) continue;
     const n = chart.notes[i]!;
     const judgedStart = judgedNoteStartSeconds(n, chart.bpm, latencyOffsetMs);
+    if (judgedStart > earlyLimitSec) continue;
     const deltaMs = (chartTimeSec - judgedStart) * 1000;
     if (deltaMs < -windowMs.earlyMs || deltaMs > windowMs.lateMs) continue;
     const abs = Math.abs(deltaMs);
