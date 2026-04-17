@@ -24,7 +24,15 @@
     findRhythmHitNoteIndex,
     noteStartSeconds,
   } from "./midi-scoring";
-  import { SCORING_MODE_LABEL, TIMING_BY_MODE, type ScoringModeId } from "./scoring-modes";
+  import {
+    GRADE_COLOR,
+    GRADE_LABEL,
+    SCORING_MODE_LABEL,
+    TIMING_BY_MODE,
+    gradeHitTiming,
+    type ScoringModeId,
+    type TimingGrade,
+  } from "./scoring-modes";
   import { loadLastSession, saveLastSession, type SessionSummaryV1 } from "./session-storage";
   import { beatToSeconds, chartLengthBeats, chartLengthSeconds, secondsToBeat } from "./time";
   import type { FretflowChartV1 } from "./types";
@@ -193,15 +201,27 @@
       newMisses.length === 1 ? `Miss (note ${newMisses[0]! + 1})` : `Miss ×${newMisses.length}`;
   }
 
+  let lastGrade = $state<TimingGrade | null>(null);
+  let lastGradeKey = $state(0);
+
   function registerHit(hit: { index: number; deltaMs: number }, source: "midi" | "mic") {
     consumedNoteIndices.add(hit.index);
     hitIndicesDisplay = [...hitIndicesDisplay, hit.index];
     combo += 1;
     if (combo > maxComboEver) maxComboEver = combo;
+    const grade = gradeHitTiming(Math.abs(hit.deltaMs));
+    lastGrade = grade;
+    lastGradeKey += 1;
     const sign = hit.deltaMs >= 0 ? "+" : "";
     const src = source === "mic" ? "Mic " : "";
-    lastFeedback = `${src}Hit ${sign}${hit.deltaMs.toFixed(0)} ms · combo ${combo}`;
+    lastFeedback = `${src}${GRADE_LABEL[grade]}! ${sign}${hit.deltaMs.toFixed(0)} ms · combo ${combo}`;
   }
+
+  const liveAccuracy = $derived.by(() => {
+    const judged = hitIndicesDisplay.length + missIndicesDisplay.length;
+    if (judged === 0) return null;
+    return Math.round((100 * hitIndicesDisplay.length) / judged);
+  });
 
   function handleInputScoring(ev: { payload: InputEventPayload }) {
     if (!scoringEnabled || !playing) return;
@@ -715,15 +735,35 @@
         Latency offset: <strong>{latencyOffsetMs} ms</strong> (Settings → Latency). Shifts hit/miss timing only; highway is unchanged.
       </p>
     {/if}
-    <p style="margin: 0 0 0.35rem; font-variant-numeric: tabular-nums">
-      Hits <strong>{hitIndicesDisplay.length}</strong>
-      · Misses <strong>{missIndicesDisplay.length}</strong>
-      · Combo <strong>{combo}</strong>
-    </p>
+    <div class="scoring-stats">
+      <div class="scoring-stats__row">
+        <span>Hits <strong>{hitIndicesDisplay.length}</strong></span>
+        <span>Misses <strong>{missIndicesDisplay.length}</strong></span>
+        <span>Combo <strong>{combo}</strong></span>
+        {#if liveAccuracy != null}
+          <span class="scoring-accuracy">{liveAccuracy}%</span>
+        {/if}
+      </div>
+      {#if liveAccuracy != null}
+        <div class="accuracy-bar">
+          <div
+            class="accuracy-bar__fill"
+            style="width: {liveAccuracy}%; background: {liveAccuracy >= 90 ? '#3dd68c' : liveAccuracy >= 70 ? '#3d8bfd' : liveAccuracy >= 50 ? '#fbbf24' : '#f87171'}"
+          ></div>
+        </div>
+      {/if}
+    </div>
+    {#if lastGrade && lastFeedback && !lastFeedback.startsWith("Miss") && !lastFeedback.startsWith("Loop") && !lastFeedback.startsWith("Run")}
+      {#key lastGradeKey}
+        <div class="grade-flash" style="color: {GRADE_COLOR[lastGrade]}">
+          {GRADE_LABEL[lastGrade]}!
+        </div>
+      {/key}
+    {/if}
     {#if lastFeedback}
       <p
         class="last-feedback"
-        class:last-feedback--hit={lastFeedback.startsWith("Hit") || lastFeedback.startsWith("Mic Hit")}
+        class:last-feedback--hit={!lastFeedback.startsWith("Miss") && !lastFeedback.startsWith("Loop") && !lastFeedback.startsWith("Run")}
         class:last-feedback--miss={lastFeedback.startsWith("Miss")}
         class:last-feedback--loop={lastFeedback.startsWith("Loop")}
         class:last-feedback--summary={lastFeedback.startsWith("Run complete")}
@@ -1005,5 +1045,46 @@
   .practice-audio-error__hint {
     margin: 0.5rem 0 0;
     font-size: 0.82rem;
+  }
+  .scoring-stats {
+    margin: 0 0 0.5rem;
+  }
+  .scoring-stats__row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 1rem;
+    font-variant-numeric: tabular-nums;
+    font-size: 0.95rem;
+    align-items: center;
+  }
+  .scoring-accuracy {
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--ff-text);
+  }
+  .accuracy-bar {
+    margin-top: 0.4rem;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--ff-border);
+    overflow: hidden;
+    max-width: 20rem;
+  }
+  .accuracy-bar__fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.2s ease, background 0.3s ease;
+  }
+  .grade-flash {
+    font-size: 1.3rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    margin: 0.15rem 0 0.25rem;
+    animation: grade-pop 0.4s ease-out;
+  }
+  @keyframes grade-pop {
+    0% { transform: scale(1.5); opacity: 0.5; }
+    50% { transform: scale(1.1); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
   }
 </style>
