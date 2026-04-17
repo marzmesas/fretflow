@@ -1,6 +1,7 @@
 import { DEMO_CHART } from "$lib/chart/demo-chart";
 import type { FretflowChartV1 } from "$lib/chart/types";
 import { MOCK_CATALOG } from "./mock-catalog";
+import { resolveUserChart } from "./user-charts";
 
 export type ResolvedPracticeChart = {
   chart: FretflowChartV1;
@@ -26,6 +27,25 @@ export function resolvePracticeChart(trackId: string | null | undefined): Resolv
       bundledChartUrl: null,
     };
   }
+  // User-imported charts (stored in localStorage).
+  if (id.startsWith("user-")) {
+    const userChart = resolveUserChart(id);
+    if (userChart) {
+      return {
+        chart: userChart,
+        catalogTrackId: id,
+        trackRequestInvalid: false,
+        bundledChartUrl: null,
+      };
+    }
+    return {
+      chart: DEMO_CHART,
+      catalogTrackId: null,
+      trackRequestInvalid: true,
+      bundledChartUrl: null,
+    };
+  }
+
   const row = MOCK_CATALOG.find((r) => r.id === id);
   if (!row || row.tier === "premium") {
     return {

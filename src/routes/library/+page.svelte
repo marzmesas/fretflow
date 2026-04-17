@@ -1,13 +1,20 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { MOCK_CATALOG } from "$lib/catalog/mock-catalog";
-  import type { CatalogTierId, CatalogTrackStub } from "$lib/catalog/types";
+  import { midiBufferToChart } from "$lib/catalog/midi-import";
+  import { addUserChart, getUserCharts, removeUserChart, type UserChartEntry } from "$lib/catalog/user-charts";
+  import type { CatalogTrackStub } from "$lib/catalog/types";
+  import { validateChart } from "$lib/chart/validate";
 
-  type Filter = "all" | CatalogTierId;
+  type Filter = "all" | "free" | "premium" | "mine";
 
   let filter = $state<Filter>("all");
+  let userCharts = $state<UserChartEntry[]>(getUserCharts());
+  let importError = $state<string | null>(null);
+  let importWarnings = $state<string[]>([]);
 
   const filtered = $derived.by(() => {
+    if (filter === "mine") return [];
     if (filter === "all") return MOCK_CATALOG;
     return MOCK_CATALOG.filter((t) => t.tier === filter);
   });
@@ -19,9 +26,7 @@
   function canOpenInPractice(t: CatalogTrackStub): boolean {
     if (isLocked(t)) return false;
     if (t.practiceChartKey === "demo") return true;
-    if (t.practiceChartKey === "bundled") {
-      return Boolean(t.bundledChartFile?.trim());
-    }
+    if (t.practiceChartKey === "bundled") return Boolean(t.bundledChartFile?.trim());
     return false;
   }
 
@@ -29,23 +34,74 @@
     if (!canOpenInPractice(t)) return;
     void goto(`/practice?track=${encodeURIComponent(t.id)}`);
   }
+
+  function openUserChart(entry: UserChartEntry) {
+    void goto(`/practice?track=${encodeURIComponent(entry.id)}`);
+  }
+
+  function deleteUserChart(entry: UserChartEntry) {
+    removeUserChart(entry.id);
+    userCharts = getUserCharts();
+  }
+
+  async function handleImportFile(ev: Event) {
+    const input = ev.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    importError = null;
+    importWarnings = [];
+
+    const name = file.name.toLowerCase();
+
+    if (name.endsWith(".json")) {
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        if (!validateChart(data)) {
+          importError = "JSON file is not a valid Fretflow chart (schema v1).";
+          input.value = "";
+          return;
+        }
+        addUserChart(data);
+        userCharts = getUserCharts();
+        filter = "mine";
+      } catch {
+        importError = "Could not parse the JSON file.";
+      }
+    } else if (name.endsWith(".mid") || name.endsWith(".midi")) {
+      try {
+        const buf = await file.arrayBuffer();
+        const result = midiBufferToChart(buf, file.name);
+        if (!result.ok) {
+          importError = result.error;
+          input.value = "";
+          return;
+        }
+        if (result.warnings.length > 0) importWarnings = result.warnings;
+        addUserChart(result.chart);
+        userCharts = getUserCharts();
+        filter = "mine";
+      } catch (e) {
+        importError = `MIDI import failed: ${e instanceof Error ? e.message : String(e)}`;
+      }
+    } else {
+      importError = "Unsupported file type. Use .json (chart) or .mid / .midi (Standard MIDI).";
+    }
+
+    input.value = "";
+  }
 </script>
 
 <h1 style="margin: 0 0 0.5rem; font-size: 1.5rem">Library</h1>
 <p class="muted" style="margin: 0 0 1rem">
-  Local catalog (no network). Some rows use the embedded demo chart; others load JSON from
-  <code>static/charts/</code>. Premium rows are UI-only locks until entitlements exist.
+  Browse bundled exercises or import your own charts (JSON or MIDI files).
 </p>
 
 <div class="panel">
   <h2>Browse</h2>
-  <p class="muted" style="margin-bottom: 0.75rem">
-    Free tracks open <strong>Practice</strong> with either the built-in demo chart or a bundled file.
-    Premium rows preview locked content.
-  </p>
 
   <div class="row catalog-filters" style="margin-bottom: 1rem">
-    {#each (["all", "free", "premium"] as Filter[]) as f (f)}
+    {#each (["all", "free", "premium", "mine"] as Filter[]) as f (f)}
       <button
         type="button"
         class="btn"
@@ -53,62 +109,116 @@
         onclick={() => (filter = f)}
         aria-pressed={filter === f}
       >
-        {f === "all" ? "All" : f === "free" ? "Free" : "Premium"}
+        {f === "all" ? "All" : f === "free" ? "Free" : f === "premium" ? "Premium" : `My Charts (${userCharts.length})`}
       </button>
     {/each}
   </div>
 
-  <ul class="catalog-list" aria-label="Tracks">
-    {#each filtered as t (t.id)}
-      <li class="catalog-row">
-        <div class="catalog-main">
-          <div class="catalog-title">{t.title}</div>
-          <div class="catalog-meta">
-            <span class="muted">{t.artist}</span>
-            {#if t.difficulty}
-              <span class="difficulty-pill difficulty-pill--{t.difficulty}">{t.difficulty}</span>
-            {/if}
-            {#if t.durationSec != null}
-              <span class="muted">{t.durationSec < 60 ? `${t.durationSec}s` : `${Math.floor(t.durationSec / 60)}m ${t.durationSec % 60}s`}</span>
-            {/if}
-            <span
-              class="tier-pill"
-              class:tier-pill--free={t.tier === "free"}
-              class:tier-pill--premium={t.tier === "premium"}
-            >
-              {t.tier}
-            </span>
-          </div>
-        </div>
-        <div class="catalog-action">
-          {#if isLocked(t)}
-            <span class="locked-label" title="Subscription / purchase flow not wired yet">
-              <svg
-                class="lock-icon"
-                viewBox="0 0 16 16"
-                width="14"
-                height="14"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.35"
-                aria-hidden="true"
+  {#if filter === "mine"}
+    {#if userCharts.length === 0}
+      <p class="muted" style="margin: 0 0 1rem">No imported charts yet. Use the import section below to add MIDI or JSON files.</p>
+    {:else}
+      <ul class="catalog-list" aria-label="My imported charts">
+        {#each userCharts as entry (entry.id)}
+          <li class="catalog-row">
+            <div class="catalog-main">
+              <div class="catalog-title">{entry.title}</div>
+              <div class="catalog-meta">
+                <span class="muted">{entry.artist}</span>
+                <span class="muted">{new Date(entry.addedAt).toLocaleDateString()}</span>
+              </div>
+            </div>
+            <div class="catalog-action">
+              <button type="button" class="btn btn-primary" onclick={() => openUserChart(entry)}>
+                Practice
+              </button>
+              <button type="button" class="btn btn-danger" onclick={() => deleteUserChart(entry)}
+                title="Remove this imported chart"
               >
-                <rect x="3" y="7" width="10" height="7" rx="1" />
-                <path d="M5 7V5a3 3 0 0 1 6 0v2" />
-              </svg>
-              Locked
-            </span>
-          {:else if canOpenInPractice(t)}
-            <button type="button" class="btn btn-primary" onclick={() => openInPractice(t)}>
-              Practice
-            </button>
-          {:else}
-            <span class="locked-label" title="No chart wired for this row">Soon</span>
-          {/if}
-        </div>
-      </li>
-    {/each}
-  </ul>
+                Remove
+              </button>
+            </div>
+          </li>
+        {/each}
+      </ul>
+    {/if}
+  {:else}
+    <ul class="catalog-list" aria-label="Tracks">
+      {#each filtered as t (t.id)}
+        <li class="catalog-row">
+          <div class="catalog-main">
+            <div class="catalog-title">{t.title}</div>
+            <div class="catalog-meta">
+              <span class="muted">{t.artist}</span>
+              {#if t.difficulty}
+                <span class="difficulty-pill difficulty-pill--{t.difficulty}">{t.difficulty}</span>
+              {/if}
+              {#if t.durationSec != null}
+                <span class="muted">{t.durationSec < 60 ? `${t.durationSec}s` : `${Math.floor(t.durationSec / 60)}m ${t.durationSec % 60}s`}</span>
+              {/if}
+              <span
+                class="tier-pill"
+                class:tier-pill--free={t.tier === "free"}
+                class:tier-pill--premium={t.tier === "premium"}
+              >
+                {t.tier}
+              </span>
+            </div>
+          </div>
+          <div class="catalog-action">
+            {#if isLocked(t)}
+              <span class="locked-label" title="Subscription / purchase flow not wired yet">
+                <svg
+                  class="lock-icon"
+                  viewBox="0 0 16 16"
+                  width="14"
+                  height="14"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.35"
+                  aria-hidden="true"
+                >
+                  <rect x="3" y="7" width="10" height="7" rx="1" />
+                  <path d="M5 7V5a3 3 0 0 1 6 0v2" />
+                </svg>
+                Locked
+              </span>
+            {:else if canOpenInPractice(t)}
+              <button type="button" class="btn btn-primary" onclick={() => openInPractice(t)}>
+                Practice
+              </button>
+            {:else}
+              <span class="locked-label" title="No chart wired for this row">Soon</span>
+            {/if}
+          </div>
+        </li>
+      {/each}
+    </ul>
+  {/if}
+</div>
+
+<div class="panel">
+  <h2>Import chart</h2>
+  <p class="muted" style="margin: 0 0 0.75rem">
+    Add a <strong>.json</strong> (Fretflow chart v1) or <strong>.mid</strong> (Standard MIDI) file.
+    MIDI files are converted to chart format automatically using the same voicing engine as the CLI importer.
+  </p>
+  <input
+    type="file"
+    accept=".json,.mid,.midi,application/json,audio/midi"
+    onchange={handleImportFile}
+    style="margin-bottom: 0.75rem"
+  />
+  {#if importError}
+    <p class="import-error">{importError}</p>
+  {/if}
+  {#if importWarnings.length > 0}
+    <ul class="import-warnings">
+      {#each importWarnings as w}
+        <li>{w}</li>
+      {/each}
+    </ul>
+  {/if}
 </div>
 
 <style>
@@ -150,6 +260,11 @@
     gap: 0.5rem 0.65rem;
     margin-top: 0.2rem;
     font-size: 0.82rem;
+  }
+  .catalog-action {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
   }
   .tier-pill {
     text-transform: capitalize;
@@ -203,5 +318,24 @@
   .difficulty-pill--advanced {
     border-color: color-mix(in srgb, #f87171 45%, var(--ff-border));
     color: #f87171;
+  }
+  .btn-danger {
+    color: #f87171;
+    border-color: color-mix(in srgb, #f87171 40%, var(--ff-border));
+  }
+  .btn-danger:hover {
+    background: color-mix(in srgb, #f87171 12%, var(--ff-bg));
+    border-color: #f87171;
+  }
+  .import-error {
+    color: #f87171;
+    font-size: 0.9rem;
+    margin: 0 0 0.5rem;
+  }
+  .import-warnings {
+    margin: 0 0 0.5rem;
+    padding-left: 1.2rem;
+    font-size: 0.85rem;
+    color: #fbbf24;
   }
 </style>
