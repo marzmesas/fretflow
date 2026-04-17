@@ -33,7 +33,14 @@
     type ScoringModeId,
     type TimingGrade,
   } from "./scoring-modes";
-  import { loadLastSession, saveLastSession, type SessionSummaryV1 } from "./session-storage";
+  import {
+    clearSessionHistory,
+    getSessionStats,
+    loadLastSession,
+    loadSessionHistory,
+    saveLastSession,
+    type SessionSummaryV1,
+  } from "./session-storage";
   import { beatToSeconds, chartLengthBeats, chartLengthSeconds, secondsToBeat } from "./time";
   import type { FretflowChartV1 } from "./types";
   import { consumePendingPracticeChartJson } from "./practice-chart-transfer";
@@ -84,6 +91,8 @@
   let inputConnPoll: ReturnType<typeof setInterval> | null = null;
 
   let lastSessionSnapshot = $state<SessionSummaryV1 | null>(null);
+  let sessionHistory = $state<SessionSummaryV1[]>([]);
+  let showHistory = $state(false);
 
   /** From Settings → Latency; applied to hit/miss only (highway unchanged). */
   let latencyOffsetMs = $state(0);
@@ -300,6 +309,7 @@
     };
     saveLastSession(summary);
     lastSessionSnapshot = summary;
+    sessionHistory = loadSessionHistory();
     lastFeedback = `Run complete · ${accuracyPercent}% · ${hits}/${total} hits · max combo ${maxComboEver}`;
   }
 
@@ -637,6 +647,7 @@
 
   onMount(() => {
     lastSessionSnapshot = loadLastSession();
+    sessionHistory = loadSessionHistory();
     void refreshCalibrationFromPrefs();
     window.addEventListener("focus", onWindowFocusPractice);
     void (async () => {
@@ -808,22 +819,61 @@
     </p>
   </div>
 
-  {#if lastSessionSnapshot}
-    <div class="last-session panel-inner">
-      <h3 style="margin: 0 0 0.35rem; font-size: 0.95rem">Last session</h3>
-      <p style="margin: 0; font-size: 0.88rem; color: var(--ff-muted)">
-        <strong style="color: var(--ff-text)">{lastSessionSnapshot.chartTitle}</strong>
-        · {lastSessionSnapshot.accuracyPercent}% accuracy
-        · {lastSessionSnapshot.hits}/{lastSessionSnapshot.totalNotes ?? (lastSessionSnapshot.hits + lastSessionSnapshot.misses)} notes hit
-        · combo {lastSessionSnapshot.maxCombo}
-        {#if lastSessionSnapshot.inputSource}
-          · {lastSessionSnapshot.inputSource}
-        {/if}
-        · {lastSessionSnapshot.scoringMode}{lastSessionSnapshot.inputSource ? ` · ${lastSessionSnapshot.inputSource}` : ""}
-      </p>
-      <p style="margin: 0.25rem 0 0; font-size: 0.8rem; color: var(--ff-muted)">
-        {new Date(lastSessionSnapshot.at).toLocaleString()}
-      </p>
+  {#if lastSessionSnapshot || sessionHistory.length > 0}
+    {@const stats = getSessionStats(sessionHistory)}
+    <div class="session-history panel-inner">
+      <div class="row" style="justify-content: space-between; align-items: center; margin-bottom: 0.5rem">
+        <h3 style="margin: 0; font-size: 0.95rem">Practice history</h3>
+        <div class="row" style="gap: 0.5rem">
+          {#if sessionHistory.length > 0}
+            <button type="button" class="btn" style="font-size: 0.78rem; padding: 0.25rem 0.55rem" onclick={() => (showHistory = !showHistory)}>
+              {showHistory ? "Hide" : `Show all (${sessionHistory.length})`}
+            </button>
+            <button type="button" class="btn" style="font-size: 0.78rem; padding: 0.25rem 0.55rem; color: var(--ff-muted)"
+              onclick={() => { clearSessionHistory(); lastSessionSnapshot = null; sessionHistory = []; showHistory = false; }}
+            >Clear</button>
+          {/if}
+        </div>
+      </div>
+      {#if stats.totalSessions > 0}
+        <div class="history-stats">
+          <span><strong>{stats.totalSessions}</strong> sessions</span>
+          <span><strong>{stats.uniqueCharts}</strong> charts</span>
+          {#if stats.averageAccuracy != null}
+            <span>avg <strong>{stats.averageAccuracy}%</strong></span>
+          {/if}
+          {#if stats.bestAccuracy != null}
+            <span>best <strong>{stats.bestAccuracy}%</strong></span>
+          {/if}
+          <span>top combo <strong>{stats.bestCombo}</strong></span>
+        </div>
+      {/if}
+      {#if lastSessionSnapshot && !showHistory}
+        <div class="history-entry">
+          <div class="history-entry__title">{lastSessionSnapshot.chartTitle}</div>
+          <div class="history-entry__meta">
+            {lastSessionSnapshot.accuracyPercent}% · {lastSessionSnapshot.hits}/{lastSessionSnapshot.totalNotes ?? (lastSessionSnapshot.hits + lastSessionSnapshot.misses)} hits · combo {lastSessionSnapshot.maxCombo}
+            · {lastSessionSnapshot.scoringMode}
+            {#if lastSessionSnapshot.inputSource} · {lastSessionSnapshot.inputSource}{/if}
+          </div>
+          <div class="history-entry__time">{new Date(lastSessionSnapshot.at).toLocaleString()}</div>
+        </div>
+      {/if}
+      {#if showHistory}
+        <ul class="history-list">
+          {#each sessionHistory as s, i (s.at + i)}
+            <li class="history-entry">
+              <div class="history-entry__title">{s.chartTitle}</div>
+              <div class="history-entry__meta">
+                {s.accuracyPercent}% · {s.hits}/{s.totalNotes ?? (s.hits + s.misses)} hits · combo {s.maxCombo}
+                · {s.scoringMode}
+                {#if s.inputSource} · {s.inputSource}{/if}
+              </div>
+              <div class="history-entry__time">{new Date(s.at).toLocaleString()}</div>
+            </li>
+          {/each}
+        </ul>
+      {/if}
     </div>
   {/if}
 
@@ -985,11 +1035,6 @@
   .last-feedback--summary {
     color: var(--ff-accent);
   }
-  .last-session {
-    margin-top: 0.75rem;
-    padding: 0.75rem 0 0;
-    border-top: 1px solid var(--ff-border);
-  }
   .mode-row {
     display: flex;
     flex-wrap: wrap;
@@ -1086,5 +1131,48 @@
     0% { transform: scale(1.5); opacity: 0.5; }
     50% { transform: scale(1.1); opacity: 1; }
     100% { transform: scale(1); opacity: 1; }
+  }
+  .session-history {
+    margin-top: 0.75rem;
+    padding: 0.75rem 0 0;
+    border-top: 1px solid var(--ff-border);
+  }
+  .history-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
+    font-size: 0.85rem;
+    color: var(--ff-muted);
+    margin-bottom: 0.6rem;
+  }
+  .history-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 18rem;
+    overflow-y: auto;
+  }
+  .history-entry {
+    padding: 0.45rem 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--ff-border) 50%, transparent);
+  }
+  .history-entry:last-child {
+    border-bottom: none;
+  }
+  .history-entry__title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--ff-text);
+  }
+  .history-entry__meta {
+    font-size: 0.82rem;
+    color: var(--ff-muted);
+    margin-top: 0.1rem;
+  }
+  .history-entry__time {
+    font-size: 0.75rem;
+    color: var(--ff-muted);
+    opacity: 0.7;
+    margin-top: 0.1rem;
   }
 </style>
