@@ -1,0 +1,155 @@
+{
+  "schemaVersion": 1,
+  "title": "Am pentatonic — up & down",
+  "bpm": 90,
+  "timeSignature": [
+    4,
+    4
+  ],
+  "notes": [
+    {
+      "startBeat": 0,
+      "durationBeats": 0.5,
+      "stringIndex": 5,
+      "fret": 0
+    },
+    {
+      "startBeat": 0.5,
+      "durationBeats": 0.5,
+      "stringIndex": 5,
+      "fret": 3
+    },
+    {
+      "startBeat": 1,
+      "durationBeats": 0.5,
+      "stringIndex": 4,
+      "fret": 0
+    },
+    {
+      "startBeat": 1.5,
+      "durationBeats": 0.5,
+      "stringIndex": 4,
+      "fret": 2
+    },
+    {
+      "startBeat": 2,
+      "durationBeats": 0.5,
+      "stringIndex": 3,
+      "fret": 0
+    },
+    {
+      "startBeat": 2.5,
+      "durationBeats": 0.5,
+      "stringIndex": 3,
+      "fret": 2
+    },
+    {
+      "startBeat": 3,
+      "durationBeats": 0.5,
+      "stringIndex": 2,
+      "fret": 0
+    },
+    {
+      "startBeat": 3.5,
+      "durationBeats": 0.5,
+      "stringIndex": 2,
+      "fret": 3
+    },
+    {
+      "startBeat": 4,
+      "durationBeats": 0.5,
+      "stringIndex": 1,
+      "fret": 0
+    },
+    {
+      "startBeat": 4.5,
+      "durationBeats": 0.5,
+      "stringIndex": 1,
+      "fret": 3
+    },
+    {
+      "startBeat": 5,
+      "durationBeats": 0.5,
+      "stringIndex": 0,
+      "fret": 0
+    },
+    {
+      "startBeat": 5.5,
+      "durationBeats": 0.5,
+      "stringIndex": 0,
+      "fret": 3
+    },
+    {
+      "startBeat": 6,
+      "durationBeats": 0.5,
+      "stringIndex": 0,
+      "fret": 3
+    },
+    {
+      "startBeat": 6.5,
+      "durationBeats": 0.5,
+      "stringIndex": 0,
+      "fret": 0
+    },
+    {
+      "startBeat": 7,
+      "durationBeats": 0.5,
+      "stringIndex": 1,
+      "fret": 3
+    },
+    {
+      "startBeat": 7.5,
+      "durationBeats": 0.5,
+      "stringIndex": 1,
+      "fret": 0
+    },
+    {
+      "startBeat": 8,
+      "durationBeats": 0.5,
+      "stringIndex": 2,
+      "fret": 3
+    },
+    {
+      "startBeat": 8.5,
+      "durationBeats": 0.5,
+      "stringIndex": 2,
+      "fret": 0
+    },
+    {
+      "startBeat": 9,
+      "durationBeats": 0.5,
+      "stringIndex": 3,
+      "fret": 2
+    },
+    {
+      "startBeat": 9.5,
+      "durationBeats": 0.5,
+      "stringIndex": 3,
+      "fret": 0
+    },
+    {
+      "startBeat": 10,
+      "durationBeats": 0.5,
+      "stringIndex": 4,
+      "fret": 2
+    },
+    {
+      "startBeat": 10.5,
+      "durationBeats": 0.5,
+      "stringIndex": 4,
+      "fret": 0
+    },
+    {
+      "startBeat": 11,
+      "durationBeats": 0.5,
+      "stringIndex": 5,
+      "fret": 3
+    },
+    {
+      "startBeat": 11.5,
+      "durationBeats": 0.5,
+      "stringIndex": 5,
+      "fret": 0
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "title": "Sustained melody (Am feel)",
+  "bpm": 65,
+  "timeSignature": [
+    4,
+    4
+  ],
+  "lengthBeats": 16,
+  "notes": [
+    {
+      "startBeat": 0,
+      "durationBeats": 2,
+      "stringIndex": 2,
+      "fret": 5
+    },
+    {
+      "startBeat": 2,
+      "durationBeats": 1,
+      "stringIndex": 1,
+      "fret": 5
+    },
+    {
+      "startBeat": 3,
+      "durationBeats": 1,
+      "stringIndex": 1,
+      "fret": 7
+    },
+    {
+      "startBeat": 4,
+      "durationBeats": 2,
+      "stringIndex": 1,
+      "fret": 5
+    },
+    {
+      "startBeat": 6,
+      "durationBeats": 1,
+      "stringIndex": 2,
+      "fret": 7
+    },
+    {
+      "startBeat": 7,
+      "durationBeats": 1,
+      "stringIndex": 2,
+      "fret": 5
+    },
+    {
+      "startBeat": 8,
+      "durationBeats": 2,
+      "stringIndex": 3,
+      "fret": 7
+    },
+    {
+      "startBeat": 10,
+      "durationBeats": 1,
+      "stringIndex": 3,
+      "fret": 5
+    },
+    {
+      "startBeat": 11,
+      "durationBeats": 1,
+      "stringIndex": 2,
+      "fret": 5
+    },
+    {
+      "startBeat": 12,
+      "durationBeats": 4,
+      "stringIndex": 2,
+      "fret": 5
+    }
+  ]
+}

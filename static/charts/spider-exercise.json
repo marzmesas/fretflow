@@ -1,0 +1,299 @@
+{
+  "schemaVersion": 1,
+  "title": "Spider exercise (1-2-3-4)",
+  "bpm": 70,
+  "timeSignature": [
+    4,
+    4
+  ],
+  "notes": [
+    {
+      "startBeat": 0,
+      "durationBeats": 0.5,
+      "stringIndex": 5,
+      "fret": 1
+    },
+    {
+      "startBeat": 0.5,
+      "durationBeats": 0.5,
+      "stringIndex": 5,
+      "fret": 2
+    },
+    {
+      "startBeat": 1,
+      "durationBeats": 0.5,
+      "stringIndex": 5,
+      "fret": 3
+    },
+    {
+      "startBeat": 1.5,
+      "durationBeats": 0.5,
+      "stringIndex": 5,
+      "fret": 4
+    },
+    {
+      "startBeat": 2,
+      "durationBeats": 0.5,
+      "stringIndex": 4,
+      "fret": 1
+    },
+    {
+      "startBeat": 2.5,
+      "durationBeats": 0.5,
+      "stringIndex": 4,
+      "fret": 2
+    },
+    {
+      "startBeat": 3,
+      "durationBeats": 0.5,
+      "stringIndex": 4,
+      "fret": 3
+    },
+    {
+      "startBeat": 3.5,
+      "durationBeats": 0.5,
+      "stringIndex": 4,
+      "fret": 4
+    },
+    {
+      "startBeat": 4,
+      "durationBeats": 0.5,
+      "stringIndex": 3,
+      "fret": 1
+    },
+    {
+      "startBeat": 4.5,
+      "durationBeats": 0.5,
+      "stringIndex": 3,
+      "fret": 2
+    },
+    {
+      "startBeat": 5,
+      "durationBeats": 0.5,
+      "stringIndex": 3,
+      "fret": 3
+    },
+    {
+      "startBeat": 5.5,
+      "durationBeats": 0.5,
+      "stringIndex": 3,
+      "fret": 4
+    },
+    {
+      "startBeat": 6,
+      "durationBeats": 0.5,
+      "stringIndex": 2,
+      "fret": 1
+    },
+    {
+      "startBeat": 6.5,
+      "durationBeats": 0.5,
+      "stringIndex": 2,
+      "fret": 2
+    },
+    {
+      "startBeat": 7,
+      "durationBeats": 0.5,
+      "stringIndex": 2,
+      "fret": 3
+    },
+    {
+      "startBeat": 7.5,
+      "durationBeats": 0.5,
+      "stringIndex": 2,
+      "fret": 4
+    },
+    {
+      "startBeat": 8,
+      "durationBeats": 0.5,
+      "stringIndex": 1,
+      "fret": 1
+    },
+    {
+      "startBeat": 8.5,
+      "durationBeats": 0.5,
+      "stringIndex": 1,
+      "fret": 2
+    },
+    {
+      "startBeat": 9,
+      "durationBeats": 0.5,
+      "stringIndex": 1,
+      "fret": 3
+    },
+    {
+      "startBeat": 9.5,
+      "durationBeats": 0.5,
+      "stringIndex": 1,
+      "fret": 4
+    },
+    {
+      "startBeat": 10,
+      "durationBeats": 0.5,
+      "stringIndex": 0,
+      "fret": 1
+    },
+    {
+      "startBeat": 10.5,
+      "durationBeats": 0.5,
+      "stringIndex": 0,
+      "fret": 2
+    },
+    {
+      "startBeat": 11,
+      "durationBeats": 0.5,
+      "stringIndex": 0,
+      "fret": 3
+    },
+    {
+      "startBeat": 11.5,
+      "durationBeats": 0.5,
+      "stringIndex": 0,
+      "fret": 4
+    },
+    {
+      "startBeat": 12,
+      "durationBeats": 0.5,
+      "stringIndex": 0,
+      "fret": 4
+    },
+    {
+      "startBeat": 12.5,
+      "durationBeats": 0.5,
+      "stringIndex": 0,
+      "fret": 3
+    },
+    {
+      "startBeat": 13,
+      "durationBeats": 0.5,
+      "stringIndex": 0,
+      "fret": 2
+    },
+    {
+      "startBeat": 13.5,
+      "durationBeats": 0.5,
+      "stringIndex": 0,
+      "fret": 1
+    },
+    {
+      "startBeat": 14,
+      "durationBeats": 0.5,
+      "stringIndex": 1,
+      "fret": 4
+    },
+    {
+      "startBeat": 14.5,
+      "durationBeats": 0.5,
+      "stringIndex": 1,
+      "fret": 3
+    },
+    {
+      "startBeat": 15,
+      "durationBeats": 0.5,
+      "stringIndex": 1,
+      "fret": 2
+    },
+    {
+      "startBeat": 15.5,
+      "durationBeats": 0.5,
+      "stringIndex": 1,
+      "fret": 1
+    },
+    {
+      "startBeat": 16,
+      "durationBeats": 0.5,
+      "stringIndex": 2,
+      "fret": 4
+    },
+    {
+      "startBeat": 16.5,
+      "durationBeats": 0.5,
+      "stringIndex": 2,
+      "fret": 3
+    },
+    {
+      "startBeat": 17,
+      "durationBeats": 0.5,
+      "stringIndex": 2,
+      "fret": 2
+    },
+    {
+      "startBeat": 17.5,
+      "durationBeats": 0.5,
+      "stringIndex": 2,
+      "fret": 1
+    },
+    {
+      "startBeat": 18,
+      "durationBeats": 0.5,
+      "stringIndex": 3,
+      "fret": 4
+    },
+    {
+      "startBeat": 18.5,
+      "durationBeats": 0.5,
+      "stringIndex": 3,
+      "fret": 3
+    },
+    {
+      "startBeat": 19,
+      "durationBeats": 0.5,
+      "stringIndex": 3,
+      "fret": 2
+    },
+    {
+      "startBeat": 19.5,
+      "durationBeats": 0.5,
+      "stringIndex": 3,
+      "fret": 1
+    },
+    {
+      "startBeat": 20,
+      "durationBeats": 0.5,
+      "stringIndex": 4,
+      "fret": 4
+    },
+    {
+      "startBeat": 20.5,
+      "durationBeats": 0.5,
+      "stringIndex": 4,
+      "fret": 3
+    },
+    {
+      "startBeat": 21,
+      "durationBeats": 0.5,
+      "stringIndex": 4,
+      "fret": 2
+    },
+    {
+      "startBeat": 21.5,
+      "durationBeats": 0.5,
+      "stringIndex": 4,
+      "fret": 1
+    },
+    {
+      "startBeat": 22,
+      "durationBeats": 0.5,
+      "stringIndex": 5,
+      "fret": 4
+    },
+    {
+      "startBeat": 22.5,
+      "durationBeats": 0.5,
+      "stringIndex": 5,
+      "fret": 3
+    },
+    {
+      "startBeat": 23,
+      "durationBeats": 0.5,
+      "stringIndex": 5,
+      "fret": 2
+    },
+    {
+      "startBeat": 23.5,
+      "durationBeats": 0.5,
+      "stringIndex": 5,
+      "fret": 1
+    }
+  ]
+}

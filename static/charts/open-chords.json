@@ -1,0 +1,203 @@
+{
+  "schemaVersion": 1,
+  "title": "Open chord changes (C–Am–Em–D)",
+  "bpm": 72,
+  "timeSignature": [
+    4,
+    4
+  ],
+  "notes": [
+    {
+      "startBeat": 0,
+      "durationBeats": 2,
+      "stringIndex": 4,
+      "fret": 3
+    },
+    {
+      "startBeat": 0,
+      "durationBeats": 2,
+      "stringIndex": 3,
+      "fret": 2
+    },
+    {
+      "startBeat": 0,
+      "durationBeats": 2,
+      "stringIndex": 2,
+      "fret": 0
+    },
+    {
+      "startBeat": 0,
+      "durationBeats": 2,
+      "stringIndex": 1,
+      "fret": 1
+    },
+    {
+      "startBeat": 2,
+      "durationBeats": 2,
+      "stringIndex": 4,
+      "fret": 0
+    },
+    {
+      "startBeat": 2,
+      "durationBeats": 2,
+      "stringIndex": 3,
+      "fret": 2
+    },
+    {
+      "startBeat": 2,
+      "durationBeats": 2,
+      "stringIndex": 2,
+      "fret": 2
+    },
+    {
+      "startBeat": 2,
+      "durationBeats": 2,
+      "stringIndex": 1,
+      "fret": 0
+    },
+    {
+      "startBeat": 4,
+      "durationBeats": 2,
+      "stringIndex": 5,
+      "fret": 0
+    },
+    {
+      "startBeat": 4,
+      "durationBeats": 2,
+      "stringIndex": 4,
+      "fret": 2
+    },
+    {
+      "startBeat": 4,
+      "durationBeats": 2,
+      "stringIndex": 3,
+      "fret": 2
+    },
+    {
+      "startBeat": 4,
+      "durationBeats": 2,
+      "stringIndex": 2,
+      "fret": 1
+    },
+    {
+      "startBeat": 6,
+      "durationBeats": 2,
+      "stringIndex": 3,
+      "fret": 0
+    },
+    {
+      "startBeat": 6,
+      "durationBeats": 2,
+      "stringIndex": 2,
+      "fret": 2
+    },
+    {
+      "startBeat": 6,
+      "durationBeats": 2,
+      "stringIndex": 1,
+      "fret": 3
+    },
+    {
+      "startBeat": 6,
+      "durationBeats": 2,
+      "stringIndex": 0,
+      "fret": 2
+    },
+    {
+      "startBeat": 8,
+      "durationBeats": 2,
+      "stringIndex": 4,
+      "fret": 3
+    },
+    {
+      "startBeat": 8,
+      "durationBeats": 2,
+      "stringIndex": 3,
+      "fret": 2
+    },
+    {
+      "startBeat": 8,
+      "durationBeats": 2,
+      "stringIndex": 2,
+      "fret": 0
+    },
+    {
+      "startBeat": 8,
+      "durationBeats": 2,
+      "stringIndex": 1,
+      "fret": 1
+    },
+    {
+      "startBeat": 10,
+      "durationBeats": 2,
+      "stringIndex": 4,
+      "fret": 0
+    },
+    {
+      "startBeat": 10,
+      "durationBeats": 2,
+      "stringIndex": 3,
+      "fret": 2
+    },
+    {
+      "startBeat": 10,
+      "durationBeats": 2,
+      "stringIndex": 2,
+      "fret": 2
+    },
+    {
+      "startBeat": 10,
+      "durationBeats": 2,
+      "stringIndex": 1,
+      "fret": 0
+    },
+    {
+      "startBeat": 12,
+      "durationBeats": 2,
+      "stringIndex": 5,
+      "fret": 0
+    },
+    {
+      "startBeat": 12,
+      "durationBeats": 2,
+      "stringIndex": 4,
+      "fret": 2
+    },
+    {
+      "startBeat": 12,
+      "durationBeats": 2,
+      "stringIndex": 3,
+      "fret": 2
+    },
+    {
+      "startBeat": 12,
+      "durationBeats": 2,
+      "stringIndex": 2,
+      "fret": 1
+    },
+    {
+      "startBeat": 14,
+      "durationBeats": 2,
+      "stringIndex": 3,
+      "fret": 0
+    },
+    {
+      "startBeat": 14,
+      "durationBeats": 2,
+      "stringIndex": 2,
+      "fret": 2
+    },
+    {
+      "startBeat": 14,
+      "durationBeats": 2,
+      "stringIndex": 1,
+      "fret": 3
+    },
+    {
+      "startBeat": 14,
+      "durationBeats": 2,
+      "stringIndex": 0,
+      "fret": 2
+    }
+  ]
+}

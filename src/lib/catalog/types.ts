@@ -2,6 +2,8 @@
 
 export type CatalogTierId = "free" | "premium";
 
+export type CatalogDifficulty = "beginner" | "easy" | "intermediate" | "advanced";
+
 export type CatalogTrackStub = {
   id: string;
   title: string;
@@ -17,4 +19,7 @@ export type CatalogTrackStub = {
   practiceChartKey: "demo" | "none" | "bundled";
   /** Required when `practiceChartKey === "bundled"` — filename only (e.g. `one-note.json`). */
   bundledChartFile?: string;
+  difficulty?: CatalogDifficulty;
+  /** Approximate duration in seconds (for display). */
+  durationSec?: number;
 };

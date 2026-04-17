@@ -65,6 +65,12 @@
           <div class="catalog-title">{t.title}</div>
           <div class="catalog-meta">
             <span class="muted">{t.artist}</span>
+            {#if t.difficulty}
+              <span class="difficulty-pill difficulty-pill--{t.difficulty}">{t.difficulty}</span>
+            {/if}
+            {#if t.durationSec != null}
+              <span class="muted">{t.durationSec < 60 ? `${t.durationSec}s` : `${Math.floor(t.durationSec / 60)}m ${t.durationSec % 60}s`}</span>
+            {/if}
             <span
               class="tier-pill"
               class:tier-pill--free={t.tier === "free"}
@@ -172,5 +178,30 @@
   .lock-icon {
     flex-shrink: 0;
     opacity: 0.8;
+  }
+  .difficulty-pill {
+    text-transform: capitalize;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0.12rem 0.45rem;
+    border-radius: 999px;
+    border: 1px solid var(--ff-border);
+    color: var(--ff-muted);
+  }
+  .difficulty-pill--beginner {
+    border-color: color-mix(in srgb, #4ade80 45%, var(--ff-border));
+    color: #4ade80;
+  }
+  .difficulty-pill--easy {
+    border-color: color-mix(in srgb, #38bdf8 45%, var(--ff-border));
+    color: #38bdf8;
+  }
+  .difficulty-pill--intermediate {
+    border-color: color-mix(in srgb, #fbbf24 45%, var(--ff-border));
+    color: #fbbf24;
+  }
+  .difficulty-pill--advanced {
+    border-color: color-mix(in srgb, #f87171 45%, var(--ff-border));
+    color: #f87171;
   }
 </style>
