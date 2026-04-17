@@ -109,8 +109,8 @@ impl MicCaptureState {
     pub fn note_buffer_end(&mut self, block_peak: f32, block_rms: f32) -> bool {
         self.ambient_rms = self.ambient_rms * (1.0 - AMBIENT_ALPHA) + block_rms * AMBIENT_ALPHA;
 
-        let scale = (self.ambient_rms * 15.0)
-            .clamp(AMBIENT_ONSET_SCALE_MIN, AMBIENT_ONSET_SCALE_MAX);
+        let scale =
+            (self.ambient_rms * 15.0).clamp(AMBIENT_ONSET_SCALE_MIN, AMBIENT_ONSET_SCALE_MAX);
         let onset_low = ONSET_LOW_BASE * scale;
         let onset_high = ONSET_HIGH_BASE * scale;
 
