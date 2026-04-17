@@ -138,4 +138,35 @@ describe("collectMissedNoteIndices", () => {
     const missed = collectMissedNoteIndices(chart, 99, new Set(), new Set(), 200);
     expect(missed).toEqual([0, 1, 2]);
   });
+
+  it("breaks early — does not include notes still in the future", () => {
+    const chart = makeChart([
+      { startBeat: 0, durationBeats: 1, stringIndex: 5, fret: 0 },
+      { startBeat: 10, durationBeats: 1, stringIndex: 5, fret: 0 },
+    ]);
+    const missed = collectMissedNoteIndices(chart, 1, new Set(), new Set(), 160);
+    expect(missed).toEqual([0]);
+  });
+});
+
+describe("early-break optimization", () => {
+  it("findHitNoteIndex still finds a note when earlier notes are consumed", () => {
+    const chart = makeChart([
+      { startBeat: 0, durationBeats: 1, stringIndex: 5, fret: 0 },
+      { startBeat: 2, durationBeats: 1, stringIndex: 5, fret: 0 },
+    ]);
+    const t = noteStartSeconds(chart.notes[1]!, BPM);
+    const hit = findHitNoteIndex(chart, t, 40, new Set([0]), new Set(), { earlyMs: 100, lateMs: 160 });
+    expect(hit).not.toBeNull();
+    expect(hit!.index).toBe(1);
+  });
+
+  it("findRhythmHitNoteIndex breaks early past the window", () => {
+    const chart = makeChart([
+      { startBeat: 0, durationBeats: 1, stringIndex: 5, fret: 0 },
+      { startBeat: 100, durationBeats: 1, stringIndex: 5, fret: 0 },
+    ]);
+    const hit = findRhythmHitNoteIndex(chart, 0.5, new Set([0]), new Set(), { earlyMs: 140, lateMs: 200 });
+    expect(hit).toBeNull();
+  });
 });

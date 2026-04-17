@@ -22,6 +22,7 @@
     collectMissedNoteIndices,
     findHitNoteIndex,
     findRhythmHitNoteIndex,
+    noteStartSeconds,
   } from "./midi-scoring";
   import { SCORING_MODE_LABEL, TIMING_BY_MODE, type ScoringModeId } from "./scoring-modes";
   import { loadLastSession, saveLastSession, type SessionSummaryV1 } from "./session-storage";
@@ -127,6 +128,26 @@
     combo = 0;
     maxComboEver = 0;
     lastFeedback = feedback;
+  }
+
+  /**
+   * Loop-aware reset: clear scoring but pre-mark notes **outside** A–B as missed so they
+   * are never re-judged (no false miss cascade on notes before `loopA`).
+   */
+  function resetScoringForLoop(loopASec: number, loopBSec: number) {
+    consumedNoteIndices.clear();
+    missedNoteIndices.clear();
+    hitIndicesDisplay = [];
+    missIndicesDisplay = [];
+    combo = 0;
+    maxComboEver = 0;
+    lastFeedback = "Loop — scoring reset";
+    for (let i = 0; i < chart.notes.length; i++) {
+      const ns = noteStartSeconds(chart.notes[i]!, chart.bpm);
+      if (ns < loopASec - 0.01 || ns >= loopBSec + 0.01) {
+        missedNoteIndices.add(i);
+      }
+    }
   }
 
   function applyMissesForTime(t: number) {
@@ -373,7 +394,7 @@
     const loopB = beatToSeconds(loopBBeat, chart.bpm);
 
     if (loopEnabled && loopB > loopA && t >= loopB) {
-      resetScoringState("Loop — scoring reset");
+      resetScoringForLoop(loopA, loopB);
       const span = loopB - loopA;
       t = loopA + ((t - loopA) % span);
       anchorChartSec = t;
@@ -688,9 +709,12 @@
       <h3 style="margin: 0 0 0.35rem; font-size: 0.95rem">Last session</h3>
       <p style="margin: 0; font-size: 0.88rem; color: var(--ff-muted)">
         <strong style="color: var(--ff-text)">{lastSessionSnapshot.chartTitle}</strong>
-        · {lastSessionSnapshot.accuracyPercent}%
-        · {lastSessionSnapshot.hits}/{lastSessionSnapshot.totalNotes ?? (lastSessionSnapshot.hits + lastSessionSnapshot.misses)} hits
+        · {lastSessionSnapshot.accuracyPercent}% accuracy
+        · {lastSessionSnapshot.hits}/{lastSessionSnapshot.totalNotes ?? (lastSessionSnapshot.hits + lastSessionSnapshot.misses)} notes hit
         · combo {lastSessionSnapshot.maxCombo}
+        {#if lastSessionSnapshot.inputSource}
+          · {lastSessionSnapshot.inputSource}
+        {/if}
         · {lastSessionSnapshot.scoringMode}{lastSessionSnapshot.inputSource ? ` · ${lastSessionSnapshot.inputSource}` : ""}
       </p>
       <p style="margin: 0.25rem 0 0; font-size: 0.8rem; color: var(--ff-muted)">

@@ -24,6 +24,9 @@ export function judgedNoteStartSeconds(
 
 /**
  * Pick the unconsumed chart note that matches `midiNote` and is closest in time to `chartTimeSec`.
+ *
+ * Notes are assumed sorted by `startBeat` — the loop breaks early once notes are past the window
+ * so large charts don't scan every note on every input event.
  */
 export function findHitNoteIndex(
   chart: FretflowChartV1,
@@ -36,11 +39,13 @@ export function findHitNoteIndex(
 ): { index: number; deltaMs: number } | null {
   let best: { index: number; deltaMs: number; abs: number } | null = null;
   const earlyLimitSec = chartTimeSec + windowMs.earlyMs / 1000;
+  const lateSec = windowMs.lateMs / 1000;
   for (let i = 0; i < chart.notes.length; i++) {
-    if (consumed.has(i) || missed.has(i)) continue;
     const n = chart.notes[i]!;
     const judgedStart = judgedNoteStartSeconds(n, chart.bpm, latencyOffsetMs);
-    if (judgedStart > earlyLimitSec) continue;
+    if (judgedStart > earlyLimitSec) break;
+    if (chartTimeSec - judgedStart > lateSec + 0.5) continue;
+    if (consumed.has(i) || missed.has(i)) continue;
     if (chartNoteToMidi(n) !== midiNote) continue;
     const deltaMs = (chartTimeSec - judgedStart) * 1000;
     if (deltaMs < -windowMs.earlyMs || deltaMs > windowMs.lateMs) continue;
@@ -66,11 +71,13 @@ export function findRhythmHitNoteIndex(
 ): { index: number; deltaMs: number } | null {
   let best: { index: number; deltaMs: number; abs: number } | null = null;
   const earlyLimitSec = chartTimeSec + windowMs.earlyMs / 1000;
+  const lateSec = windowMs.lateMs / 1000;
   for (let i = 0; i < chart.notes.length; i++) {
-    if (consumed.has(i) || missed.has(i)) continue;
     const n = chart.notes[i]!;
     const judgedStart = judgedNoteStartSeconds(n, chart.bpm, latencyOffsetMs);
-    if (judgedStart > earlyLimitSec) continue;
+    if (judgedStart > earlyLimitSec) break;
+    if (chartTimeSec - judgedStart > lateSec + 0.5) continue;
+    if (consumed.has(i) || missed.has(i)) continue;
     const deltaMs = (chartTimeSec - judgedStart) * 1000;
     if (deltaMs < -windowMs.earlyMs || deltaMs > windowMs.lateMs) continue;
     const abs = Math.abs(deltaMs);
@@ -81,7 +88,10 @@ export function findRhythmHitNoteIndex(
   return best ? { index: best.index, deltaMs: best.deltaMs } : null;
 }
 
-/** Note indices that are past the late window without a hit. */
+/**
+ * Note indices that are past the late window without a hit.
+ * Breaks early once notes are still ahead of the judging horizon.
+ */
 export function collectMissedNoteIndices(
   chart: FretflowChartV1,
   chartTimeSec: number,
@@ -97,6 +107,8 @@ export function collectMissedNoteIndices(
     const judgedStart = judgedNoteStartSeconds(chart.notes[i]!, chart.bpm, latencyOffsetMs);
     if (chartTimeSec > judgedStart + lateSec) {
       out.push(i);
+    } else {
+      break;
     }
   }
   return out;

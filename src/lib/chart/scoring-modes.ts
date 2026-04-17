@@ -11,6 +11,3 @@ export const SCORING_MODE_LABEL: Record<ScoringModeId, string> = {
   practice: "Practice (wide timing)",
   performance: "Performance (tight timing)",
 };
-
-/** @deprecated Use SCORING_MODE_LABEL instead */
-export const MIDI_SCORING_LABEL: Record<ScoringModeId, string> = SCORING_MODE_LABEL;
