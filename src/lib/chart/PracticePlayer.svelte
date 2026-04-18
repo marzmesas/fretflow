@@ -64,6 +64,14 @@
   } from "./chart-backing-audio";
   import { disposeBackingDrone, syncBackingDrone } from "./chart-backing-drone";
   import { getNextWaitEvent } from "./wait-to-play";
+  import {
+    applyDensityToChart,
+    DENSITY_TIER_LABEL,
+    nextDensityTier,
+    type DensityTier,
+  } from "./adaptive-density";
+  import { getUpcomingChordNotes } from "./upcoming-chord";
+  import ChordFretboard from "./ChordFretboard.svelte";
 
   type Props = {
     /** Library `?track=` id; when set, chart title/data resolve from catalog (demo notes for now). */
@@ -72,6 +80,10 @@
   let { trackId = null }: Props = $props();
 
   let chart: FretflowChartV1 = $state(DEMO_CHART);
+  /** Thinned note set for highway + scoring; timeline length matches source `chart`. */
+  let densityTier = $state<DensityTier>("full");
+  let autoDensityBump = $state(false);
+  const practiceChart = $derived(applyDensityToChart(chart, densityTier));
 
   const consumedNoteIndices = new Set<number>();
   const missedNoteIndices = new Set<number>();
@@ -159,7 +171,7 @@
     anchorWallMs = performance.now();
     timeSec = t0;
     if (metronomeEnabled) {
-      beatMetronome.syncResume(t0, chart.bpm);
+      beatMetronome.syncResume(t0, practiceChart.bpm);
     }
     if (playing && backingAudioAvailable && !backingAudioMuted) {
       playBackingAudio({ offsetSec: t0, speed, volume: backingAudioVolume });
@@ -187,9 +199,17 @@
 
   let rafId = 0;
 
-  const totalSec = $derived(chartLengthSeconds(chart));
-  const totalBeats = $derived(chartLengthBeats(chart));
+  const totalSec = $derived(chartLengthSeconds(practiceChart));
+  const totalBeats = $derived(chartLengthBeats(practiceChart));
   const timingWindows = $derived(TIMING_BY_MODE[scoringMode]);
+
+  const upcomingChordNotes = $derived.by(() => {
+    hitIndicesDisplay.length;
+    missIndicesDisplay.length;
+    timeSec;
+    practiceChart.notes.length;
+    return getUpcomingChordNotes(practiceChart, consumedNoteIndices, missedNoteIndices, timeSec);
+  });
 
   const readinessIssues = $derived.by(() => {
     if (!isTauri()) return [];
@@ -242,8 +262,8 @@
     combo = 0;
     maxComboEver = 0;
     lastFeedback = "Loop — scoring reset";
-    for (let i = 0; i < chart.notes.length; i++) {
-      const ns = noteStartSeconds(chart.notes[i]!, chart.bpm);
+    for (let i = 0; i < practiceChart.notes.length; i++) {
+      const ns = noteStartSeconds(practiceChart.notes[i]!, practiceChart.bpm);
       if (ns < loopASec - 0.01 || ns >= loopBSec + 0.01) {
         missedNoteIndices.add(i);
       }
@@ -253,7 +273,7 @@
   function applyMissesForTime(t: number) {
     if (!scoringEnabled) return;
     const newMisses = collectMissedNoteIndices(
-      chart,
+      practiceChart,
       t,
       consumedNoteIndices,
       missedNoteIndices,
@@ -315,7 +335,7 @@
 
     const t = captureWallTime();
     const hit = findHitNoteIndex(
-      chart,
+      practiceChart,
       t,
       p.note,
       consumedNoteIndices,
@@ -347,7 +367,7 @@
       lastMicTriggerWall = now;
       const t = captureWallTime();
       const hit = findRhythmHitNoteIndex(
-        chart,
+        practiceChart,
         t,
         consumedNoteIndices,
         missedNoteIndices,
@@ -377,7 +397,7 @@
   function finalizeSessionSummary() {
     if (!scoringEnabled) return;
     const hits = hitIndicesDisplay.length;
-    const total = chart.notes.length;
+    const total = practiceChart.notes.length;
     if (total === 0) return;
     const misses = total - hits;
     const accuracyPercent = Math.round((100 * hits) / total);
@@ -397,6 +417,12 @@
     lastSessionSnapshot = summary;
     sessionHistory = loadSessionHistory();
     practiceGoals = recordCompletedPracticeSession();
+    if (autoDensityBump && accuracyPercent >= 85) {
+      const nextTier = nextDensityTier(densityTier);
+      if (nextTier) {
+        densityTier = nextTier;
+      }
+    }
     lastFeedback = `Run complete · ${accuracyPercent}% · ${hits}/${total} hits · max combo ${maxComboEver}`;
   }
 
@@ -410,10 +436,10 @@
   }
 
   function noteInLoopRange(noteIndex: number): boolean {
-    if (noteIndex < 0 || noteIndex >= chart.notes.length) return false;
-    const loopA = beatToSeconds(loopABeat, chart.bpm);
-    const loopB = beatToSeconds(loopBBeat, chart.bpm);
-    const ns = noteStartSeconds(chart.notes[noteIndex]!, chart.bpm);
+    if (noteIndex < 0 || noteIndex >= practiceChart.notes.length) return false;
+    const loopA = beatToSeconds(loopABeat, practiceChart.bpm);
+    const loopB = beatToSeconds(loopBBeat, practiceChart.bpm);
+    const ns = noteStartSeconds(practiceChart.notes[noteIndex]!, practiceChart.bpm);
     return ns >= loopA - 0.01 && ns < loopB + 0.01;
   }
 
@@ -548,7 +574,7 @@
 
   function maybePlayMetronomeClick(t: number) {
     if (!metronomeEnabled || !playing) return;
-    if (!beatMetronome.tick(t, chart.bpm)) return;
+    if (!beatMetronome.tick(t, practiceChart.bpm)) return;
     const ctx = getMetronomeCtx();
     if (!ctx) return;
     void ctx.resume().then(() => {
@@ -558,7 +584,7 @@
 
   function onMetronomeEnabledChange() {
     if (metronomeEnabled && playing) {
-      beatMetronome.syncResume(captureWallTime(), chart.bpm);
+      beatMetronome.syncResume(captureWallTime(), practiceChart.bpm);
     }
   }
 
@@ -582,8 +608,8 @@
       return;
     }
 
-    const loopA = beatToSeconds(loopABeat, chart.bpm);
-    const loopB = beatToSeconds(loopBBeat, chart.bpm);
+    const loopA = beatToSeconds(loopABeat, practiceChart.bpm);
+    const loopB = beatToSeconds(loopBBeat, practiceChart.bpm);
 
     let t = anchorChartSec + ((now - anchorWallMs) / 1000) * speed;
 
@@ -609,7 +635,7 @@
       t = loopA + ((t - loopA) % span);
       anchorChartSec = t;
       anchorWallMs = now;
-      beatMetronome.syncAfterJump(t, chart.bpm);
+      beatMetronome.syncAfterJump(t, practiceChart.bpm);
       if (backingAudioAvailable && !backingAudioMuted) {
         playBackingAudio({ offsetSec: t, speed, volume: backingAudioVolume });
       }
@@ -630,7 +656,7 @@
     }
 
     if (waitToPlay && scoringEnabled && !waitFrozen) {
-      const nxt = getNextWaitEvent(chart, consumedNoteIndices, missedNoteIndices);
+      const nxt = getNextWaitEvent(practiceChart, consumedNoteIndices, missedNoteIndices);
       if (nxt && t + 0.0001 >= nxt.tVis) {
         t = nxt.tVis;
         waitFreezeT = t;
@@ -681,9 +707,9 @@
       anchorWallMs = performance.now();
       lastFrameWall = 0;
       if (anchorChartSec < 0.05) {
-        beatMetronome.syncAfterJump(anchorChartSec, chart.bpm);
+        beatMetronome.syncAfterJump(anchorChartSec, practiceChart.bpm);
       } else {
-        beatMetronome.syncResume(anchorChartSec, chart.bpm);
+        beatMetronome.syncResume(anchorChartSec, practiceChart.bpm);
       }
       playing = true;
       rafId = requestAnimationFrame(tickFrame);
@@ -708,10 +734,20 @@
     lastFrameWall = 0;
     lastAudioLevel = 0;
     lastMicTriggerWall = 0;
-    beatMetronome.syncAfterJump(0, chart.bpm);
+    beatMetronome.syncAfterJump(0, practiceChart.bpm);
     resetLoopPassCounters();
     resetScoringState(null);
     syncPracticeBackingAudio();
+  }
+
+  function setDensityTierUser(tier: DensityTier) {
+    if (tier === densityTier) return;
+    densityTier = tier;
+    if (playing) {
+      restart();
+    } else {
+      resetScoringState("Density changed — scoring reset.");
+    }
   }
 
   async function persistBackingDronePrefs() {
@@ -744,12 +780,12 @@
   }
 
   function setLoopA() {
-    loopABeat = secondsToBeat(timeSec, chart.bpm);
+    loopABeat = secondsToBeat(timeSec, practiceChart.bpm);
     normalizeLoopBeats();
   }
 
   function setLoopB() {
-    loopBBeat = secondsToBeat(timeSec, chart.bpm);
+    loopBBeat = secondsToBeat(timeSec, practiceChart.bpm);
     normalizeLoopBeats();
   }
 
@@ -869,7 +905,10 @@
     <div>
       <h2 style="margin: 0; font-size: 1.05rem">{chart.title}</h2>
       <p class="muted" style="margin: 0.25rem 0 0">
-        {chart.bpm} BPM · {chart.timeSignature[0]}/{chart.timeSignature[1]} · {totalBeats.toFixed(1)} beats
+        {practiceChart.bpm} BPM · {practiceChart.timeSignature[0]}/{practiceChart.timeSignature[1]} · {totalBeats.toFixed(1)} beats
+        {#if densityTier !== "full"}
+          <span> · Density <strong>{DENSITY_TIER_LABEL[densityTier]}</strong></span>
+        {/if}
       </p>
     </div>
     <div class="row">
@@ -881,12 +920,16 @@
   </div>
 
   <ChartHighway
-    {chart}
+    chart={practiceChart}
     {timeSec}
     {pixelsPerSecond}
     hitIndices={hitIndicesDisplay}
     missIndices={missIndicesDisplay}
   />
+
+  {#if upcomingChordNotes.length >= 2}
+    <ChordFretboard notes={upcomingChordNotes} />
+  {/if}
 
   {#if isTauri() && audioStreamError}
     <div class="practice-audio-error" role="alert">
@@ -1000,6 +1043,28 @@
       <span>Wait to play</span>
       <span class="muted" style="font-size: 0.8rem">unfreezes after you hit the note(s) at the line (no time pressure on new licks)</span>
     </label>
+    <div class="density-block">
+      <p class="muted" style="margin: 0 0 0.35rem; font-size: 0.82rem">
+        <strong>Adaptive density</strong> — fewer notes in the same timeline (backing unchanged). Use 50% / 75% while learning, then full chart.
+      </p>
+      <div class="row" style="flex-wrap: wrap; gap: 0.35rem 1.1rem; align-items: center">
+        {#each (["full", "three_quarters", "half"] as const) as tier (tier)}
+          <label class="row" style="gap: 0.35rem; cursor: pointer">
+            <input
+              type="radio"
+              name="density-tier"
+              checked={densityTier === tier}
+              onchange={() => setDensityTierUser(tier)}
+            />
+            <span>{DENSITY_TIER_LABEL[tier]}</span>
+          </label>
+        {/each}
+      </div>
+      <label class="row" style="gap: 0.5rem; margin-top: 0.45rem; cursor: pointer">
+        <input type="checkbox" bind:checked={autoDensityBump} disabled={densityTier === "full"} />
+        <span class="muted" style="font-size: 0.8rem">After each full run at ≥85%, step up one level (toward 100%)</span>
+      </label>
+    </div>
     {#if waitFrozen && waitGroupIndices.length > 0}
       <p class="wait-hold-banner" role="status">
         Paused: play <strong>{waitGroupIndices.length}</strong> more note{waitGroupIndices.length === 1
@@ -1377,6 +1442,11 @@
     0% { transform: scale(1.5); opacity: 0.5; }
     50% { transform: scale(1.1); opacity: 1; }
     100% { transform: scale(1); opacity: 1; }
+  }
+  .density-block {
+    margin-top: 0.65rem;
+    padding-top: 0.65rem;
+    border-top: 1px solid color-mix(in srgb, var(--ff-border) 70%, transparent);
   }
   .session-history {
     margin-top: 0.75rem;
