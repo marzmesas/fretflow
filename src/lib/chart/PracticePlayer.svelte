@@ -570,17 +570,22 @@
     }
     lastFrameWall = now;
 
+    if (waitFrozen) {
+      const t0 = waitFreezeT;
+      anchorChartSec = t0;
+      anchorWallMs = now;
+      applyMissesForTime(t0);
+      timeSec = t0;
+      syncPracticeBackingAudio();
+      syncFileBackingAudio();
+      rafId = requestAnimationFrame(tickFrame);
+      return;
+    }
+
     const loopA = beatToSeconds(loopABeat, chart.bpm);
     const loopB = beatToSeconds(loopBBeat, chart.bpm);
 
-    let t = waitFrozen
-      ? waitFreezeT
-      : anchorChartSec + ((now - anchorWallMs) / 1000) * speed;
-
-    if (waitFrozen) {
-      anchorChartSec = t;
-      anchorWallMs = now;
-    }
+    let t = anchorChartSec + ((now - anchorWallMs) / 1000) * speed;
 
     if (loopEnabled && loopB > loopA && t >= loopB) {
       clearWaitState();
@@ -941,7 +946,7 @@
         </div>
       {/if}
     </div>
-    {#if lastGrade && lastFeedback && !lastFeedback.startsWith("Miss") && !lastFeedback.startsWith("Loop") && !lastFeedback.startsWith("Run")}
+    {#if lastGrade && lastFeedback && !lastFeedback.startsWith("Miss") && !lastFeedback.startsWith("Loop") && !lastFeedback.startsWith("Run") && !lastFeedback.startsWith("Hold")}
       {#key lastGradeKey}
         <div class="grade-flash" style="color: {GRADE_COLOR[lastGrade]}">
           {GRADE_LABEL[lastGrade]}!
