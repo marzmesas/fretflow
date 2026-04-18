@@ -63,6 +63,7 @@
     stopBackingAudio,
   } from "./chart-backing-audio";
   import { disposeBackingDrone, syncBackingDrone } from "./chart-backing-drone";
+  import { getNextWaitEvent } from "./wait-to-play";
 
   type Props = {
     /** Library `?track=` id; when set, chart title/data resolve from catalog (demo notes for now). */
@@ -133,6 +134,38 @@
   const AUTO_SPEED_LOOP_STEP = 0.05;
   const AUTO_SPEED_LOOP_MAX = 1.25;
   const AUTO_SPEED_LOOP_MIN_ACCURACY = 0.88;
+
+  /**
+   * E2 — time stops at the next note group until the expected input(s) register (MIDI, mic pitch, or
+   * mic rhythm). Chord: all notes in the `startBeat` group must be hit. Requires scoring on.
+   */
+  let waitToPlay = $state(false);
+  let waitFrozen = $state(false);
+  let waitFreezeT = 0;
+  let waitGroupIndices = $state<number[]>([]);
+
+  function clearWaitState() {
+    waitFrozen = false;
+    waitGroupIndices = [];
+    waitFreezeT = 0;
+  }
+
+  function releaseWait() {
+    const t0 = waitFreezeT;
+    waitFrozen = false;
+    waitGroupIndices = [];
+    waitFreezeT = 0;
+    anchorChartSec = t0;
+    anchorWallMs = performance.now();
+    timeSec = t0;
+    if (metronomeEnabled) {
+      beatMetronome.syncResume(t0, chart.bpm);
+    }
+    if (playing && backingAudioAvailable && !backingAudioMuted) {
+      playBackingAudio({ offsetSec: t0, speed, volume: backingAudioVolume });
+    }
+    syncPracticeBackingAudio();
+  }
 
   let metronomeEnabled = $state(false);
   let metronomeCtx: AudioContext | null = null;
@@ -257,6 +290,12 @@
     if (loopEnabled && autoSpeedLoop && scoringEnabled && playing && noteInLoopRange(hit.index)) {
       loopPassHits += 1;
     }
+    if (waitFrozen) {
+      waitGroupIndices = waitGroupIndices.filter((i) => i !== hit.index);
+      if (waitGroupIndices.length === 0) {
+        releaseWait();
+      }
+    }
   }
 
   const liveAccuracy = $derived.by(() => {
@@ -285,6 +324,13 @@
       latencyOffsetMs,
     );
     if (!hit) return;
+    if (waitFrozen) {
+      const inGroup = waitGroupIndices.includes(hit.index);
+      if (!inGroup) {
+        lastFeedback = "Play the string(s) shown at the line to continue.";
+        return;
+      }
+    }
     registerHit(hit, useMicPitch ? "mic" : "midi");
   }
 
@@ -309,6 +355,13 @@
         latencyOffsetMs,
       );
       if (hit) {
+        if (waitFrozen) {
+          if (!waitGroupIndices.includes(hit.index)) {
+            lastFeedback = "Play the string(s) at the line to continue.";
+            lastAudioLevel = level;
+            return;
+          }
+        }
         registerHit(hit, "mic");
       }
     }
@@ -378,6 +431,7 @@
   let bundledFetchSeq = 0;
 
   function resetPlayerToChart(next: FretflowChartV1) {
+    clearWaitState();
     chart = next;
     playing = false;
     stopRaf();
@@ -406,6 +460,10 @@
   }
 
   function syncFileBackingAudio() {
+    if (waitFrozen) {
+      stopBackingAudio();
+      return;
+    }
     if (!backingAudioAvailable || !isBackingAudioLoaded()) return;
     if (!playing) {
       stopBackingAudio();
@@ -466,8 +524,9 @@
   });
 
   function syncPracticeBackingAudio() {
+    const effectivePlaying = playing && !waitFrozen;
     syncBackingDrone({
-      playing,
+      playing: effectivePlaying,
       enabled: backingDroneEnabled,
       muted: backingDroneMuted,
       linearGain: backingLinearGain,
@@ -475,6 +534,7 @@
   }
 
   function captureWallTime() {
+    if (waitFrozen) return waitFreezeT;
     const now = performance.now();
     return anchorChartSec + ((now - anchorWallMs) / 1000) * speed;
   }
@@ -510,12 +570,20 @@
     }
     lastFrameWall = now;
 
-    let t = anchorChartSec + ((now - anchorWallMs) / 1000) * speed;
-
     const loopA = beatToSeconds(loopABeat, chart.bpm);
     const loopB = beatToSeconds(loopBBeat, chart.bpm);
 
+    let t = waitFrozen
+      ? waitFreezeT
+      : anchorChartSec + ((now - anchorWallMs) / 1000) * speed;
+
+    if (waitFrozen) {
+      anchorChartSec = t;
+      anchorWallMs = now;
+    }
+
     if (loopEnabled && loopB > loopA && t >= loopB) {
+      clearWaitState();
       let speedBumped = false;
       if (autoSpeedLoop && scoringEnabled) {
         const attempts = loopPassHits + loopPassMisses;
@@ -542,6 +610,7 @@
       }
     } else if (!loopEnabled && t >= totalSec) {
       t = totalSec;
+      clearWaitState();
       const lateSec = timingWindows.lateMs / 1000;
       applyMissesForTime(t + lateSec);
       finalizeSessionSummary();
@@ -555,8 +624,30 @@
       return;
     }
 
-    maybePlayMetronomeClick(t);
+    if (waitToPlay && scoringEnabled && !waitFrozen) {
+      const nxt = getNextWaitEvent(chart, consumedNoteIndices, missedNoteIndices);
+      if (nxt && t + 0.0001 >= nxt.tVis) {
+        t = nxt.tVis;
+        waitFreezeT = t;
+        waitFrozen = true;
+        waitGroupIndices = nxt.group;
+        const n = nxt.group.length;
+        lastFeedback = n === 1 ? "Hold — play this note" : `Hold — play this chord (${n} notes)`;
+        stopBackingAudio();
+        anchorChartSec = t;
+        anchorWallMs = now;
+        applyMissesForTime(t);
+        timeSec = t;
+        syncPracticeBackingAudio();
+        syncFileBackingAudio();
+        rafId = requestAnimationFrame(tickFrame);
+        return;
+      }
+    }
 
+    if (!waitFrozen) {
+      maybePlayMetronomeClick(t);
+    }
     applyMissesForTime(t);
     timeSec = t;
     syncPracticeBackingAudio();
@@ -565,10 +656,15 @@
 
   function togglePlay() {
     if (playing) {
+      if (waitFrozen) {
+        timeSec = waitFreezeT;
+      } else {
+        timeSec = captureWallTime();
+      }
+      clearWaitState();
       playing = false;
       stopRaf();
       stopBackingAudio();
-      timeSec = captureWallTime();
       lastFrameWall = 0;
       syncPracticeBackingAudio();
     } else {
@@ -598,6 +694,7 @@
   }
 
   function restart() {
+    clearWaitState();
     playing = false;
     stopRaf();
     stopBackingAudio();
@@ -663,6 +760,12 @@
     }
     if (!autoSpeedLoop) {
       resetLoopPassCounters();
+    }
+  });
+
+  $effect(() => {
+    if (!scoringEnabled) {
+      waitToPlay = false;
     }
   });
 
@@ -882,6 +985,22 @@
         <span>Mic pitch (beta)</span>
         <span class="muted" style="font-size: 0.8rem">monitor + YIN pitch detection → same scoring as MIDI</span>
       </label>
+    {/if}
+    <label
+      class="row"
+      style="gap: 0.5rem; cursor: pointer; margin-bottom: 0.5rem"
+      title="Chart time and backing pause when the next note reaches the play line, until the correct string(s) register. Chords need each string. Turn scoring on."
+    >
+      <input type="checkbox" bind:checked={waitToPlay} disabled={!scoringEnabled} />
+      <span>Wait to play</span>
+      <span class="muted" style="font-size: 0.8rem">unfreezes after you hit the note(s) at the line (no time pressure on new licks)</span>
+    </label>
+    {#if waitFrozen && waitGroupIndices.length > 0}
+      <p class="wait-hold-banner" role="status">
+        Paused: play <strong>{waitGroupIndices.length}</strong> more note{waitGroupIndices.length === 1
+          ? ""
+          : "s"} on the string(s) at the line, then the chart continues.
+      </p>
     {/if}
     <p class="muted" style="margin: 0; font-size: 0.85rem">
       {#if isTauri()}
@@ -1130,6 +1249,16 @@
     margin-top: 1rem;
     padding: 0.85rem 0 0;
     border-top: 1px solid var(--ff-border);
+  }
+  .wait-hold-banner {
+    margin: 0.35rem 0 0.5rem;
+    font-size: 0.86rem;
+    line-height: 1.4;
+    padding: 0.5rem 0.65rem;
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--ff-accent) 50%, var(--ff-border));
+    background: color-mix(in srgb, var(--ff-accent) 10%, var(--ff-surface));
+    color: var(--ff-text);
   }
   .last-feedback {
     font-size: 0.9rem;
