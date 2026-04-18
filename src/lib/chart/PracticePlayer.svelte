@@ -41,6 +41,13 @@
     saveLastSession,
     type SessionSummaryV1,
   } from "./session-storage";
+  import {
+    loadPracticeGoals,
+    recordCompletedPracticeSession,
+    setDailyGoalSessions,
+    toPracticeGoalsSnapshot,
+    type PracticeGoalsSnapshot,
+  } from "$lib/practice-goals-storage";
   import { beatToSeconds, chartLengthBeats, chartLengthSeconds, secondsToBeat } from "./time";
   import type { FretflowChartV1 } from "./types";
   import { consumePendingPracticeChartJson } from "./practice-chart-transfer";
@@ -93,6 +100,19 @@
   let lastSessionSnapshot = $state<SessionSummaryV1 | null>(null);
   let sessionHistory = $state<SessionSummaryV1[]>([]);
   let showHistory = $state(false);
+  function readGoalsSnapshot(): PracticeGoalsSnapshot {
+    if (typeof window === "undefined") {
+      return toPracticeGoalsSnapshot({
+        schemaVersion: 1,
+        dailyGoalSessions: 1,
+        lastLocalDay: null,
+        streakDays: 0,
+        sessionsToday: 0,
+      });
+    }
+    return toPracticeGoalsSnapshot(loadPracticeGoals());
+  }
+  let practiceGoals = $state<PracticeGoalsSnapshot>(readGoalsSnapshot());
 
   /** From Settings → Latency; applied to hit/miss only (highway unchanged). */
   let latencyOffsetMs = $state(0);
@@ -106,6 +126,13 @@
   let loopEnabled = $state(false);
   let loopABeat = $state(0);
   let loopBBeat = $state(8);
+  /** When loop wraps, raise speed if hit rate in the loop window was strong enough. */
+  let autoSpeedLoop = $state(false);
+  let loopPassHits = 0;
+  let loopPassMisses = 0;
+  const AUTO_SPEED_LOOP_STEP = 0.05;
+  const AUTO_SPEED_LOOP_MAX = 1.25;
+  const AUTO_SPEED_LOOP_MIN_ACCURACY = 0.88;
 
   let metronomeEnabled = $state(false);
   let metronomeCtx: AudioContext | null = null;
@@ -203,6 +230,9 @@
     if (newMisses.length === 0) return;
     for (const i of newMisses) {
       missedNoteIndices.add(i);
+      if (loopEnabled && autoSpeedLoop && scoringEnabled && noteInLoopRange(i)) {
+        loopPassMisses += 1;
+      }
     }
     missIndicesDisplay = [...missIndicesDisplay, ...newMisses];
     combo = 0;
@@ -224,6 +254,9 @@
     const sign = hit.deltaMs >= 0 ? "+" : "";
     const src = source === "mic" ? "Mic " : "";
     lastFeedback = `${src}${GRADE_LABEL[grade]}! ${sign}${hit.deltaMs.toFixed(0)} ms · combo ${combo}`;
+    if (loopEnabled && autoSpeedLoop && scoringEnabled && playing && noteInLoopRange(hit.index)) {
+      loopPassHits += 1;
+    }
   }
 
   const liveAccuracy = $derived.by(() => {
@@ -310,6 +343,7 @@
     saveLastSession(summary);
     lastSessionSnapshot = summary;
     sessionHistory = loadSessionHistory();
+    practiceGoals = recordCompletedPracticeSession();
     lastFeedback = `Run complete · ${accuracyPercent}% · ${hits}/${total} hits · max combo ${maxComboEver}`;
   }
 
@@ -320,6 +354,19 @@
     if (b - a < 0.25) b = a + 1;
     loopABeat = Math.max(0, a);
     loopBBeat = Math.min(totalBeats, Math.max(loopABeat + 0.25, b));
+  }
+
+  function noteInLoopRange(noteIndex: number): boolean {
+    if (noteIndex < 0 || noteIndex >= chart.notes.length) return false;
+    const loopA = beatToSeconds(loopABeat, chart.bpm);
+    const loopB = beatToSeconds(loopBBeat, chart.bpm);
+    const ns = noteStartSeconds(chart.notes[noteIndex]!, chart.bpm);
+    return ns >= loopA - 0.01 && ns < loopB + 0.01;
+  }
+
+  function resetLoopPassCounters() {
+    loopPassHits = 0;
+    loopPassMisses = 0;
   }
 
   function stopRaf() {
@@ -344,6 +391,7 @@
     const maxB = chartLengthBeats(next);
     loopBBeat = Math.min(8, maxB);
     beatMetronome.syncAfterJump(0, next.bpm);
+    resetLoopPassCounters();
     resetScoringState(null);
     syncPracticeBackingAudio();
     void loadChartBackingAudio(next);
@@ -468,7 +516,22 @@
     const loopB = beatToSeconds(loopBBeat, chart.bpm);
 
     if (loopEnabled && loopB > loopA && t >= loopB) {
+      let speedBumped = false;
+      if (autoSpeedLoop && scoringEnabled) {
+        const attempts = loopPassHits + loopPassMisses;
+        if (attempts >= 1) {
+          const acc = loopPassHits / attempts;
+          if (acc >= AUTO_SPEED_LOOP_MIN_ACCURACY && speed < AUTO_SPEED_LOOP_MAX) {
+            speed = Math.round((Math.min(AUTO_SPEED_LOOP_MAX, speed + AUTO_SPEED_LOOP_STEP) * 100)) / 100;
+            speedBumped = true;
+          }
+        }
+      }
+      resetLoopPassCounters();
       resetScoringForLoop(loopA, loopB);
+      if (speedBumped) {
+        lastFeedback = `Loop — scoring reset · speed ${speed.toFixed(2)}×`;
+      }
       const span = loopB - loopA;
       t = loopA + ((t - loopA) % span);
       anchorChartSec = t;
@@ -544,6 +607,7 @@
     lastAudioLevel = 0;
     lastMicTriggerWall = 0;
     beatMetronome.syncAfterJump(0, chart.bpm);
+    resetLoopPassCounters();
     resetScoringState(null);
     syncPracticeBackingAudio();
   }
@@ -591,6 +655,15 @@
     loopBBeat;
     totalBeats;
     if (loopBBeat > totalBeats) loopBBeat = totalBeats;
+  });
+
+  $effect(() => {
+    if (!loopEnabled && autoSpeedLoop) {
+      autoSpeedLoop = false;
+    }
+    if (!autoSpeedLoop) {
+      resetLoopPassCounters();
+    }
   });
 
   /** Optional: load JSON from file input (Phase 3 local test) */
@@ -648,6 +721,7 @@
   onMount(() => {
     lastSessionSnapshot = loadLastSession();
     sessionHistory = loadSessionHistory();
+    practiceGoals = readGoalsSnapshot();
     void refreshCalibrationFromPrefs();
     window.addEventListener("focus", onWindowFocusPractice);
     void (async () => {
@@ -819,6 +893,35 @@
     </p>
   </div>
 
+  <div class="practice-goals panel-inner">
+    <h3 style="margin: 0 0 0.45rem; font-size: 0.95rem">Daily goal &amp; streak</h3>
+    <div class="practice-goals__row">
+      <span>Today: <strong>{practiceGoals.progressToday}</strong> sessions</span>
+      {#if practiceGoals.goalMetToday}
+        <span class="practice-goals__met">Daily goal met</span>
+      {/if}
+    </div>
+    <p class="muted" style="margin: 0.35rem 0 0.5rem; font-size: 0.82rem">
+      Streak: <strong>{practiceGoals.streakDays}</strong> day{practiceGoals.streakDays === 1 ? "" : "s"} with practice
+      (local calendar). Counts when you finish a full chart run.
+    </p>
+    <label class="row" style="gap: 0.5rem; align-items: center; flex-wrap: wrap">
+      <span class="muted" style="font-size: 0.82rem">Sessions per day target</span>
+      <select
+        class="practice-goals__select"
+        value={String(practiceGoals.dailyGoalSessions)}
+        onchange={(ev) => {
+          const n = Number((ev.currentTarget as HTMLSelectElement).value);
+          practiceGoals = toPracticeGoalsSnapshot(setDailyGoalSessions(n));
+        }}
+      >
+        {#each [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as n (n)}
+          <option value={String(n)}>{n}</option>
+        {/each}
+      </select>
+    </label>
+  </div>
+
   {#if lastSessionSnapshot || sessionHistory.length > 0}
     {@const stats = getSessionStats(sessionHistory)}
     <div class="session-history panel-inner">
@@ -972,6 +1075,15 @@
       <label class="row" style="gap: 0.5rem; margin-bottom: 0.5rem; cursor: pointer">
         <input type="checkbox" bind:checked={loopEnabled} />
         <span>Loop A–B</span>
+      </label>
+      <label class="row" style="gap: 0.5rem; margin-bottom: 0.5rem; cursor: pointer; padding-left: 1.5rem">
+        <input type="checkbox" bind:checked={autoSpeedLoop} disabled={!loopEnabled} />
+        <span>Auto speed in loop</span>
+        <span class="muted" style="font-size: 0.78rem"
+          >+{AUTO_SPEED_LOOP_STEP.toFixed(2)}× when a pass is ≥{Math.round(
+            AUTO_SPEED_LOOP_MIN_ACCURACY * 100,
+          )}% hits in the loop (cap {AUTO_SPEED_LOOP_MAX}×)</span
+        >
       </label>
       <div class="row" style="flex-wrap: wrap; gap: 0.5rem; align-items: center">
         <span class="muted">A</span>
@@ -1174,5 +1286,29 @@
     color: var(--ff-muted);
     opacity: 0.7;
     margin-top: 0.1rem;
+  }
+  .practice-goals {
+    margin-top: 1rem;
+    padding: 0.75rem 0 0;
+    border-top: 1px solid var(--ff-border);
+  }
+  .practice-goals__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1rem;
+    font-size: 0.9rem;
+  }
+  .practice-goals__met {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #34d399;
+  }
+  .practice-goals__select {
+    padding: 0.3rem 0.45rem;
+    border-radius: 6px;
+    border: 1px solid var(--ff-border);
+    background: var(--ff-bg);
+    color: var(--ff-text);
   }
 </style>

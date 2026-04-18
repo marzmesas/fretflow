@@ -14,8 +14,10 @@
     EVENT_AUDIO_INPUT_ERROR,
     EVENT_AUDIO_LEVEL,
     EVENT_INPUT_EVENT,
+    inputEventIsMicPitchV1,
     inputEventMidiPitchBendRaw14,
   } from "$lib/ipc";
+  import { readingFromMicPitch, type TunerReading } from "$lib/tuner/chromatic";
   import { isTauri } from "$lib/tauri-env";
   import { createMetronomeAudioContext, playMetronomeClick } from "$lib/chart/chart-metronome";
   import {
@@ -46,6 +48,8 @@
   let midiError = $state<string | null>(null);
   let midiListening = $state(false);
   let recentMidiNotes = $state<InputEventPayload[]>([]);
+  /** Latest mic YIN reading for chromatic tuner (monitor must be running). */
+  let tunerReading = $state<TunerReading | null>(null);
 
   /** User intent: reconnect input monitor after errors / hotplug when window regains focus. */
   let audioMonitorDesired = $state(false);
@@ -231,7 +235,16 @@
         /* Keep audioMonitorDesired so a window focus can retry after hotplug / stream errors. */
       });
       unlistenMidi = await listen<InputEventPayload>(EVENT_INPUT_EVENT, (ev) => {
-        recentMidiNotes = [ev.payload, ...recentMidiNotes].slice(0, 8);
+        const p = ev.payload;
+        recentMidiNotes = [p, ...recentMidiNotes].slice(0, 8);
+        if (
+          inputEventIsMicPitchV1(p) &&
+          p.pitchHz != null &&
+          p.pitchHz > 30 &&
+          (p.confidence ?? 0) >= 0.22
+        ) {
+          tunerReading = readingFromMicPitch(p.note, p.pitchHz, p.confidence ?? 0);
+        }
       });
       const conn = await invoke<InputConnectionStatus>("get_input_connection_status");
       monitoring = conn.inputMonitorActive;
@@ -501,6 +514,44 @@
       <div class="meter-fill" style="width: {audioLevel * 100}%"></div>
     </div>
 
+    <div class="tuner-panel" aria-live="polite">
+      <h3 class="tuner-panel__title">Chromatic tuner</h3>
+      <p class="muted tuner-panel__hint">
+        Uses the same YIN pitch path as Practice mic scoring. Start monitoring, then play a single note.
+        Reference A4 = 440 Hz.
+      </p>
+      {#if !monitoring}
+        <p class="muted tuner-panel__idle">Start monitoring to see pitch.</p>
+      {:else if tunerReading == null}
+        <p class="muted tuner-panel__idle">Listening… play a note.</p>
+      {:else}
+        {@const cents = tunerReading.cents}
+        {@const needlePct = Math.min(92, Math.max(8, 50 + (cents / 45) * 38))}
+        {@const inTune = Math.abs(cents) < 8}
+        <div class="tuner-note">{tunerReading.label}</div>
+        <div class="tuner-meta">
+          <span>{tunerReading.targetHz.toFixed(1)} Hz target</span>
+          <span class="muted">·</span>
+          <span>conf {tunerReading.confidence.toFixed(2)}</span>
+        </div>
+        <div class="tuner-track" aria-label="Cents deviation from equal temperament">
+          <div class="tuner-track__tick tuner-track__tick--center"></div>
+          <div class="tuner-track__labels">
+            <span>♭</span><span>0</span><span>♯</span>
+          </div>
+          <div
+            class="tuner-needle"
+            class:tuner-needle--green={inTune}
+            style="left: {needlePct}%"
+          ></div>
+        </div>
+        <p class="tuner-cents" class:tuner-cents--green={inTune}>
+          {cents >= 0 ? "+" : ""}{cents.toFixed(1)} cents
+          {#if inTune}<span class="muted"> — in tune</span>{/if}
+        </p>
+      {/if}
+    </div>
+
     {#if error}
       <p style="color: #f87171; margin-top: 0.75rem; margin-bottom: 0">{error}</p>
     {/if}
@@ -708,3 +759,93 @@
     {/if}
   {/if}
 </div>
+
+<style>
+  .tuner-panel {
+    margin-top: 1.25rem;
+    padding-top: 1.1rem;
+    border-top: 1px solid var(--ff-border);
+  }
+  .tuner-panel__title {
+    margin: 0 0 0.35rem;
+    font-size: 0.95rem;
+  }
+  .tuner-panel__hint {
+    margin: 0 0 0.65rem;
+    font-size: 0.82rem;
+    line-height: 1.45;
+  }
+  .tuner-panel__idle {
+    margin: 0;
+    font-size: 0.88rem;
+  }
+  .tuner-note {
+    font-size: 1.65rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    margin: 0.25rem 0 0.15rem;
+  }
+  .tuner-meta {
+    font-size: 0.82rem;
+    color: var(--ff-muted);
+    margin-bottom: 0.55rem;
+  }
+  .tuner-track {
+    position: relative;
+    height: 1.35rem;
+    margin: 0.35rem 0 0.25rem;
+    border-radius: 6px;
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, #60a5fa 25%, var(--ff-surface)) 0%,
+      color-mix(in srgb, #34d399 35%, var(--ff-surface)) 46%,
+      color-mix(in srgb, #34d399 35%, var(--ff-surface)) 54%,
+      color-mix(in srgb, #60a5fa 25%, var(--ff-surface)) 100%
+    );
+    border: 1px solid var(--ff-border);
+  }
+  .tuner-track__tick--center {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    margin-left: -1px;
+    background: color-mix(in srgb, var(--ff-text) 35%, transparent);
+    pointer-events: none;
+  }
+  .tuner-track__labels {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 0.5rem;
+    font-size: 0.72rem;
+    color: var(--ff-muted);
+    pointer-events: none;
+  }
+  .tuner-needle {
+    position: absolute;
+    top: -0.2rem;
+    bottom: -0.2rem;
+    width: 3px;
+    margin-left: -1.5px;
+    border-radius: 2px;
+    background: #fbbf24;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--ff-bg) 70%, #000);
+    transition: left 80ms linear;
+    pointer-events: none;
+  }
+  .tuner-needle--green {
+    background: #34d399;
+  }
+  .tuner-cents {
+    margin: 0.35rem 0 0;
+    font-size: 0.95rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .tuner-cents--green {
+    color: #34d399;
+  }
+</style>
