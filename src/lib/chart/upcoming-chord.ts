@@ -4,6 +4,7 @@ import { noteStartSeconds } from "./midi-scoring";
 /**
  * Notes at the earliest pending onset at or after `timeSec` (same `startBeat` = chord).
  * Skips onsets that are clearly in the past (more than `pastGraceSec` before `timeSec`).
+ * When `lookaheadSec` is set, returns [] if that onset is farther than `lookaheadSec` ahead (less clutter).
  */
 export function getUpcomingChordNotes(
   chart: FretflowChartV1,
@@ -11,6 +12,7 @@ export function getUpcomingChordNotes(
   missed: ReadonlySet<number>,
   timeSec: number,
   pastGraceSec = 0.12,
+  lookaheadSec: number | null = 3.75,
 ): ChartNoteV1[] {
   let minBeat: number | null = null;
   let minT = Infinity;
@@ -24,6 +26,9 @@ export function getUpcomingChordNotes(
     }
   }
   if (minBeat == null) {
+    return [];
+  }
+  if (lookaheadSec != null && minT > timeSec + lookaheadSec) {
     return [];
   }
   const out: ChartNoteV1[] = [];

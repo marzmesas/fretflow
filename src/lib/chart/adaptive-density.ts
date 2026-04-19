@@ -33,8 +33,11 @@ export function applyDensityToChart(chart: FretflowChartV1, tier: DensityTier): 
   const order = chart.notes
     .map((_, i) => i)
     .sort((a, b) => {
-      const da = chart.notes[a]!.startBeat - chart.notes[b]!.startBeat;
-      return da !== 0 ? da : a - b;
+      const na = chart.notes[a]!;
+      const nb = chart.notes[b]!;
+      const da = na.startBeat - nb.startBeat;
+      if (da !== 0) return da;
+      return na.stringIndex - nb.stringIndex;
     });
 
   const keep = new Set<number>();
@@ -46,6 +49,25 @@ export function applyDensityToChart(chart: FretflowChartV1, tier: DensityTier): 
     for (let k = 0; k < order.length; k++) {
       if (k % 4 !== 3) {
         keep.add(order[k]!);
+      }
+    }
+  }
+
+  /** Never leave a partial chord: if any note at `startBeat` is kept, keep every note at that beat. */
+  const byBeat = new Map<number, number[]>();
+  for (const i of order) {
+    const b = chart.notes[i]!.startBeat;
+    let arr = byBeat.get(b);
+    if (!arr) {
+      arr = [];
+      byBeat.set(b, arr);
+    }
+    arr.push(i);
+  }
+  for (const indices of byBeat.values()) {
+    if (indices.some((i) => keep.has(i))) {
+      for (const i of indices) {
+        keep.add(i);
       }
     }
   }

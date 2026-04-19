@@ -989,7 +989,7 @@
         </div>
       {/if}
     </div>
-    {#if lastGrade && lastFeedback && !lastFeedback.startsWith("Miss") && !lastFeedback.startsWith("Loop") && !lastFeedback.startsWith("Run") && !lastFeedback.startsWith("Hold")}
+    {#if lastGrade && lastFeedback && !lastFeedback.startsWith("Miss") && !lastFeedback.startsWith("Loop") && !lastFeedback.startsWith("Run") && !lastFeedback.startsWith("Hold") && !lastFeedback.startsWith("Density")}
       {#key lastGradeKey}
         <div class="grade-flash" style="color: {GRADE_COLOR[lastGrade]}">
           {GRADE_LABEL[lastGrade]}!
@@ -999,7 +999,7 @@
     {#if lastFeedback}
       <p
         class="last-feedback"
-        class:last-feedback--hit={!lastFeedback.startsWith("Miss") && !lastFeedback.startsWith("Loop") && !lastFeedback.startsWith("Run")}
+        class:last-feedback--hit={!lastFeedback.startsWith("Miss") && !lastFeedback.startsWith("Loop") && !lastFeedback.startsWith("Run") && !lastFeedback.startsWith("Density")}
         class:last-feedback--miss={lastFeedback.startsWith("Miss")}
         class:last-feedback--loop={lastFeedback.startsWith("Loop")}
         class:last-feedback--summary={lastFeedback.startsWith("Run complete")}

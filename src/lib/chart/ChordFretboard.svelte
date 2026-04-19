@@ -33,7 +33,9 @@
 
 {#if notes.length > 0}
   <div class="chord-fretboard" aria-label="Upcoming chord on fretboard">
-    <p class="chord-fretboard__title">Next on fretboard</p>
+    <p class="chord-fretboard__title">
+      Upcoming chord · {notes.length} strings
+    </p>
     <svg
       class="chord-fretboard__svg"
       viewBox="0 0 {viewW} {viewH}"
