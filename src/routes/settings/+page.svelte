@@ -69,6 +69,43 @@
   let tapCalSuggested = $state<number | null>(null);
   let tapCalTimeout: ReturnType<typeof setTimeout> | null = null;
   let tapCalKeyHandler: ((e: KeyboardEvent) => void) | null = null;
+  let setupGuideDismissed = $state(false);
+
+  const setupSteps = $derived.by(() => [
+    {
+      id: "audio",
+      title: "Start input monitoring",
+      detail: monitoring
+        ? "Your audio monitor is live. Practice can now use mic pitch or rhythm input."
+        : "Choose an input and start monitoring so the app can read live level and pitch.",
+      complete: monitoring,
+      ctaLabel: monitoring ? "Open Practice" : "Start monitoring",
+    },
+    {
+      id: "pitch",
+      title: "Verify a note with the tuner",
+      detail:
+        monitoring && tunerReading != null
+          ? `Detected ${tunerReading.label} at ${tunerReading.targetHz.toFixed(1)} Hz target.`
+          : "Play one clean note and confirm the tuner locks onto it before scoring with the mic.",
+      complete: monitoring && tunerReading != null,
+      ctaLabel: monitoring ? "Use tuner below" : "Turn on monitoring first",
+    },
+    {
+      id: "midi",
+      title: "Enable MIDI input",
+      detail: midiListening
+        ? "A MIDI port is active. Note input will feed directly into Practice scoring."
+        : selectedMidiPortId != null
+          ? "A MIDI port is selected. Start listening to make it available in Practice."
+          : "Select a MIDI controller if you want direct note scoring instead of mic input.",
+      complete: midiListening,
+      ctaLabel: midiListening ? "MIDI ready" : selectedMidiPortId != null ? "Start listening" : "Choose a MIDI port",
+    },
+  ]);
+
+  const setupCompletedCount = $derived(setupSteps.filter((step) => step.complete).length);
+  const setupGuideHidden = $derived(setupGuideDismissed || setupCompletedCount === setupSteps.length);
 
   function labelForSelectedAudio(): string | null {
     if (selectedId == null) return null;
@@ -431,6 +468,30 @@
     midiListening = false;
     midiListenDesired = false;
   }
+
+  async function runSetupStep(stepId: string) {
+    switch (stepId) {
+      case "audio":
+        if (!monitoring) {
+          await startMonitor();
+          return;
+        }
+        window.location.hash = "latency-section";
+        return;
+      case "pitch":
+        window.location.hash = "audio-input-section";
+        return;
+      case "midi":
+        if (!midiListening && selectedMidiPortId != null) {
+          await startMidiListen();
+        } else {
+          window.location.hash = "midi-input-section";
+        }
+        return;
+      default:
+        return;
+    }
+  }
 </script>
 
 <h1 style="margin: 0 0 0.5rem; font-size: 1.5rem">Settings</h1>
@@ -439,7 +500,43 @@
   Monitoring and MIDI connections stay active when you navigate away — stop them here or close the app.
 </p>
 
-<div class="panel">
+{#if !browserOnly && !setupGuideHidden}
+  <div class="panel setup-guide-panel">
+    <div class="setup-guide-panel__header">
+      <div>
+        <p class="setup-guide-panel__eyebrow">Setup wizard</p>
+        <h2>Get ready for your first scored session</h2>
+      </div>
+      <button type="button" class="btn" onclick={() => (setupGuideDismissed = true)}>Dismiss</button>
+    </div>
+    <p class="muted" style="margin: 0 0 0.85rem">
+      {setupCompletedCount} of {setupSteps.length} steps complete. Finish the basics here, then switch to Practice.
+    </p>
+    <div class="setup-guide-steps" role="list" aria-label="Settings setup steps">
+      {#each setupSteps as step (step.id)}
+        <div class="setup-step" role="listitem">
+          <div class="setup-step__status" class:setup-step__status--done={step.complete}>
+            {step.complete ? "Done" : "Next"}
+          </div>
+          <div class="setup-step__body">
+            <div class="setup-step__title">{step.title}</div>
+            <p class="setup-step__detail">{step.detail}</p>
+          </div>
+          <button
+            type="button"
+            class="btn"
+            class:btn-primary={!step.complete}
+            onclick={() => void runSetupStep(step.id)}
+          >
+            {step.ctaLabel}
+          </button>
+        </div>
+      {/each}
+    </div>
+  </div>
+{/if}
+
+<div class="panel" id="audio-input-section">
   <h2>Audio input</h2>
   {#if browserOnly}
     <p>Open the app with <code>npm run tauri dev</code> to use these controls.</p>
@@ -626,7 +723,7 @@
   {/if}
 </div>
 
-<div class="panel">
+<div class="panel" id="latency-section">
   <h2>Latency</h2>
   <p class="muted" style="margin: 0 0 0.65rem; font-size: 0.88rem">
     Shifts Practice hit/miss timing for MIDI and mic. The chart highway stays unchanged.
@@ -687,7 +784,7 @@
   </div>
 </div>
 
-<div class="panel">
+<div class="panel" id="midi-input-section">
   <h2>MIDI input</h2>
   {#if browserOnly}
     <p class="muted" style="margin-bottom: 0">Open the desktop app to use MIDI.</p>
@@ -761,6 +858,73 @@
 </div>
 
 <style>
+  .setup-guide-panel {
+    background:
+      radial-gradient(circle at top right, color-mix(in srgb, var(--ff-success) 12%, transparent), transparent 36%),
+      linear-gradient(180deg, color-mix(in srgb, var(--ff-surface) 94%, #101826), var(--ff-surface));
+  }
+  .setup-guide-panel__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.75rem 1rem;
+    flex-wrap: wrap;
+  }
+  .setup-guide-panel__eyebrow {
+    margin: 0 0 0.2rem;
+    color: var(--ff-success);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.74rem;
+    font-weight: 700;
+  }
+  .setup-guide-steps {
+    display: grid;
+    gap: 0.7rem;
+  }
+  .setup-step {
+    display: grid;
+    grid-template-columns: 3.25rem minmax(0, 1fr) auto;
+    gap: 0.75rem;
+    align-items: center;
+    padding: 0.8rem 0.85rem;
+    border-radius: 10px;
+    border: 1px solid var(--ff-border);
+    background: color-mix(in srgb, var(--ff-bg) 72%, transparent);
+  }
+  .setup-step__status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2rem;
+    border-radius: 999px;
+    border: 1px solid var(--ff-border);
+    color: var(--ff-muted);
+    font-size: 0.76rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .setup-step__status--done {
+    color: var(--ff-success);
+    border-color: color-mix(in srgb, var(--ff-success) 50%, var(--ff-border));
+  }
+  .setup-step__title {
+    font-size: 0.94rem;
+    font-weight: 600;
+    color: var(--ff-text);
+  }
+  .setup-step__detail {
+    margin: 0.2rem 0 0;
+    font-size: 0.84rem;
+    color: var(--ff-muted);
+  }
+  @media (max-width: 720px) {
+    .setup-step {
+      grid-template-columns: 1fr;
+      align-items: flex-start;
+    }
+  }
   .tuner-panel {
     margin-top: 1.25rem;
     padding-top: 1.1rem;
