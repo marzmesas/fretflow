@@ -8,23 +8,27 @@
   import { MOCK_CATALOG } from "$lib/catalog/mock-catalog";
   import { midiBufferToChart } from "$lib/catalog/midi-import";
   import { addUserChart, getUserCharts, removeUserChart, type UserChartEntry } from "$lib/catalog/user-charts";
+  import { getLatestSessionsByTrackId, loadSessionHistory, type SessionSummaryV1 } from "$lib/chart/session-storage";
   import type { CatalogTrackStub } from "$lib/catalog/types";
   import { validateChart } from "$lib/chart/validate";
 
-  type Filter = "all" | "free" | "premium" | "favorites" | "mine";
+  type Filter = "all" | "free" | "premium" | "recent" | "favorites" | "mine";
   type FavoriteRow =
     | { kind: "catalog"; id: string; track: CatalogTrackStub }
     | { kind: "user"; id: string; entry: UserChartEntry };
+  type RecentRow = FavoriteRow & { recentSession: SessionSummaryV1 };
 
   let filter = $state<Filter>("all");
   let userCharts = $state<UserChartEntry[]>(getUserCharts());
   let favoriteTrackIds = $state<string[]>(getFavoriteTrackIds());
+  let latestSessionByTrackId = $state<Record<string, SessionSummaryV1>>(getLatestSessionsByTrackId(loadSessionHistory()));
   let importError = $state<string | null>(null);
   let importWarnings = $state<string[]>([]);
 
   const filtered = $derived.by(() => {
     if (filter === "mine") return [];
     if (filter === "favorites") return [];
+    if (filter === "recent") return [];
     if (filter === "all") return MOCK_CATALOG;
     return MOCK_CATALOG.filter((t) => t.tier === filter);
   });
@@ -39,6 +43,24 @@
       .filter((entry): entry is UserChartEntry => entry != null)
       .map((entry) => ({ kind: "user", id: entry.id, entry }) as const);
     return [...catalogRows, ...userRows];
+  });
+
+  const recentRows = $derived.by<RecentRow[]>(() => {
+    const rows = Object.entries(latestSessionByTrackId)
+      .map(([id, recentSession]) => {
+        const track = MOCK_CATALOG.find((catalogTrack) => catalogTrack.id === id);
+        if (track) {
+          return { kind: "catalog", id, track, recentSession } as const;
+        }
+        const entry = userCharts.find((userChart) => userChart.id === id);
+        if (entry) {
+          return { kind: "user", id, entry, recentSession } as const;
+        }
+        return null;
+      })
+      .filter((row): row is RecentRow => row != null);
+    rows.sort((a, b) => Date.parse(b.recentSession.at) - Date.parse(a.recentSession.at));
+    return rows;
   });
 
   function isLocked(t: CatalogTrackStub): boolean {
@@ -73,6 +95,23 @@
 
   function isFavorite(trackId: string): boolean {
     return favoriteTrackIds.includes(trackId);
+  }
+
+  function latestSessionForTrack(trackId: string): SessionSummaryV1 | null {
+    return latestSessionByTrackId[trackId] ?? null;
+  }
+
+  function formatSessionRecency(at: string): string {
+    const when = new Date(at);
+    const now = new Date();
+    const diffMs = now.getTime() - when.getTime();
+    if (!Number.isFinite(diffMs) || diffMs < 0) return when.toLocaleDateString();
+    const diffHours = Math.floor(diffMs / 3_600_000);
+    if (diffHours < 1) return "just now";
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return when.toLocaleDateString();
   }
 
   async function handleImportFile(ev: Event) {
@@ -132,7 +171,7 @@
   <h2>Browse</h2>
 
   <div class="row catalog-filters" style="margin-bottom: 1rem">
-    {#each (["all", "free", "premium", "favorites", "mine"] as Filter[]) as f (f)}
+    {#each (["all", "free", "premium", "recent", "favorites", "mine"] as Filter[]) as f (f)}
       <button
         type="button"
         class="btn"
@@ -146,6 +185,8 @@
             ? "Free"
             : f === "premium"
               ? "Premium"
+              : f === "recent"
+                ? `Recent (${recentRows.length})`
               : f === "favorites"
                 ? `Favorites (${favoriteRows.length})`
                 : `My Charts (${userCharts.length})`}
@@ -153,12 +194,67 @@
     {/each}
   </div>
 
-  {#if filter === "favorites"}
+  {#if filter === "recent"}
+    {#if recentRows.length === 0}
+      <p class="muted" style="margin: 0 0 1rem">No recent practice yet. Finish a chart in Practice and it will show up here.</p>
+    {:else}
+      <ul class="catalog-list" aria-label="Recently practiced tracks">
+        {#each recentRows as row (row.kind + row.id)}
+          <li class="catalog-row">
+            <div class="catalog-main">
+              <div class="catalog-title">
+                {row.kind === "catalog" ? row.track.title : row.entry.title}
+                <span class="recent-badge">Recent</span>
+              </div>
+              <div class="catalog-meta">
+                <span class="muted">{row.kind === "catalog" ? row.track.artist : row.entry.artist}</span>
+                <span class="resume-pill">
+                  {row.recentSession.accuracyPercent}% last run · {formatSessionRecency(row.recentSession.at)}
+                </span>
+                <span class="muted">combo {row.recentSession.maxCombo}</span>
+                {#if row.kind === "catalog" && row.track.difficulty}
+                  <span class="difficulty-pill difficulty-pill--{row.track.difficulty}">{row.track.difficulty}</span>
+                {/if}
+              </div>
+            </div>
+            <div class="catalog-action">
+              {#if row.kind === "catalog"}
+                {#if isLocked(row.track)}
+                  <span class="locked-label" title="Subscription / purchase flow not wired yet">Locked</span>
+                {:else if canOpenInPractice(row.track)}
+                  <button type="button" class="btn btn-primary" onclick={() => openInPractice(row.track)}>
+                    Resume
+                  </button>
+                {:else}
+                  <span class="locked-label" title="No chart wired for this row">Soon</span>
+                {/if}
+              {:else}
+                <button type="button" class="btn btn-primary" onclick={() => openUserChart(row.entry)}>
+                  Resume
+                </button>
+              {/if}
+              <button
+                type="button"
+                class="btn favorite-toggle"
+                class:favorite-toggle--active={isFavorite(row.id)}
+                onclick={() => toggleFavorite(row.id)}
+                aria-pressed={isFavorite(row.id)}
+                title={isFavorite(row.id) ? "Remove favorite" : "Add favorite"}
+              >
+                ★
+              </button>
+            </div>
+          </li>
+        {/each}
+      </ul>
+    {/if}
+  {:else if filter === "favorites"}
     {#if favoriteRows.length === 0}
       <p class="muted" style="margin: 0 0 1rem">No favorites yet. Star any bundled or imported chart to pin it here.</p>
     {:else}
       <ul class="catalog-list" aria-label="Favorite tracks">
         {#each favoriteRows as row (row.kind + row.id)}
+          {@const recent = latestSessionForTrack(row.id)}
           <li class="catalog-row">
             <div class="catalog-main">
               <div class="catalog-title">
@@ -176,6 +272,11 @@
                   {/if}
                 {:else}
                   <span class="muted">{new Date(row.entry.addedAt).toLocaleDateString()}</span>
+                {/if}
+                {#if recent}
+                  <span class="resume-pill">
+                    {recent.accuracyPercent}% last run · {formatSessionRecency(recent.at)}
+                  </span>
                 {/if}
               </div>
             </div>
@@ -216,12 +317,18 @@
     {:else}
       <ul class="catalog-list" aria-label="My imported charts">
         {#each userCharts as entry (entry.id)}
+          {@const recent = latestSessionForTrack(entry.id)}
           <li class="catalog-row">
             <div class="catalog-main">
               <div class="catalog-title">{entry.title}</div>
               <div class="catalog-meta">
                 <span class="muted">{entry.artist}</span>
                 <span class="muted">{new Date(entry.addedAt).toLocaleDateString()}</span>
+                {#if recent}
+                  <span class="resume-pill">
+                    {recent.accuracyPercent}% last run · {formatSessionRecency(recent.at)}
+                  </span>
+                {/if}
               </div>
             </div>
             <div class="catalog-action">
@@ -251,6 +358,7 @@
   {:else}
     <ul class="catalog-list" aria-label="Tracks">
       {#each filtered as t (t.id)}
+        {@const recent = latestSessionForTrack(t.id)}
         <li class="catalog-row">
           <div class="catalog-main">
             <div class="catalog-title">{t.title}</div>
@@ -269,6 +377,11 @@
               >
                 {t.tier}
               </span>
+              {#if recent}
+                <span class="resume-pill">
+                  {recent.accuracyPercent}% last run · {formatSessionRecency(recent.at)}
+                </span>
+              {/if}
             </div>
           </div>
           <div class="catalog-action">
@@ -404,6 +517,31 @@
     text-transform: uppercase;
     letter-spacing: 0.05em;
     vertical-align: middle;
+  }
+  .recent-badge {
+    display: inline-flex;
+    margin-left: 0.45rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--ff-success) 45%, var(--ff-border));
+    color: var(--ff-success);
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    vertical-align: middle;
+  }
+  .resume-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    padding: 0.12rem 0.45rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--ff-accent) 35%, var(--ff-border));
+    color: var(--ff-text);
+    font-size: 0.72rem;
+    font-weight: 600;
+    background: color-mix(in srgb, var(--ff-accent) 10%, var(--ff-bg));
   }
   .tier-pill {
     text-transform: capitalize;
