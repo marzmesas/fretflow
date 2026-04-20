@@ -405,6 +405,7 @@
       schemaVersion: 1,
       at: new Date().toISOString(),
       chartTitle: chart.title,
+      practiceTrackId: trackId,
       scoringMode,
       hits,
       misses,

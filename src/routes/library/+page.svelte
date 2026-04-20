@@ -1,22 +1,44 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
+  import {
+    getFavoriteTrackIds,
+    removeFavoriteTrackId,
+    toggleFavoriteTrackId,
+  } from "$lib/catalog/favorites";
   import { MOCK_CATALOG } from "$lib/catalog/mock-catalog";
   import { midiBufferToChart } from "$lib/catalog/midi-import";
   import { addUserChart, getUserCharts, removeUserChart, type UserChartEntry } from "$lib/catalog/user-charts";
   import type { CatalogTrackStub } from "$lib/catalog/types";
   import { validateChart } from "$lib/chart/validate";
 
-  type Filter = "all" | "free" | "premium" | "mine";
+  type Filter = "all" | "free" | "premium" | "favorites" | "mine";
+  type FavoriteRow =
+    | { kind: "catalog"; id: string; track: CatalogTrackStub }
+    | { kind: "user"; id: string; entry: UserChartEntry };
 
   let filter = $state<Filter>("all");
   let userCharts = $state<UserChartEntry[]>(getUserCharts());
+  let favoriteTrackIds = $state<string[]>(getFavoriteTrackIds());
   let importError = $state<string | null>(null);
   let importWarnings = $state<string[]>([]);
 
   const filtered = $derived.by(() => {
     if (filter === "mine") return [];
+    if (filter === "favorites") return [];
     if (filter === "all") return MOCK_CATALOG;
     return MOCK_CATALOG.filter((t) => t.tier === filter);
+  });
+
+  const favoriteRows = $derived.by<FavoriteRow[]>(() => {
+    const catalogRows = favoriteTrackIds
+      .map((id) => MOCK_CATALOG.find((track) => track.id === id))
+      .filter((track): track is CatalogTrackStub => track != null)
+      .map((track) => ({ kind: "catalog", id: track.id, track }) as const);
+    const userRows = favoriteTrackIds
+      .map((id) => userCharts.find((entry) => entry.id === id))
+      .filter((entry): entry is UserChartEntry => entry != null)
+      .map((entry) => ({ kind: "user", id: entry.id, entry }) as const);
+    return [...catalogRows, ...userRows];
   });
 
   function isLocked(t: CatalogTrackStub): boolean {
@@ -42,6 +64,15 @@
   function deleteUserChart(entry: UserChartEntry) {
     removeUserChart(entry.id);
     userCharts = getUserCharts();
+    favoriteTrackIds = removeFavoriteTrackId(entry.id);
+  }
+
+  function toggleFavorite(trackId: string) {
+    favoriteTrackIds = toggleFavoriteTrackId(trackId);
+  }
+
+  function isFavorite(trackId: string): boolean {
+    return favoriteTrackIds.includes(trackId);
   }
 
   async function handleImportFile(ev: Event) {
@@ -101,7 +132,7 @@
   <h2>Browse</h2>
 
   <div class="row catalog-filters" style="margin-bottom: 1rem">
-    {#each (["all", "free", "premium", "mine"] as Filter[]) as f (f)}
+    {#each (["all", "free", "premium", "favorites", "mine"] as Filter[]) as f (f)}
       <button
         type="button"
         class="btn"
@@ -109,12 +140,77 @@
         onclick={() => (filter = f)}
         aria-pressed={filter === f}
       >
-        {f === "all" ? "All" : f === "free" ? "Free" : f === "premium" ? "Premium" : `My Charts (${userCharts.length})`}
+        {f === "all"
+          ? "All"
+          : f === "free"
+            ? "Free"
+            : f === "premium"
+              ? "Premium"
+              : f === "favorites"
+                ? `Favorites (${favoriteRows.length})`
+                : `My Charts (${userCharts.length})`}
       </button>
     {/each}
   </div>
 
-  {#if filter === "mine"}
+  {#if filter === "favorites"}
+    {#if favoriteRows.length === 0}
+      <p class="muted" style="margin: 0 0 1rem">No favorites yet. Star any bundled or imported chart to pin it here.</p>
+    {:else}
+      <ul class="catalog-list" aria-label="Favorite tracks">
+        {#each favoriteRows as row (row.kind + row.id)}
+          <li class="catalog-row">
+            <div class="catalog-main">
+              <div class="catalog-title">
+                {row.kind === "catalog" ? row.track.title : row.entry.title}
+                <span class="favorite-badge">Favorite</span>
+              </div>
+              <div class="catalog-meta">
+                <span class="muted">{row.kind === "catalog" ? row.track.artist : row.entry.artist}</span>
+                {#if row.kind === "catalog"}
+                  {#if row.track.difficulty}
+                    <span class="difficulty-pill difficulty-pill--{row.track.difficulty}">{row.track.difficulty}</span>
+                  {/if}
+                  {#if row.track.durationSec != null}
+                    <span class="muted">{row.track.durationSec < 60 ? `${row.track.durationSec}s` : `${Math.floor(row.track.durationSec / 60)}m ${row.track.durationSec % 60}s`}</span>
+                  {/if}
+                {:else}
+                  <span class="muted">{new Date(row.entry.addedAt).toLocaleDateString()}</span>
+                {/if}
+              </div>
+            </div>
+            <div class="catalog-action">
+              {#if row.kind === "catalog"}
+                {#if isLocked(row.track)}
+                  <span class="locked-label" title="Subscription / purchase flow not wired yet">Locked</span>
+                {:else if canOpenInPractice(row.track)}
+                  <button type="button" class="btn btn-primary" onclick={() => openInPractice(row.track)}>
+                    Practice
+                  </button>
+                {:else}
+                  <span class="locked-label" title="No chart wired for this row">Soon</span>
+                {/if}
+              {:else}
+                <button type="button" class="btn btn-primary" onclick={() => openUserChart(row.entry)}>
+                  Practice
+                </button>
+              {/if}
+              <button
+                type="button"
+                class="btn favorite-toggle"
+                class:favorite-toggle--active={isFavorite(row.id)}
+                onclick={() => toggleFavorite(row.id)}
+                aria-pressed={isFavorite(row.id)}
+                title={isFavorite(row.id) ? "Remove favorite" : "Add favorite"}
+              >
+                ★
+              </button>
+            </div>
+          </li>
+        {/each}
+      </ul>
+    {/if}
+  {:else if filter === "mine"}
     {#if userCharts.length === 0}
       <p class="muted" style="margin: 0 0 1rem">No imported charts yet. Use the import section below to add MIDI or JSON files.</p>
     {:else}
@@ -129,6 +225,16 @@
               </div>
             </div>
             <div class="catalog-action">
+              <button
+                type="button"
+                class="btn favorite-toggle"
+                class:favorite-toggle--active={isFavorite(entry.id)}
+                onclick={() => toggleFavorite(entry.id)}
+                aria-pressed={isFavorite(entry.id)}
+                title={isFavorite(entry.id) ? "Remove favorite" : "Add favorite"}
+              >
+                ★
+              </button>
               <button type="button" class="btn btn-primary" onclick={() => openUserChart(entry)}>
                 Practice
               </button>
@@ -166,6 +272,16 @@
             </div>
           </div>
           <div class="catalog-action">
+            <button
+              type="button"
+              class="btn favorite-toggle"
+              class:favorite-toggle--active={isFavorite(t.id)}
+              onclick={() => toggleFavorite(t.id)}
+              aria-pressed={isFavorite(t.id)}
+              title={isFavorite(t.id) ? "Remove favorite" : "Add favorite"}
+            >
+              ★
+            </button>
             {#if isLocked(t)}
               <span class="locked-label" title="Subscription / purchase flow not wired yet">
                 <svg
@@ -265,6 +381,29 @@
     display: flex;
     gap: 0.5rem;
     align-items: center;
+  }
+  .favorite-toggle {
+    min-width: 2.5rem;
+    padding-inline: 0.65rem;
+    color: var(--ff-muted);
+  }
+  .favorite-toggle--active {
+    color: #fbbf24;
+    border-color: color-mix(in srgb, #fbbf24 50%, var(--ff-border));
+    background: color-mix(in srgb, #fbbf24 10%, var(--ff-bg));
+  }
+  .favorite-badge {
+    display: inline-flex;
+    margin-left: 0.45rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, #fbbf24 55%, var(--ff-border));
+    color: #fbbf24;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    vertical-align: middle;
   }
   .tier-pill {
     text-transform: capitalize;

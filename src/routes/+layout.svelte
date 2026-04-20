@@ -5,6 +5,7 @@
   import { onDestroy, onMount } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
   import type { AppSession, InputConnectionStatus } from "$lib/ipc";
+  import { markOnboardingRouteVisited } from "$lib/onboarding-storage";
   import { isTauri } from "$lib/tauri-env";
 
   const nav = [
@@ -37,6 +38,7 @@
   }
 
   onMount(() => {
+    markOnboardingRouteVisited(window.location.pathname);
     void refreshShellState();
     if (isTauri()) {
       pollId = setInterval(() => void refreshShellState(), 2000);
@@ -55,6 +57,7 @@
   });
 
   afterNavigate(() => {
+    markOnboardingRouteVisited(window.location.pathname);
     void refreshShellState();
   });
 </script>

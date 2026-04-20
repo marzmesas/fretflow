@@ -8,6 +8,7 @@ export type SessionSummaryV1 = {
   schemaVersion: 1;
   at: string;
   chartTitle: string;
+  practiceTrackId?: string | null;
   scoringMode: ScoringModeId;
   hits: number;
   misses: number;

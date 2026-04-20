@@ -1,13 +1,65 @@
 <script lang="ts">
+  import { afterNavigate, goto } from "$app/navigation";
   import { onMount } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
   import type { AppInfo } from "$lib/ipc";
+  import { loadLastSession, type SessionSummaryV1 } from "$lib/chart/session-storage";
+  import {
+    dismissOnboarding,
+    getOnboardingSnapshot,
+    type OnboardingSnapshot,
+    type OnboardingStepId,
+  } from "$lib/onboarding-storage";
   import { isTauri } from "$lib/tauri-env";
 
   let appInfo = $state<AppInfo | null>(null);
   let loadError = $state<string | null>(null);
+  let onboarding = $state<OnboardingSnapshot | null>(null);
+  let lastSession = $state<SessionSummaryV1 | null>(null);
+
+  const STEP_COPY: Record<OnboardingStepId, { title: string; detail: string; href: string }> = {
+    settings: {
+      title: "Set up your input",
+      detail: "Choose a mic or MIDI source, then verify monitoring before scoring.",
+      href: "/settings",
+    },
+    library: {
+      title: "Pick a chart",
+      detail: "Start with a bundled drill or import your own MIDI/JSON chart.",
+      href: "/library",
+    },
+    practice: {
+      title: "Finish your first run",
+      detail: "Open Practice, play through a chart, and save your first session summary.",
+      href: "/practice",
+    },
+  };
+
+  function refreshHomeState() {
+    onboarding = getOnboardingSnapshot();
+    lastSession = loadLastSession();
+  }
+
+  function nextOnboardingStep(): (typeof STEP_COPY)[OnboardingStepId] | null {
+    const nextId = onboarding?.remainingSteps[0] ?? null;
+    return nextId ? STEP_COPY[nextId] : null;
+  }
+
+  function dismissSetupGuide() {
+    onboarding = dismissOnboarding();
+  }
+
+  function openLastSession() {
+    const trackId = lastSession?.practiceTrackId?.trim();
+    if (trackId) {
+      void goto(`/practice?track=${encodeURIComponent(trackId)}`);
+      return;
+    }
+    void goto("/practice");
+  }
 
   onMount(async () => {
+    refreshHomeState();
     if (!isTauri()) {
       loadError =
         "Run with `npm run tauri dev` for the full desktop experience.";
@@ -18,6 +70,10 @@
     } catch (e) {
       loadError = String(e);
     }
+  });
+
+  afterNavigate(() => {
+    refreshHomeState();
   });
 </script>
 
@@ -36,6 +92,55 @@
   {#if loadError}
     <div class="panel">
       <p class="muted">{loadError}</p>
+    </div>
+  {/if}
+
+  {#if onboarding && !onboarding.hidden}
+    {@const nextStep = nextOnboardingStep()}
+    <div class="panel onboarding-panel">
+      <div class="onboarding-panel__header">
+        <div>
+          <p class="onboarding-panel__eyebrow">First run</p>
+          <h2>Setup guide</h2>
+        </div>
+        <button type="button" class="btn" onclick={dismissSetupGuide}>Dismiss</button>
+      </div>
+      <p class="onboarding-panel__body">
+        Fretflow works best once your input is configured and you have completed one full practice run.
+      </p>
+      <div class="onboarding-panel__progress" role="list" aria-label="Setup steps">
+        {#each Object.entries(STEP_COPY) as [stepId, meta] (stepId)}
+          <div class="onboarding-step" role="listitem">
+            <span class:completed={!onboarding.remainingSteps.includes(stepId as OnboardingStepId)}>
+              {!onboarding.remainingSteps.includes(stepId as OnboardingStepId) ? "Done" : "Next"}
+            </span>
+            <div>
+              <strong>{meta.title}</strong>
+              <p>{meta.detail}</p>
+            </div>
+          </div>
+        {/each}
+      </div>
+      {#if nextStep}
+        <div class="onboarding-panel__actions">
+          <a href={nextStep.href} class="btn btn-primary">{nextStep.title}</a>
+        </div>
+      {/if}
+    </div>
+  {/if}
+
+  {#if lastSession}
+    <div class="panel continue-panel">
+      <div>
+        <h2>Continue practicing</h2>
+        <p>
+          Last session: <strong>{lastSession.chartTitle}</strong> · {lastSession.accuracyPercent}% accuracy ·
+          combo {lastSession.maxCombo}
+        </p>
+      </div>
+      <button type="button" class="btn btn-primary" onclick={openLastSession}>
+        {lastSession.practiceTrackId ? "Resume last track" : "Open practice"}
+      </button>
     </div>
   {/if}
 
@@ -124,5 +229,71 @@
   .home-version {
     font-size: 0.8rem;
     margin-top: 0.5rem;
+  }
+  .onboarding-panel {
+    background:
+      radial-gradient(circle at top right, color-mix(in srgb, var(--ff-accent) 18%, transparent), transparent 35%),
+      linear-gradient(180deg, color-mix(in srgb, var(--ff-surface) 92%, #09101d), var(--ff-surface));
+  }
+  .onboarding-panel__header,
+  .continue-panel {
+    display: flex;
+    gap: 1rem;
+    align-items: start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+  .onboarding-panel__eyebrow {
+    margin: 0 0 0.2rem;
+    color: var(--ff-accent);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.74rem;
+  }
+  .onboarding-panel__body {
+    max-width: 42rem;
+  }
+  .onboarding-panel__progress {
+    display: grid;
+    gap: 0.75rem;
+    margin: 0.9rem 0 0;
+  }
+  .onboarding-step {
+    display: grid;
+    grid-template-columns: 3.25rem 1fr;
+    gap: 0.75rem;
+    align-items: start;
+    padding: 0.75rem 0.85rem;
+    border: 1px solid var(--ff-border);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--ff-bg) 72%, transparent);
+  }
+  .onboarding-step span {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 2rem;
+    border-radius: 999px;
+    border: 1px solid var(--ff-border);
+    color: var(--ff-muted);
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .onboarding-step span.completed {
+    color: var(--ff-success);
+    border-color: color-mix(in srgb, var(--ff-success) 50%, var(--ff-border));
+  }
+  .onboarding-step p {
+    margin: 0.2rem 0 0;
+  }
+  .onboarding-panel__actions {
+    margin-top: 1rem;
+  }
+  @media (max-width: 640px) {
+    .onboarding-step {
+      grid-template-columns: 1fr;
+    }
   }
 </style>
