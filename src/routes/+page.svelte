@@ -3,6 +3,7 @@
   import { onMount } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
   import type { AppInfo } from "$lib/ipc";
+  import { getRecommendedTracks, type RecommendedTrack } from "$lib/catalog/recommendations";
   import {
     getRecentSessions,
     loadLastSession,
@@ -22,6 +23,7 @@
   let onboarding = $state<OnboardingSnapshot | null>(null);
   let lastSession = $state<SessionSummaryV1 | null>(null);
   let recentSessions = $state<SessionSummaryV1[]>([]);
+  let recommendedTracks = $state<RecommendedTrack[]>([]);
 
   const STEP_COPY: Record<OnboardingStepId, { title: string; detail: string; href: string }> = {
     settings: {
@@ -44,7 +46,9 @@
   function refreshHomeState() {
     onboarding = getOnboardingSnapshot();
     lastSession = loadLastSession();
-    recentSessions = getRecentSessions(loadSessionHistory(), 4);
+    const history = loadSessionHistory();
+    recentSessions = getRecentSessions(history, 4);
+    recommendedTracks = getRecommendedTracks(history, 3);
   }
 
   function nextOnboardingStep(): (typeof STEP_COPY)[OnboardingStepId] | null {
@@ -196,6 +200,35 @@
     </div>
   {/if}
 
+  {#if recommendedTracks.length > 0}
+    <div class="panel recent-panel">
+      <div class="recent-panel__header">
+        <div>
+          <h2>Suggested next charts</h2>
+          <p class="muted">Recommendations are based on your recent bundled-chart runs and current accuracy.</p>
+        </div>
+        <a href="/library" class="btn">Browse all charts</a>
+      </div>
+      <div class="recent-grid">
+        {#each recommendedTracks as item (item.track.id)}
+          <button
+            type="button"
+            class="recent-card"
+            onclick={() => void goto(`/practice?track=${encodeURIComponent(item.track.id)}`)}
+          >
+            <span class="recent-card__title">{item.track.title}</span>
+            <span class="recent-card__meta">
+              {item.track.artist}
+              {#if item.track.difficulty} · {item.track.difficulty}{/if}
+            </span>
+            <span class="recent-card__detail">{item.reason}</span>
+            <span class="recent-card__cta">Practice this chart</span>
+          </button>
+        {/each}
+      </div>
+    </div>
+  {/if}
+
   <div class="home-cards">
     <div class="panel home-card">
       <h2>Get started</h2>
@@ -338,6 +371,11 @@
     color: var(--ff-accent);
     font-weight: 700;
     margin-top: 0.1rem;
+  }
+  .recent-card__detail {
+    font-size: 0.82rem;
+    color: var(--ff-text);
+    line-height: 1.45;
   }
   .onboarding-panel__eyebrow {
     margin: 0 0 0.2rem;
