@@ -15,6 +15,7 @@
   } from "$lib/catalog/favorites";
   import { MOCK_CATALOG } from "$lib/catalog/mock-catalog";
   import { midiBufferToChart } from "$lib/catalog/midi-import";
+  import { getRecommendedTracks, type RecommendedTrack } from "$lib/catalog/recommendations";
   import { addUserChart, getUserCharts, removeUserChart, type UserChartEntry } from "$lib/catalog/user-charts";
   import { getLatestSessionsByTrackId, loadSessionHistory, type SessionSummaryV1 } from "$lib/chart/session-storage";
   import type { CatalogTrackStub } from "$lib/catalog/types";
@@ -31,7 +32,9 @@
   let filter = $state<Filter>("all");
   let userCharts = $state<UserChartEntry[]>(getUserCharts());
   let favoriteTrackIds = $state<string[]>(getFavoriteTrackIds());
-  let latestSessionByTrackId = $state<Record<string, SessionSummaryV1>>(getLatestSessionsByTrackId(loadSessionHistory()));
+  const initialHistory = loadSessionHistory();
+  let latestSessionByTrackId = $state<Record<string, SessionSummaryV1>>(getLatestSessionsByTrackId(initialHistory));
+  let recommendedTracks = $state<RecommendedTrack[]>(getRecommendedTracks(initialHistory, 3));
   let collections = $state<ChartCollectionV1[]>(initialCollections);
   let activeCollectionId = $state<string | null>(initialCollections[0]?.id ?? null);
   let newCollectionName = $state("");
@@ -140,6 +143,10 @@
     return latestSessionByTrackId[trackId] ?? null;
   }
 
+  function recommendedTrackFor(trackId: string): RecommendedTrack | null {
+    return recommendedTracks.find((item) => item.track.id === trackId) ?? null;
+  }
+
   function trackIsInActiveCollection(trackId: string): boolean {
     return activeCollection?.trackIds.includes(trackId) ?? false;
   }
@@ -233,6 +240,33 @@
 <div class="panel">
   <h2>Browse</h2>
 
+  {#if recommendedTracks.length > 0}
+    <div class="recommended-strip">
+      <div class="recommended-strip__header">
+        <div>
+          <h3>Suggested for you</h3>
+          <p class="muted">Quick picks based on your recent bundled-chart runs.</p>
+        </div>
+      </div>
+      <div class="recommended-strip__grid">
+        {#each recommendedTracks as item (item.track.id)}
+          <button
+            type="button"
+            class="recommended-card"
+            onclick={() => openInPractice(item.track)}
+          >
+            <span class="recommended-card__title">{item.track.title}</span>
+            <span class="recommended-card__meta">
+              {item.track.artist}
+              {#if item.track.difficulty} · {item.track.difficulty}{/if}
+            </span>
+            <span class="recommended-card__reason">{item.reason}</span>
+          </button>
+        {/each}
+      </div>
+    </div>
+  {/if}
+
   <div class="collection-toolbar">
     <div class="collection-toolbar__controls">
       <input
@@ -291,11 +325,15 @@
     {:else}
       <ul class="catalog-list" aria-label="Recently practiced tracks">
         {#each recentRows as row (row.kind + row.id)}
+          {@const suggested = recommendedTrackFor(row.id)}
           <li class="catalog-row">
             <div class="catalog-main">
               <div class="catalog-title">
                 {row.kind === "catalog" ? row.track.title : row.entry.title}
                 <span class="recent-badge">Recent</span>
+                {#if suggested}
+                  <span class="suggested-badge">Suggested</span>
+                {/if}
               </div>
               <div class="catalog-meta">
                 <span class="muted">{row.kind === "catalog" ? row.track.artist : row.entry.artist}</span>
@@ -346,11 +384,15 @@
       <ul class="catalog-list" aria-label="Favorite tracks">
         {#each favoriteRows as row (row.kind + row.id)}
           {@const recent = latestSessionForTrack(row.id)}
+          {@const suggested = recommendedTrackFor(row.id)}
           <li class="catalog-row">
             <div class="catalog-main">
               <div class="catalog-title">
                 {row.kind === "catalog" ? row.track.title : row.entry.title}
                 <span class="favorite-badge">Favorite</span>
+                {#if suggested}
+                  <span class="suggested-badge">Suggested</span>
+                {/if}
               </div>
               <div class="catalog-meta">
                 <span class="muted">{row.kind === "catalog" ? row.track.artist : row.entry.artist}</span>
@@ -411,11 +453,15 @@
       <ul class="catalog-list" aria-label="Collection tracks">
         {#each collectionRows as row (row.kind + row.id)}
           {@const recent = latestSessionForTrack(row.id)}
+          {@const suggested = recommendedTrackFor(row.id)}
           <li class="catalog-row">
             <div class="catalog-main">
               <div class="catalog-title">
                 {row.kind === "catalog" ? row.track.title : row.entry.title}
                 <span class="collection-badge">{activeCollection.name}</span>
+                {#if suggested}
+                  <span class="suggested-badge">Suggested</span>
+                {/if}
               </div>
               <div class="catalog-meta">
                 <span class="muted">{row.kind === "catalog" ? row.track.artist : row.entry.artist}</span>
@@ -463,9 +509,15 @@
       <ul class="catalog-list" aria-label="My imported charts">
         {#each userCharts as entry (entry.id)}
           {@const recent = latestSessionForTrack(entry.id)}
+          {@const suggested = recommendedTrackFor(entry.id)}
           <li class="catalog-row">
             <div class="catalog-main">
-              <div class="catalog-title">{entry.title}</div>
+              <div class="catalog-title">
+                {entry.title}
+                {#if suggested}
+                  <span class="suggested-badge">Suggested</span>
+                {/if}
+              </div>
               <div class="catalog-meta">
                 <span class="muted">{entry.artist}</span>
                 <span class="muted">{new Date(entry.addedAt).toLocaleDateString()}</span>
@@ -515,9 +567,15 @@
     <ul class="catalog-list" aria-label="Tracks">
       {#each filtered as t (t.id)}
         {@const recent = latestSessionForTrack(t.id)}
+        {@const suggested = recommendedTrackFor(t.id)}
         <li class="catalog-row">
           <div class="catalog-main">
-            <div class="catalog-title">{t.title}</div>
+            <div class="catalog-title">
+              {t.title}
+              {#if suggested}
+                <span class="suggested-badge">Suggested</span>
+              {/if}
+            </div>
             <div class="catalog-meta">
               <span class="muted">{t.artist}</span>
               {#if t.difficulty}
@@ -618,6 +676,55 @@
 </div>
 
 <style>
+  .recommended-strip {
+    margin-bottom: 1rem;
+    padding: 0.85rem 0.95rem;
+    border: 1px solid var(--ff-border);
+    border-radius: 10px;
+    background:
+      radial-gradient(circle at top right, color-mix(in srgb, var(--ff-accent) 10%, transparent), transparent 36%),
+      color-mix(in srgb, var(--ff-bg) 72%, transparent);
+  }
+  .recommended-strip__header h3 {
+    margin: 0 0 0.2rem;
+    font-size: 0.98rem;
+  }
+  .recommended-strip__header p {
+    margin: 0 0 0.75rem;
+    font-size: 0.82rem;
+  }
+  .recommended-strip__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+    gap: 0.75rem;
+  }
+  .recommended-card {
+    display: grid;
+    gap: 0.28rem;
+    text-align: left;
+    padding: 0.8rem 0.85rem;
+    border-radius: 10px;
+    border: 1px solid var(--ff-border);
+    background: color-mix(in srgb, var(--ff-bg) 82%, transparent);
+    color: var(--ff-text);
+    cursor: pointer;
+  }
+  .recommended-card:hover {
+    border-color: color-mix(in srgb, var(--ff-accent) 55%, var(--ff-border));
+    background: color-mix(in srgb, var(--ff-accent) 10%, var(--ff-bg));
+  }
+  .recommended-card__title {
+    font-size: 0.92rem;
+    font-weight: 600;
+  }
+  .recommended-card__meta {
+    font-size: 0.8rem;
+    color: var(--ff-muted);
+  }
+  .recommended-card__reason {
+    font-size: 0.82rem;
+    line-height: 1.45;
+  }
   .collection-toolbar {
     margin-bottom: 1rem;
     padding: 0.85rem 0.95rem;
@@ -749,6 +856,20 @@
     text-transform: uppercase;
     letter-spacing: 0.05em;
     vertical-align: middle;
+  }
+  .suggested-badge {
+    display: inline-flex;
+    margin-left: 0.45rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--ff-accent) 55%, var(--ff-border));
+    color: var(--ff-accent);
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    vertical-align: middle;
+    background: color-mix(in srgb, var(--ff-accent) 10%, var(--ff-bg));
   }
   .resume-pill {
     display: inline-flex;
