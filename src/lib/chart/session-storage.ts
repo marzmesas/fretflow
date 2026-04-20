@@ -173,3 +173,17 @@ export function getPracticeRecommendation(
   }
   return "Stay with this chart for another run and aim to beat your best combo.";
 }
+
+export function getLatestSessionsByTrackId(
+  history: SessionSummaryV1[],
+): Record<string, SessionSummaryV1> {
+  const latestByTrackId: Record<string, SessionSummaryV1> = {};
+  for (const session of history) {
+    const trackId = session.practiceTrackId?.trim();
+    if (!trackId) continue;
+    if (!(trackId in latestByTrackId)) {
+      latestByTrackId[trackId] = session;
+    }
+  }
+  return latestByTrackId;
+}

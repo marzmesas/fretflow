@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   getChartSessionStats,
+  getLatestSessionsByTrackId,
   getPracticeRecommendation,
   getSessionStats,
   type SessionSummaryV1,
@@ -72,5 +73,12 @@ describe("session-storage", () => {
       practiceTrackId: "bundled-warmup",
     });
     expect(getPracticeRecommendation(stats)).toContain("improving");
+  });
+
+  it("indexes latest sessions by track id", () => {
+    expect(getLatestSessionsByTrackId(HISTORY)).toMatchObject({
+      "bundled-warmup": HISTORY[0],
+      "bundled-arpeggio": HISTORY[2],
+    });
   });
 });
