@@ -187,3 +187,19 @@ export function getLatestSessionsByTrackId(
   }
   return latestByTrackId;
 }
+
+export function getRecentSessions(
+  history: SessionSummaryV1[],
+  limit = 4,
+): SessionSummaryV1[] {
+  const seenTrackIds = new Set<string>();
+  const recent: SessionSummaryV1[] = [];
+  for (const session of history) {
+    const trackId = session.practiceTrackId?.trim();
+    if (trackId && seenTrackIds.has(trackId)) continue;
+    if (trackId) seenTrackIds.add(trackId);
+    recent.push(session);
+    if (recent.length >= limit) break;
+  }
+  return recent;
+}

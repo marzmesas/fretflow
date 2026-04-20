@@ -3,6 +3,7 @@ import {
   getChartSessionStats,
   getLatestSessionsByTrackId,
   getPracticeRecommendation,
+  getRecentSessions,
   getSessionStats,
   type SessionSummaryV1,
 } from "./session-storage";
@@ -80,5 +81,9 @@ describe("session-storage", () => {
       "bundled-warmup": HISTORY[0],
       "bundled-arpeggio": HISTORY[2],
     });
+  });
+
+  it("returns a deduplicated recent session list by track id", () => {
+    expect(getRecentSessions(HISTORY, 4)).toEqual([HISTORY[0], HISTORY[2]]);
   });
 });
