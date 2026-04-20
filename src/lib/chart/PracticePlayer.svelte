@@ -35,6 +35,8 @@
   } from "./scoring-modes";
   import {
     clearSessionHistory,
+    getChartSessionStats,
+    getPracticeRecommendation,
     getSessionStats,
     loadLastSession,
     loadSessionHistory,
@@ -133,6 +135,10 @@
     return toPracticeGoalsSnapshot(loadPracticeGoals());
   }
   let practiceGoals = $state<PracticeGoalsSnapshot>(readGoalsSnapshot());
+  const chartInsight = $derived.by(() =>
+    getChartSessionStats(sessionHistory, { chartTitle: chart.title, practiceTrackId: trackId }),
+  );
+  const practiceRecommendation = $derived(getPracticeRecommendation(chartInsight));
 
   /** From Settings → Latency; applied to hit/miss only (highway unchanged). */
   let latencyOffsetMs = $state(0);
@@ -1201,6 +1207,33 @@
           <span>top combo <strong>{stats.bestCombo}</strong></span>
         </div>
       {/if}
+      {#if chartInsight.totalSessions > 0}
+        <div class="chart-insight">
+          <div class="chart-insight__title">This chart</div>
+          <div class="history-stats">
+            <span><strong>{chartInsight.totalSessions}</strong> runs</span>
+            {#if chartInsight.latestAccuracy != null}
+              <span>latest <strong>{chartInsight.latestAccuracy}%</strong></span>
+            {/if}
+            {#if chartInsight.averageAccuracy != null}
+              <span>avg <strong>{chartInsight.averageAccuracy}%</strong></span>
+            {/if}
+            {#if chartInsight.bestAccuracy != null}
+              <span>best <strong>{chartInsight.bestAccuracy}%</strong></span>
+            {/if}
+            <span>top combo <strong>{chartInsight.bestCombo}</strong></span>
+          </div>
+          {#if chartInsight.accuracyDelta != null}
+            <p class="chart-insight__delta muted">
+              {chartInsight.accuracyDelta >= 0 ? "Up" : "Down"} <strong>{Math.abs(chartInsight.accuracyDelta)}%</strong>
+              from the previous run on this chart.
+            </p>
+          {/if}
+          {#if practiceRecommendation}
+            <p class="chart-insight__note">{practiceRecommendation}</p>
+          {/if}
+        </div>
+      {/if}
       {#if lastSessionSnapshot && !showHistory}
         <div class="history-entry">
           <div class="history-entry__title">{lastSessionSnapshot.chartTitle}</div>
@@ -1527,6 +1560,29 @@
     margin-top: 0.75rem;
     padding: 0.75rem 0 0;
     border-top: 1px solid var(--ff-border);
+  }
+  .chart-insight {
+    margin-bottom: 0.75rem;
+    padding: 0.75rem 0.85rem;
+    border: 1px solid var(--ff-border);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--ff-bg) 65%, transparent);
+  }
+  .chart-insight__title {
+    margin-bottom: 0.45rem;
+    font-size: 0.84rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ff-accent);
+    font-weight: 700;
+  }
+  .chart-insight__delta,
+  .chart-insight__note {
+    margin: 0.45rem 0 0;
+    font-size: 0.84rem;
+  }
+  .chart-insight__note {
+    color: var(--ff-text);
   }
   .history-stats {
     display: flex;

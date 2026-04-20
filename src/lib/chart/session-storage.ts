@@ -104,3 +104,72 @@ export function getSessionStats(history: SessionSummaryV1[]): {
     uniqueCharts: charts.size,
   };
 }
+
+export function getChartSessionStats(
+  history: SessionSummaryV1[],
+  chartRef: { chartTitle: string; practiceTrackId?: string | null },
+): {
+  sessions: SessionSummaryV1[];
+  totalSessions: number;
+  averageAccuracy: number | null;
+  bestAccuracy: number | null;
+  latestAccuracy: number | null;
+  accuracyDelta: number | null;
+  bestCombo: number;
+} {
+  const sessions = history.filter((session) => {
+    if (chartRef.practiceTrackId != null && chartRef.practiceTrackId !== "") {
+      return session.practiceTrackId === chartRef.practiceTrackId;
+    }
+    return session.chartTitle === chartRef.chartTitle;
+  });
+  if (sessions.length === 0) {
+    return {
+      sessions: [],
+      totalSessions: 0,
+      averageAccuracy: null,
+      bestAccuracy: null,
+      latestAccuracy: null,
+      accuracyDelta: null,
+      bestCombo: 0,
+    };
+  }
+  let sumAccuracy = 0;
+  let bestAccuracy = 0;
+  let bestCombo = 0;
+  for (const session of sessions) {
+    sumAccuracy += session.accuracyPercent;
+    bestAccuracy = Math.max(bestAccuracy, session.accuracyPercent);
+    bestCombo = Math.max(bestCombo, session.maxCombo);
+  }
+  const latestAccuracy = sessions[0]!.accuracyPercent;
+  const previousAccuracy = sessions[1]?.accuracyPercent ?? null;
+  return {
+    sessions,
+    totalSessions: sessions.length,
+    averageAccuracy: Math.round(sumAccuracy / sessions.length),
+    bestAccuracy,
+    latestAccuracy,
+    accuracyDelta: previousAccuracy == null ? null : latestAccuracy - previousAccuracy,
+    bestCombo,
+  };
+}
+
+export function getPracticeRecommendation(
+  stats: ReturnType<typeof getChartSessionStats>,
+): string | null {
+  if (stats.totalSessions === 0 || stats.latestAccuracy == null) return null;
+  if (stats.latestAccuracy < 60) {
+    return "Drop density or slow the chart down, then loop the hardest phrase before another full run.";
+  }
+  if (stats.latestAccuracy < 85) {
+    return "Keep the same preset and focus on one clean pass before increasing speed.";
+  }
+  if (stats.accuracyDelta != null && stats.accuracyDelta >= 5) {
+    return "You are improving. Increase speed slightly or step the density closer to full.";
+  }
+  if (stats.bestAccuracy != null && stats.latestAccuracy >= stats.bestAccuracy) {
+    return "New personal best on this chart. Save the preset and push a slightly harder variation next.";
+  }
+  return "Stay with this chart for another run and aim to beat your best combo.";
+}
