@@ -1,6 +1,14 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import {
+    createCollection,
+    deleteCollection,
+    getCollections,
+    removeTrackFromCollections,
+    toggleTrackInCollection,
+    type ChartCollectionV1,
+  } from "$lib/catalog/collections";
+  import {
     getFavoriteTrackIds,
     removeFavoriteTrackId,
     toggleFavoriteTrackId,
@@ -12,16 +20,21 @@
   import type { CatalogTrackStub } from "$lib/catalog/types";
   import { validateChart } from "$lib/chart/validate";
 
-  type Filter = "all" | "free" | "premium" | "recent" | "favorites" | "mine";
+  type Filter = "all" | "free" | "premium" | "recent" | "favorites" | "collections" | "mine";
   type FavoriteRow =
     | { kind: "catalog"; id: string; track: CatalogTrackStub }
     | { kind: "user"; id: string; entry: UserChartEntry };
   type RecentRow = FavoriteRow & { recentSession: SessionSummaryV1 };
+  type CollectionRow = FavoriteRow;
+  const initialCollections = getCollections();
 
   let filter = $state<Filter>("all");
   let userCharts = $state<UserChartEntry[]>(getUserCharts());
   let favoriteTrackIds = $state<string[]>(getFavoriteTrackIds());
   let latestSessionByTrackId = $state<Record<string, SessionSummaryV1>>(getLatestSessionsByTrackId(loadSessionHistory()));
+  let collections = $state<ChartCollectionV1[]>(initialCollections);
+  let activeCollectionId = $state<string | null>(initialCollections[0]?.id ?? null);
+  let newCollectionName = $state("");
   let importError = $state<string | null>(null);
   let importWarnings = $state<string[]>([]);
 
@@ -29,6 +42,7 @@
     if (filter === "mine") return [];
     if (filter === "favorites") return [];
     if (filter === "recent") return [];
+    if (filter === "collections") return [];
     if (filter === "all") return MOCK_CATALOG;
     return MOCK_CATALOG.filter((t) => t.tier === filter);
   });
@@ -63,6 +77,30 @@
     return rows;
   });
 
+  const activeCollection = $derived(
+    activeCollectionId == null
+      ? null
+      : collections.find((collection) => collection.id === activeCollectionId) ?? null,
+  );
+
+  const collectionRows = $derived.by<CollectionRow[]>(() => {
+    const collection = activeCollection;
+    if (collection == null) return [];
+    return collection.trackIds
+      .map((id) => {
+        const track = MOCK_CATALOG.find((catalogTrack) => catalogTrack.id === id);
+        if (track) {
+          return { kind: "catalog", id, track } as const;
+        }
+        const entry = userCharts.find((userChart) => userChart.id === id);
+        if (entry) {
+          return { kind: "user", id, entry } as const;
+        }
+        return null;
+      })
+      .filter((row): row is CollectionRow => row != null);
+  });
+
   function isLocked(t: CatalogTrackStub): boolean {
     return t.tier === "premium" || Boolean(t.locked);
   }
@@ -87,6 +125,7 @@
     removeUserChart(entry.id);
     userCharts = getUserCharts();
     favoriteTrackIds = removeFavoriteTrackId(entry.id);
+    collections = removeTrackFromCollections(entry.id);
   }
 
   function toggleFavorite(trackId: string) {
@@ -99,6 +138,30 @@
 
   function latestSessionForTrack(trackId: string): SessionSummaryV1 | null {
     return latestSessionByTrackId[trackId] ?? null;
+  }
+
+  function trackIsInActiveCollection(trackId: string): boolean {
+    return activeCollection?.trackIds.includes(trackId) ?? false;
+  }
+
+  function toggleTrackInActiveCollection(trackId: string) {
+    if (activeCollectionId == null) return;
+    collections = toggleTrackInCollection(activeCollectionId, trackId);
+  }
+
+  function createCollectionFromInput() {
+    if (newCollectionName.trim() === "") return;
+    const nextCollections = createCollection(newCollectionName);
+    collections = nextCollections;
+    activeCollectionId = nextCollections[0]?.id ?? null;
+    newCollectionName = "";
+  }
+
+  function removeActiveCollection() {
+    if (activeCollectionId == null) return;
+    const nextCollections = deleteCollection(activeCollectionId);
+    collections = nextCollections;
+    activeCollectionId = nextCollections[0]?.id ?? null;
   }
 
   function formatSessionRecency(at: string): string {
@@ -170,8 +233,34 @@
 <div class="panel">
   <h2>Browse</h2>
 
+  <div class="collection-toolbar">
+    <div class="collection-toolbar__controls">
+      <input
+        type="text"
+        bind:value={newCollectionName}
+        placeholder="New collection name"
+        class="collection-toolbar__input"
+      />
+      <button type="button" class="btn" onclick={createCollectionFromInput}>Create collection</button>
+      <select bind:value={activeCollectionId} class="collection-toolbar__select">
+        <option value={null}>No collection selected</option>
+        {#each collections as collection (collection.id)}
+          <option value={collection.id}>{collection.name} ({collection.trackIds.length})</option>
+        {/each}
+      </select>
+      <button type="button" class="btn" onclick={removeActiveCollection} disabled={activeCollectionId == null}>
+        Delete active
+      </button>
+    </div>
+    {#if activeCollection}
+      <p class="muted collection-toolbar__summary">
+        Active collection: <strong>{activeCollection.name}</strong> · {activeCollection.trackIds.length} chart{activeCollection.trackIds.length === 1 ? "" : "s"}
+      </p>
+    {/if}
+  </div>
+
   <div class="row catalog-filters" style="margin-bottom: 1rem">
-    {#each (["all", "free", "premium", "recent", "favorites", "mine"] as Filter[]) as f (f)}
+    {#each (["all", "free", "premium", "recent", "favorites", "collections", "mine"] as Filter[]) as f (f)}
       <button
         type="button"
         class="btn"
@@ -189,6 +278,8 @@
                 ? `Recent (${recentRows.length})`
               : f === "favorites"
                 ? `Favorites (${favoriteRows.length})`
+              : f === "collections"
+                ? `Collection (${collectionRows.length})`
                 : `My Charts (${userCharts.length})`}
       </button>
     {/each}
@@ -311,6 +402,60 @@
         {/each}
       </ul>
     {/if}
+  {:else if filter === "collections"}
+    {#if activeCollection == null}
+      <p class="muted" style="margin: 0 0 1rem">Create or select a collection above, then add charts to it from any Library row.</p>
+    {:else if collectionRows.length === 0}
+      <p class="muted" style="margin: 0 0 1rem">Collection is empty. Use the collection button on any chart row to add it here.</p>
+    {:else}
+      <ul class="catalog-list" aria-label="Collection tracks">
+        {#each collectionRows as row (row.kind + row.id)}
+          {@const recent = latestSessionForTrack(row.id)}
+          <li class="catalog-row">
+            <div class="catalog-main">
+              <div class="catalog-title">
+                {row.kind === "catalog" ? row.track.title : row.entry.title}
+                <span class="collection-badge">{activeCollection.name}</span>
+              </div>
+              <div class="catalog-meta">
+                <span class="muted">{row.kind === "catalog" ? row.track.artist : row.entry.artist}</span>
+                {#if recent}
+                  <span class="resume-pill">
+                    {recent.accuracyPercent}% last run · {formatSessionRecency(recent.at)}
+                  </span>
+                {/if}
+              </div>
+            </div>
+            <div class="catalog-action">
+              {#if row.kind === "catalog"}
+                {#if isLocked(row.track)}
+                  <span class="locked-label" title="Subscription / purchase flow not wired yet">Locked</span>
+                {:else if canOpenInPractice(row.track)}
+                  <button type="button" class="btn btn-primary" onclick={() => openInPractice(row.track)}>
+                    Practice
+                  </button>
+                {:else}
+                  <span class="locked-label" title="No chart wired for this row">Soon</span>
+                {/if}
+              {:else}
+                <button type="button" class="btn btn-primary" onclick={() => openUserChart(row.entry)}>
+                  Practice
+                </button>
+              {/if}
+              <button
+                type="button"
+                class="btn collection-toggle"
+                class:collection-toggle--active={trackIsInActiveCollection(row.id)}
+                onclick={() => toggleTrackInActiveCollection(row.id)}
+                aria-pressed={trackIsInActiveCollection(row.id)}
+              >
+                {trackIsInActiveCollection(row.id) ? "Remove" : "Add"}
+              </button>
+            </div>
+          </li>
+        {/each}
+      </ul>
+    {/if}
   {:else if filter === "mine"}
     {#if userCharts.length === 0}
       <p class="muted" style="margin: 0 0 1rem">No imported charts yet. Use the import section below to add MIDI or JSON files.</p>
@@ -332,6 +477,17 @@
               </div>
             </div>
             <div class="catalog-action">
+              <button
+                type="button"
+                class="btn collection-toggle"
+                class:collection-toggle--active={trackIsInActiveCollection(entry.id)}
+                onclick={() => toggleTrackInActiveCollection(entry.id)}
+                aria-pressed={trackIsInActiveCollection(entry.id)}
+                disabled={activeCollectionId == null}
+                title={activeCollectionId == null ? "Create or select a collection first" : trackIsInActiveCollection(entry.id) ? "Remove from active collection" : "Add to active collection"}
+              >
+                {trackIsInActiveCollection(entry.id) ? "In collection" : "+ Collection"}
+              </button>
               <button
                 type="button"
                 class="btn favorite-toggle"
@@ -385,6 +541,17 @@
             </div>
           </div>
           <div class="catalog-action">
+            <button
+              type="button"
+              class="btn collection-toggle"
+              class:collection-toggle--active={trackIsInActiveCollection(t.id)}
+              onclick={() => toggleTrackInActiveCollection(t.id)}
+              aria-pressed={trackIsInActiveCollection(t.id)}
+              disabled={activeCollectionId == null}
+              title={activeCollectionId == null ? "Create or select a collection first" : trackIsInActiveCollection(t.id) ? "Remove from active collection" : "Add to active collection"}
+            >
+              {trackIsInActiveCollection(t.id) ? "In collection" : "+ Collection"}
+            </button>
             <button
               type="button"
               class="btn favorite-toggle"
@@ -451,6 +618,36 @@
 </div>
 
 <style>
+  .collection-toolbar {
+    margin-bottom: 1rem;
+    padding: 0.85rem 0.95rem;
+    border: 1px solid var(--ff-border);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--ff-bg) 72%, transparent);
+  }
+  .collection-toolbar__controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+  }
+  .collection-toolbar__input,
+  .collection-toolbar__select {
+    padding: 0.4rem 0.55rem;
+    border-radius: 8px;
+    border: 1px solid var(--ff-border);
+    background: var(--ff-bg);
+    color: var(--ff-text);
+    font: inherit;
+  }
+  .collection-toolbar__input {
+    min-width: 12rem;
+    flex: 1 1 12rem;
+  }
+  .collection-toolbar__summary {
+    margin: 0.55rem 0 0;
+    font-size: 0.82rem;
+  }
   .catalog-filters .btn.btn-primary {
     border-color: var(--ff-accent);
     background: var(--ff-accent-dim);
@@ -500,6 +697,15 @@
     padding-inline: 0.65rem;
     color: var(--ff-muted);
   }
+  .collection-toggle {
+    min-width: 5.9rem;
+    color: var(--ff-muted);
+  }
+  .collection-toggle--active {
+    color: var(--ff-accent);
+    border-color: color-mix(in srgb, var(--ff-accent) 55%, var(--ff-border));
+    background: color-mix(in srgb, var(--ff-accent) 10%, var(--ff-bg));
+  }
   .favorite-toggle--active {
     color: #fbbf24;
     border-color: color-mix(in srgb, #fbbf24 50%, var(--ff-border));
@@ -525,6 +731,19 @@
     border-radius: 999px;
     border: 1px solid color-mix(in srgb, var(--ff-success) 45%, var(--ff-border));
     color: var(--ff-success);
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    vertical-align: middle;
+  }
+  .collection-badge {
+    display: inline-flex;
+    margin-left: 0.45rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--ff-accent) 50%, var(--ff-border));
+    color: var(--ff-accent);
     font-size: 0.7rem;
     font-weight: 700;
     text-transform: uppercase;

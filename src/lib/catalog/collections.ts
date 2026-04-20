@@ -1,0 +1,104 @@
+const STORAGE_KEY = "fretflow.collections.v1";
+
+export type ChartCollectionV1 = {
+  id: string;
+  name: string;
+  trackIds: string[];
+  createdAt: string;
+};
+
+type CollectionRecordV1 = {
+  schemaVersion: 1;
+  collections: ChartCollectionV1[];
+};
+
+function canUseStorage(): boolean {
+  return typeof window !== "undefined" && typeof localStorage !== "undefined";
+}
+
+function readRecord(): CollectionRecordV1 {
+  if (!canUseStorage()) return { schemaVersion: 1, collections: [] };
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return { schemaVersion: 1, collections: [] };
+    const parsed = JSON.parse(raw) as Partial<CollectionRecordV1>;
+    if (parsed.schemaVersion !== 1 || !Array.isArray(parsed.collections)) {
+      return { schemaVersion: 1, collections: [] };
+    }
+    return {
+      schemaVersion: 1,
+      collections: parsed.collections.filter(
+        (collection): collection is ChartCollectionV1 =>
+          collection != null &&
+          typeof collection === "object" &&
+          typeof collection.id === "string" &&
+          typeof collection.name === "string" &&
+          Array.isArray(collection.trackIds) &&
+          typeof collection.createdAt === "string",
+      ),
+    };
+  } catch {
+    return { schemaVersion: 1, collections: [] };
+  }
+}
+
+function writeRecord(record: CollectionRecordV1): void {
+  if (!canUseStorage()) return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(record));
+  } catch {
+    /* private mode / quota */
+  }
+}
+
+function makeId(): string {
+  return `collection-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+export function getCollections(): ChartCollectionV1[] {
+  return readRecord().collections;
+}
+
+export function createCollection(name: string): ChartCollectionV1[] {
+  const trimmed = name.trim();
+  if (trimmed === "") return getCollections();
+  const record = readRecord();
+  record.collections.unshift({
+    id: makeId(),
+    name: trimmed,
+    trackIds: [],
+    createdAt: new Date().toISOString(),
+  });
+  writeRecord(record);
+  return record.collections;
+}
+
+export function deleteCollection(collectionId: string): ChartCollectionV1[] {
+  const record = readRecord();
+  record.collections = record.collections.filter((collection) => collection.id !== collectionId);
+  writeRecord(record);
+  return record.collections;
+}
+
+export function toggleTrackInCollection(collectionId: string, trackId: string): ChartCollectionV1[] {
+  const record = readRecord();
+  record.collections = record.collections.map((collection) => {
+    if (collection.id !== collectionId) return collection;
+    const trackIds = collection.trackIds.includes(trackId)
+      ? collection.trackIds.filter((id) => id !== trackId)
+      : [trackId, ...collection.trackIds];
+    return { ...collection, trackIds };
+  });
+  writeRecord(record);
+  return record.collections;
+}
+
+export function removeTrackFromCollections(trackId: string): ChartCollectionV1[] {
+  const record = readRecord();
+  record.collections = record.collections.map((collection) => ({
+    ...collection,
+    trackIds: collection.trackIds.filter((id) => id !== trackId),
+  }));
+  writeRecord(record);
+  return record.collections;
+}
