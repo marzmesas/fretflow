@@ -51,6 +51,13 @@
   import { beatToSeconds, chartLengthBeats, chartLengthSeconds, secondsToBeat } from "./time";
   import type { FretflowChartV1 } from "./types";
   import { consumePendingPracticeChartJson } from "./practice-chart-transfer";
+  import {
+    clearPracticePreset,
+    getPracticePresetKey,
+    loadPracticePreset,
+    savePracticePreset,
+    type PracticePresetV1,
+  } from "./practice-presets-storage";
   import { validateChart } from "./validate";
   import { resolvePracticeChart } from "$lib/catalog/resolve-practice-chart";
   import {
@@ -456,6 +463,53 @@
 
   let prevTrackId: string | null | undefined = undefined;
   let bundledFetchSeq = 0;
+  let practicePresetKey = $state<string | null>(null);
+
+  function buildCurrentPreset(): PracticePresetV1 {
+    return {
+      schemaVersion: 1,
+      speed,
+      pixelsPerSecond,
+      loopEnabled,
+      loopABeat,
+      loopBBeat,
+      autoSpeedLoop,
+      densityTier,
+      autoDensityBump,
+      metronomeEnabled,
+      backingAudioMuted,
+      backingAudioVolume,
+    };
+  }
+
+  function applyPracticePreset(next: PracticePresetV1, totalBeatsForChart: number) {
+    speed = next.speed;
+    pixelsPerSecond = next.pixelsPerSecond;
+    loopEnabled = next.loopEnabled;
+    loopABeat = next.loopABeat;
+    loopBBeat = next.loopBBeat;
+    autoSpeedLoop = next.autoSpeedLoop;
+    densityTier = next.densityTier;
+    autoDensityBump = next.autoDensityBump;
+    metronomeEnabled = next.metronomeEnabled;
+    backingAudioMuted = next.backingAudioMuted;
+    backingAudioVolume = next.backingAudioVolume;
+    if (loopBBeat > totalBeatsForChart) {
+      loopBBeat = totalBeatsForChart;
+    }
+    normalizeLoopBeats();
+  }
+
+  function resetSavedPracticePreset() {
+    if (practicePresetKey == null) return;
+    clearPracticePreset(practicePresetKey);
+    applyPracticePreset(loadPracticePreset(practicePresetKey, chartLengthBeats(chart)), chartLengthBeats(chart));
+    if (playing) {
+      restart();
+    } else {
+      resetScoringState("Saved practice preset cleared.");
+    }
+  }
 
   function resetPlayerToChart(next: FretflowChartV1) {
     clearWaitState();
@@ -468,9 +522,9 @@
     lastFrameWall = 0;
     lastAudioLevel = 0;
     lastMicTriggerWall = 0;
-    loopABeat = 0;
     const maxB = chartLengthBeats(next);
-    loopBBeat = Math.min(8, maxB);
+    practicePresetKey = getPracticePresetKey(trackId, next);
+    applyPracticePreset(loadPracticePreset(practicePresetKey, maxB), maxB);
     beatMetronome.syncAfterJump(0, next.bpm);
     resetLoopPassCounters();
     resetScoringState(null);
@@ -809,6 +863,12 @@
     if (!scoringEnabled) {
       waitToPlay = false;
     }
+  });
+
+  $effect(() => {
+    const key = practicePresetKey;
+    if (key == null) return;
+    savePracticePreset(key, buildCurrentPreset());
   });
 
   /** Optional: load JSON from file input (Phase 3 local test) */
@@ -1261,6 +1321,13 @@
       {/if}
     </p>
 
+    <div class="row practice-preset-row">
+      <span class="muted" style="font-size: 0.82rem">This chart remembers your speed, scroll, loop, density, metronome, and backing settings.</span>
+      <button type="button" class="btn" style="font-size: 0.78rem; padding: 0.25rem 0.55rem" onclick={resetSavedPracticePreset}>
+        Reset saved preset
+      </button>
+    </div>
+
     <div class="loop-block">
       <label class="row" style="gap: 0.5rem; margin-bottom: 0.5rem; cursor: pointer">
         <input type="checkbox" bind:checked={loopEnabled} />
@@ -1315,6 +1382,13 @@
   .loop-block {
     padding-top: 0.35rem;
     border-top: 1px solid var(--ff-border);
+  }
+  .practice-preset-row {
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.65rem 1rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
   }
   .scoring-block {
     margin-top: 1rem;
