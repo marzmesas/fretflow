@@ -16,6 +16,7 @@
     type OnboardingSnapshot,
     type OnboardingStepId,
   } from "$lib/onboarding-storage";
+  import { loadPracticeGoals, toPracticeGoalsSnapshot, type PracticeGoalsSnapshot } from "$lib/practice-goals-storage";
   import { isTauri } from "$lib/tauri-env";
 
   let appInfo = $state<AppInfo | null>(null);
@@ -24,6 +25,7 @@
   let lastSession = $state<SessionSummaryV1 | null>(null);
   let recentSessions = $state<SessionSummaryV1[]>([]);
   let recommendedTracks = $state<RecommendedTrack[]>([]);
+  let practiceGoals = $state<PracticeGoalsSnapshot>(toPracticeGoalsSnapshot(loadPracticeGoals()));
 
   const STEP_COPY: Record<OnboardingStepId, { title: string; detail: string; href: string }> = {
     settings: {
@@ -49,6 +51,7 @@
     const history = loadSessionHistory();
     recentSessions = getRecentSessions(history, 4);
     recommendedTracks = getRecommendedTracks(history, 3);
+    practiceGoals = toPracticeGoalsSnapshot(loadPracticeGoals());
   }
 
   function nextOnboardingStep(): (typeof STEP_COPY)[OnboardingStepId] | null {
@@ -229,6 +232,41 @@
     </div>
   {/if}
 
+  <div class="panel goal-panel">
+    <div class="recent-panel__header">
+      <div>
+        <h2>Daily goal &amp; streak</h2>
+        <p class="muted">Consistency is stored locally and updates after each completed chart run.</p>
+      </div>
+      <a href="/practice" class="btn">Open Practice</a>
+    </div>
+    <div class="goal-panel__grid">
+      <div class="goal-panel__stat">
+        <span class="goal-panel__label">Today</span>
+        <strong>{practiceGoals.progressToday}</strong>
+        <span class="muted">sessions complete</span>
+      </div>
+      <div class="goal-panel__stat">
+        <span class="goal-panel__label">Streak</span>
+        <strong>{practiceGoals.streakDays}</strong>
+        <span class="muted">day{practiceGoals.streakDays === 1 ? "" : "s"} in a row</span>
+      </div>
+      <div class="goal-panel__stat">
+        <span class="goal-panel__label">Target</span>
+        <strong>{practiceGoals.dailyGoalSessions}</strong>
+        <span class="muted">session{practiceGoals.dailyGoalSessions === 1 ? "" : "s"} per day</span>
+      </div>
+    </div>
+    <p class="goal-panel__message">
+      {#if practiceGoals.goalMetToday}
+        Goal met today. Another full run still counts toward recent history and recommendations.
+      {:else}
+        {@const remaining = practiceGoals.dailyGoalSessions - Math.min(practiceGoals.sessionsToday, practiceGoals.dailyGoalSessions)}
+        {remaining} more full run{remaining === 1 ? "" : "s"} to hit today's target.
+      {/if}
+    </p>
+  </div>
+
   <div class="home-cards">
     <div class="panel home-card">
       <h2>Get started</h2>
@@ -376,6 +414,37 @@
     font-size: 0.82rem;
     color: var(--ff-text);
     line-height: 1.45;
+  }
+  .goal-panel {
+    display: grid;
+    gap: 1rem;
+  }
+  .goal-panel__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    gap: 0.75rem;
+  }
+  .goal-panel__stat {
+    display: grid;
+    gap: 0.15rem;
+    padding: 0.85rem 0.9rem;
+    border-radius: 10px;
+    border: 1px solid var(--ff-border);
+    background: color-mix(in srgb, var(--ff-bg) 78%, transparent);
+  }
+  .goal-panel__label {
+    font-size: 0.76rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ff-muted);
+  }
+  .goal-panel__stat strong {
+    font-size: 1.35rem;
+  }
+  .goal-panel__message {
+    margin: 0;
+    color: var(--ff-muted);
+    line-height: 1.5;
   }
   .onboarding-panel__eyebrow {
     margin: 0 0 0.2rem;
