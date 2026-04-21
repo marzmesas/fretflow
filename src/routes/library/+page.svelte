@@ -158,6 +158,10 @@
     return t.tier === "premium" || Boolean(t.locked);
   }
 
+  function isPremiumPreview(t: CatalogTrackStub): boolean {
+    return t.tier === "premium";
+  }
+
   function canOpenInPractice(t: CatalogTrackStub): boolean {
     if (isLocked(t)) return false;
     if (t.practiceChartKey === "demo") return true;
@@ -169,6 +173,10 @@
     if (!canOpenInPractice(t)) return;
     markOnboardingStepCompleted("library");
     void goto(`/practice?track=${encodeURIComponent(t.id)}`);
+  }
+
+  function openAccount() {
+    void goto("/account");
   }
 
   function openUserChart(entry: UserChartEntry) {
@@ -395,6 +403,16 @@
     {/each}
   </div>
 
+  {#if filter === "premium"}
+    <div class="premium-note">
+      <strong>Premium catalog is preview-only in this build.</strong>
+      <span class="muted">
+        Subscription sync and entitlement state live in Account, but premium chart delivery is not wired yet.
+      </span>
+      <button type="button" class="btn" onclick={openAccount}>Open Account</button>
+    </div>
+  {/if}
+
   {#if filter === "recent"}
     {#if recentRows.length === 0}
       <p class="muted" style="margin: 0 0 1rem">No recent practice yet. Finish a chart in Practice and it will show up here.</p>
@@ -424,7 +442,11 @@
             </div>
             <div class="catalog-action">
               {#if row.kind === "catalog"}
-                {#if isLocked(row.track)}
+                {#if isPremiumPreview(row.track)}
+                  <button type="button" class="btn premium-link" onclick={openAccount}>
+                    View access
+                  </button>
+                {:else if isLocked(row.track)}
                   <span class="locked-label" title="Subscription / purchase flow not wired yet">Locked</span>
                 {:else if canOpenInPractice(row.track)}
                   <button type="button" class="btn btn-primary" onclick={() => openInPractice(row.track)}>
@@ -491,7 +513,11 @@
             </div>
             <div class="catalog-action">
               {#if row.kind === "catalog"}
-                {#if isLocked(row.track)}
+                {#if isPremiumPreview(row.track)}
+                  <button type="button" class="btn premium-link" onclick={openAccount}>
+                    View access
+                  </button>
+                {:else if isLocked(row.track)}
                   <span class="locked-label" title="Subscription / purchase flow not wired yet">Locked</span>
                 {:else if canOpenInPractice(row.track)}
                   <button type="button" class="btn btn-primary" onclick={() => openInPractice(row.track)}>
@@ -550,7 +576,11 @@
             </div>
             <div class="catalog-action">
               {#if row.kind === "catalog"}
-                {#if isLocked(row.track)}
+                {#if isPremiumPreview(row.track)}
+                  <button type="button" class="btn premium-link" onclick={openAccount}>
+                    View access
+                  </button>
+                {:else if isLocked(row.track)}
                   <span class="locked-label" title="Subscription / purchase flow not wired yet">Locked</span>
                 {:else if canOpenInPractice(row.track)}
                   <button type="button" class="btn btn-primary" onclick={() => openInPractice(row.track)}>
@@ -696,7 +726,11 @@
             >
               ★
             </button>
-            {#if isLocked(t)}
+            {#if isPremiumPreview(t)}
+              <button type="button" class="btn premium-link" onclick={openAccount}>
+                View access
+              </button>
+            {:else if isLocked(t)}
               <span class="locked-label" title="Subscription / purchase flow not wired yet">
                 <svg
                   class="lock-icon"
@@ -841,6 +875,17 @@
     margin: 0;
     padding: 0;
   }
+  .premium-note {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+    margin: 0 0 1rem;
+    padding: 0.8rem 0.9rem;
+    border-radius: 10px;
+    border: 1px solid color-mix(in srgb, var(--ff-accent) 40%, var(--ff-border));
+    background: color-mix(in srgb, var(--ff-accent) 8%, var(--ff-bg));
+  }
   .catalog-row {
     display: flex;
     flex-wrap: wrap;
@@ -982,6 +1027,10 @@
     gap: 0.35rem;
     font-size: 0.88rem;
     color: var(--ff-muted);
+  }
+  .premium-link {
+    color: var(--ff-accent);
+    border-color: color-mix(in srgb, var(--ff-accent) 45%, var(--ff-border));
   }
   .lock-icon {
     flex-shrink: 0;
