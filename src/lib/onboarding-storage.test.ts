@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   dismissOnboarding,
   getOnboardingSnapshot,
-  markOnboardingRouteVisited,
+  markOnboardingStepCompleted,
   resetOnboarding,
 } from "./onboarding-storage";
 
@@ -36,9 +36,9 @@ describe("onboarding-storage", () => {
 
   it("marks onboarding complete after settings, library, and practice are visited", () => {
     expect(getOnboardingSnapshot().remainingSteps).toEqual(["settings", "library", "practice"]);
-    markOnboardingRouteVisited("/settings");
-    markOnboardingRouteVisited("/library");
-    const final = markOnboardingRouteVisited("/practice");
+    markOnboardingStepCompleted("settings");
+    markOnboardingStepCompleted("library");
+    const final = markOnboardingStepCompleted("practice");
     expect(final.completed).toBe(true);
     expect(final.hidden).toBe(true);
     expect(final.remainingSteps).toEqual([]);
@@ -50,10 +50,9 @@ describe("onboarding-storage", () => {
     expect(dismissed.dismissedAt).not.toBeNull();
   });
 
-  it("ignores unrelated routes and supports reset", () => {
-    markOnboardingRouteVisited("/");
+  it("supports reset after a completed step", () => {
     expect(getOnboardingSnapshot().remainingSteps).toEqual(["settings", "library", "practice"]);
-    markOnboardingRouteVisited("/settings");
+    markOnboardingStepCompleted("settings");
     const reset = resetOnboarding();
     expect(reset.hidden).toBe(false);
     expect(reset.completed).toBe(false);

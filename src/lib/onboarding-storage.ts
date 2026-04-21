@@ -106,15 +106,8 @@ export function resetOnboarding(): OnboardingSnapshot {
   return toSnapshot(DEFAULT_STATE);
 }
 
-export function markOnboardingRouteVisited(pathname: string): OnboardingSnapshot {
-  const trimmed = pathname.trim();
-  let step: OnboardingStepId | null = null;
-  if (trimmed === "/settings") step = "settings";
-  else if (trimmed === "/library") step = "library";
-  else if (trimmed === "/practice") step = "practice";
-
+export function markOnboardingStepCompleted(step: OnboardingStepId): OnboardingSnapshot {
   const current = readState();
-  if (step == null) return toSnapshot(current);
   const next = markStepVisited(current, step);
   if (next !== current) {
     writeState(next);

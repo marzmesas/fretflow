@@ -60,6 +60,7 @@
     savePracticePreset,
     type PracticePresetV1,
   } from "./practice-presets-storage";
+  import { markOnboardingStepCompleted } from "$lib/onboarding-storage";
   import { validateChart } from "./validate";
   import { resolvePracticeChart } from "$lib/catalog/resolve-practice-chart";
   import {
@@ -428,6 +429,7 @@
       inputSource: resolveInputSourceLabel(),
     };
     saveLastSession(summary);
+    markOnboardingStepCompleted("practice");
     lastSessionSnapshot = summary;
     sessionHistory = loadSessionHistory();
     practiceGoals = recordCompletedPracticeSession();

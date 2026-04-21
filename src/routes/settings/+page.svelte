@@ -20,6 +20,7 @@
   import { readingFromMicPitch, type TunerReading } from "$lib/tuner/chromatic";
   import { isTauri } from "$lib/tauri-env";
   import { createMetronomeAudioContext, playMetronomeClick } from "$lib/chart/chart-metronome";
+  import { markOnboardingStepCompleted } from "$lib/onboarding-storage";
   import {
     TAP_CALIBRATION_BEATS,
     TAP_CALIBRATION_BPM,
@@ -406,6 +407,9 @@
     };
     await invoke("set_audio_preferences", { prefs: next });
     prefs = next;
+    if (selectedId != null || selectedMidiPortId != null || latencyMs !== 0) {
+      markOnboardingStepCompleted("settings");
+    }
   }
 
   /** Save stream prefs and reopen the cpal monitor so new buffer/rate apply. */
@@ -436,6 +440,7 @@
       });
       monitoring = true;
       audioMonitorDesired = true;
+      markOnboardingStepCompleted("settings");
     } catch (e) {
       error = String(e);
     }
@@ -457,6 +462,7 @@
       await invoke("start_midi_input_listen", { portId: selectedMidiPortId });
       midiListening = true;
       midiListenDesired = true;
+      markOnboardingStepCompleted("settings");
     } catch (e) {
       midiError = String(e);
     }

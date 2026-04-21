@@ -19,6 +19,7 @@
   import { getRecommendedTracks, type RecommendedTrack } from "$lib/catalog/recommendations";
   import { addUserChart, getUserCharts, removeUserChart, type UserChartEntry } from "$lib/catalog/user-charts";
   import { getLatestSessionsByTrackId, loadSessionHistory, type SessionSummaryV1 } from "$lib/chart/session-storage";
+  import { markOnboardingStepCompleted } from "$lib/onboarding-storage";
   import type { CatalogTrackStub } from "$lib/catalog/types";
   import { validateChart } from "$lib/chart/validate";
 
@@ -166,10 +167,12 @@
 
   function openInPractice(t: CatalogTrackStub) {
     if (!canOpenInPractice(t)) return;
+    markOnboardingStepCompleted("library");
     void goto(`/practice?track=${encodeURIComponent(t.id)}`);
   }
 
   function openUserChart(entry: UserChartEntry) {
+    markOnboardingStepCompleted("library");
     void goto(`/practice?track=${encodeURIComponent(entry.id)}`);
   }
 
@@ -253,6 +256,7 @@
         }
         addUserChart(data);
         userCharts = getUserCharts();
+        markOnboardingStepCompleted("library");
         setFilter("mine");
       } catch {
         importError = "Could not parse the JSON file.";
@@ -269,6 +273,7 @@
         if (result.warnings.length > 0) importWarnings = result.warnings;
         addUserChart(result.chart);
         userCharts = getUserCharts();
+        markOnboardingStepCompleted("library");
         setFilter("mine");
       } catch (e) {
         importError = `MIDI import failed: ${e instanceof Error ? e.message : String(e)}`;
