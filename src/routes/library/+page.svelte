@@ -52,20 +52,42 @@
     return isFilter(requested) ? requested : "all";
   }
 
-  function setFilter(next: Filter) {
-    if (filter === next) return;
-    filter = next;
+  function collectionFromUrl(): string | null {
+    const requested = page.url.searchParams.get("collection");
+    if (requested == null || requested.trim() === "") return null;
+    return requested;
+  }
+
+  function updateLibraryUrl(next: { filter?: Filter; collectionId?: string | null }) {
+    const resolvedFilter = next.filter ?? filter;
+    const resolvedCollectionId =
+      Object.prototype.hasOwnProperty.call(next, "collectionId") ? next.collectionId ?? null : activeCollectionId;
     const url = new URL(page.url);
-    if (next === "all") {
+    if (resolvedFilter === "all") {
       url.searchParams.delete("filter");
     } else {
-      url.searchParams.set("filter", next);
+      url.searchParams.set("filter", resolvedFilter);
     }
+    if (resolvedCollectionId == null || resolvedCollectionId === "") {
+      url.searchParams.delete("collection");
+    } else {
+      url.searchParams.set("collection", resolvedCollectionId);
+    }
+    filter = resolvedFilter;
+    activeCollectionId = resolvedCollectionId;
     void goto(url.pathname + url.search, {
       replaceState: true,
       noScroll: true,
       keepFocus: true,
     });
+  }
+
+  function setFilter(next: Filter) {
+    updateLibraryUrl({ filter: next });
+  }
+
+  function setActiveCollection(next: string | null) {
+    updateLibraryUrl({ collectionId: next });
   }
 
   const filtered = $derived.by(() => {
@@ -187,7 +209,7 @@
     if (newCollectionName.trim() === "") return;
     const nextCollections = createCollection(newCollectionName);
     collections = nextCollections;
-    activeCollectionId = nextCollections[0]?.id ?? null;
+    setActiveCollection(nextCollections[0]?.id ?? null);
     newCollectionName = "";
   }
 
@@ -195,7 +217,7 @@
     if (activeCollectionId == null) return;
     const nextCollections = deleteCollection(activeCollectionId);
     collections = nextCollections;
-    activeCollectionId = nextCollections[0]?.id ?? null;
+    setActiveCollection(nextCollections[0]?.id ?? null);
   }
 
   function formatSessionRecency(at: string): string {
@@ -259,9 +281,17 @@
   }
 
   $effect(() => {
-    const next = filterFromUrl();
-    if (filter !== next) {
-      filter = next;
+    const nextFilter = filterFromUrl();
+    const requestedCollectionId = collectionFromUrl();
+    const nextCollectionId =
+      requestedCollectionId != null && collections.some((collection) => collection.id === requestedCollectionId)
+        ? requestedCollectionId
+        : collections[0]?.id ?? null;
+    if (filter !== nextFilter) {
+      filter = nextFilter;
+    }
+    if (activeCollectionId !== nextCollectionId) {
+      activeCollectionId = nextCollectionId;
     }
   });
 </script>
@@ -310,8 +340,15 @@
         class="collection-toolbar__input"
       />
       <button type="button" class="btn" onclick={createCollectionFromInput}>Create collection</button>
-      <select bind:value={activeCollectionId} class="collection-toolbar__select">
-        <option value={null}>No collection selected</option>
+      <select
+        value={activeCollectionId ?? ""}
+        onchange={(ev) => {
+          const value = (ev.currentTarget as HTMLSelectElement).value;
+          setActiveCollection(value === "" ? null : value);
+        }}
+        class="collection-toolbar__select"
+      >
+        <option value="">No collection selected</option>
         {#each collections as collection (collection.id)}
           <option value={collection.id}>{collection.name} ({collection.trackIds.length})</option>
         {/each}
