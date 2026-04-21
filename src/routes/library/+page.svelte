@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { page } from "$app/state";
   import { goto } from "$app/navigation";
   import {
     createCollection,
@@ -27,6 +28,7 @@
     | { kind: "user"; id: string; entry: UserChartEntry };
   type RecentRow = FavoriteRow & { recentSession: SessionSummaryV1 };
   type CollectionRow = FavoriteRow;
+  const FILTERS = ["all", "free", "premium", "recent", "favorites", "collections", "mine"] as const;
   const initialCollections = getCollections();
 
   let filter = $state<Filter>("all");
@@ -40,6 +42,31 @@
   let newCollectionName = $state("");
   let importError = $state<string | null>(null);
   let importWarnings = $state<string[]>([]);
+
+  function isFilter(value: string | null): value is Filter {
+    return value != null && (FILTERS as readonly string[]).includes(value);
+  }
+
+  function filterFromUrl(): Filter {
+    const requested = page.url.searchParams.get("filter");
+    return isFilter(requested) ? requested : "all";
+  }
+
+  function setFilter(next: Filter) {
+    if (filter === next) return;
+    filter = next;
+    const url = new URL(page.url);
+    if (next === "all") {
+      url.searchParams.delete("filter");
+    } else {
+      url.searchParams.set("filter", next);
+    }
+    void goto(url.pathname + url.search, {
+      replaceState: true,
+      noScroll: true,
+      keepFocus: true,
+    });
+  }
 
   const filtered = $derived.by(() => {
     if (filter === "mine") return [];
@@ -204,7 +231,7 @@
         }
         addUserChart(data);
         userCharts = getUserCharts();
-        filter = "mine";
+        setFilter("mine");
       } catch {
         importError = "Could not parse the JSON file.";
       }
@@ -220,7 +247,7 @@
         if (result.warnings.length > 0) importWarnings = result.warnings;
         addUserChart(result.chart);
         userCharts = getUserCharts();
-        filter = "mine";
+        setFilter("mine");
       } catch (e) {
         importError = `MIDI import failed: ${e instanceof Error ? e.message : String(e)}`;
       }
@@ -230,6 +257,13 @@
 
     input.value = "";
   }
+
+  $effect(() => {
+    const next = filterFromUrl();
+    if (filter !== next) {
+      filter = next;
+    }
+  });
 </script>
 
 <h1 style="margin: 0 0 0.5rem; font-size: 1.5rem">Library</h1>
@@ -294,12 +328,12 @@
   </div>
 
   <div class="row catalog-filters" style="margin-bottom: 1rem">
-    {#each (["all", "free", "premium", "recent", "favorites", "collections", "mine"] as Filter[]) as f (f)}
+    {#each FILTERS as f (f)}
       <button
         type="button"
         class="btn"
         class:btn-primary={filter === f}
-        onclick={() => (filter = f)}
+        onclick={() => setFilter(f)}
         aria-pressed={filter === f}
       >
         {f === "all"
