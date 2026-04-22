@@ -11,6 +11,10 @@ export const MOCK_CATALOG: CatalogTrackStub[] = [
     bundledChartFile: "one-note.json",
     difficulty: "beginner",
     durationSec: 2,
+    skillTags: ["timing", "single_note"],
+    techniqueTags: ["alternate_picking"],
+    targetBpm: 60,
+    masteryAccuracyThreshold: 90,
   },
   {
     id: "bundled-chromatic",
@@ -21,6 +25,11 @@ export const MOCK_CATALOG: CatalogTrackStub[] = [
     bundledChartFile: "chromatic-warmup.json",
     difficulty: "beginner",
     durationSec: 23,
+    skillTags: ["timing", "fretting", "endurance"],
+    techniqueTags: ["alternate_picking", "finger_independence"],
+    prerequisiteTrackIds: ["bundled-one-note"],
+    targetBpm: 72,
+    masteryAccuracyThreshold: 85,
   },
   {
     id: "bundled-major-scale",
@@ -31,6 +40,11 @@ export const MOCK_CATALOG: CatalogTrackStub[] = [
     bundledChartFile: "major-scale-e.json",
     difficulty: "beginner",
     durationSec: 10,
+    skillTags: ["scales", "timing", "fretting"],
+    techniqueTags: ["position_shift", "alternate_picking"],
+    prerequisiteTrackIds: ["bundled-chromatic"],
+    targetBpm: 76,
+    masteryAccuracyThreshold: 85,
   },
 
   // --- Easy ---
@@ -43,6 +57,11 @@ export const MOCK_CATALOG: CatalogTrackStub[] = [
     bundledChartFile: "pentatonic-am.json",
     difficulty: "easy",
     durationSec: 16,
+    skillTags: ["scales", "single_note", "timing"],
+    techniqueTags: ["position_shift", "alternate_picking"],
+    prerequisiteTrackIds: ["bundled-major-scale"],
+    targetBpm: 80,
+    masteryAccuracyThreshold: 85,
   },
   {
     id: "bundled-single-string",
@@ -53,6 +72,11 @@ export const MOCK_CATALOG: CatalogTrackStub[] = [
     bundledChartFile: "single-string-eighths.json",
     difficulty: "easy",
     durationSec: 17,
+    skillTags: ["rhythm", "timing", "single_note"],
+    techniqueTags: ["alternate_picking"],
+    prerequisiteTrackIds: ["bundled-one-note"],
+    targetBpm: 92,
+    masteryAccuracyThreshold: 85,
   },
   {
     id: "bundled-open-chords",
@@ -63,6 +87,11 @@ export const MOCK_CATALOG: CatalogTrackStub[] = [
     bundledChartFile: "open-chords.json",
     difficulty: "easy",
     durationSec: 27,
+    skillTags: ["chords", "rhythm", "timing"],
+    techniqueTags: ["chord_switching"],
+    prerequisiteTrackIds: ["bundled-single-string"],
+    targetBpm: 76,
+    masteryAccuracyThreshold: 85,
   },
   {
     id: "bundled-spider",
@@ -73,6 +102,11 @@ export const MOCK_CATALOG: CatalogTrackStub[] = [
     bundledChartFile: "spider-exercise.json",
     difficulty: "easy",
     durationSec: 41,
+    skillTags: ["fretting", "endurance", "timing"],
+    techniqueTags: ["finger_independence", "alternate_picking"],
+    prerequisiteTrackIds: ["bundled-chromatic"],
+    targetBpm: 80,
+    masteryAccuracyThreshold: 85,
   },
 
   // --- Intermediate ---
@@ -85,6 +119,11 @@ export const MOCK_CATALOG: CatalogTrackStub[] = [
     bundledChartFile: "arpeggio-c-em.json",
     difficulty: "intermediate",
     durationSec: 34,
+    skillTags: ["arpeggios", "timing", "fretting"],
+    techniqueTags: ["arpeggio_shapes", "position_shift"],
+    prerequisiteTrackIds: ["bundled-open-chords"],
+    targetBpm: 84,
+    masteryAccuracyThreshold: 85,
   },
   {
     id: "bundled-blues",
@@ -95,6 +134,11 @@ export const MOCK_CATALOG: CatalogTrackStub[] = [
     bundledChartFile: "blues-shuffle.json",
     difficulty: "intermediate",
     durationSec: 22,
+    skillTags: ["rhythm", "riffs", "timing"],
+    techniqueTags: ["shuffle_feel", "alternate_picking"],
+    prerequisiteTrackIds: ["bundled-single-string"],
+    targetBpm: 88,
+    masteryAccuracyThreshold: 85,
   },
   {
     id: "bundled-power-chords",
@@ -105,6 +149,11 @@ export const MOCK_CATALOG: CatalogTrackStub[] = [
     bundledChartFile: "power-chords.json",
     difficulty: "intermediate",
     durationSec: 16,
+    skillTags: ["chords", "rhythm", "riffs"],
+    techniqueTags: ["power_chords"],
+    prerequisiteTrackIds: ["bundled-open-chords"],
+    targetBpm: 96,
+    masteryAccuracyThreshold: 85,
   },
   {
     id: "bundled-string-skip",
@@ -115,6 +164,11 @@ export const MOCK_CATALOG: CatalogTrackStub[] = [
     bundledChartFile: "string-skipping.json",
     difficulty: "intermediate",
     durationSec: 32,
+    skillTags: ["string_skipping", "fretting", "timing"],
+    techniqueTags: ["string_skipping", "alternate_picking"],
+    prerequisiteTrackIds: ["bundled-spider"],
+    targetBpm: 82,
+    masteryAccuracyThreshold: 85,
   },
   {
     id: "bundled-hammer-pull",
@@ -125,6 +179,11 @@ export const MOCK_CATALOG: CatalogTrackStub[] = [
     bundledChartFile: "hammer-pull-drill.json",
     difficulty: "intermediate",
     durationSec: 17,
+    skillTags: ["legato", "fretting", "timing"],
+    techniqueTags: ["hammer_on", "pull_off"],
+    prerequisiteTrackIds: ["bundled-spider"],
+    targetBpm: 78,
+    masteryAccuracyThreshold: 85,
   },
 
   // --- Advanced ---
@@ -137,6 +196,11 @@ export const MOCK_CATALOG: CatalogTrackStub[] = [
     bundledChartFile: "sustained-melody.json",
     difficulty: "advanced",
     durationSec: 15,
+    skillTags: ["single_note", "timing", "endurance"],
+    techniqueTags: ["sustain_control", "position_shift"],
+    prerequisiteTrackIds: ["bundled-arpeggio", "bundled-hammer-pull"],
+    targetBpm: 74,
+    masteryAccuracyThreshold: 88,
   },
 
   // --- Demo (embedded) ---
@@ -148,6 +212,10 @@ export const MOCK_CATALOG: CatalogTrackStub[] = [
     practiceChartKey: "demo",
     difficulty: "beginner",
     durationSec: 7,
+    skillTags: ["timing", "single_note"],
+    techniqueTags: ["alternate_picking"],
+    targetBpm: 70,
+    masteryAccuracyThreshold: 85,
   },
 
   // --- Premium previews ---
@@ -158,6 +226,10 @@ export const MOCK_CATALOG: CatalogTrackStub[] = [
     tier: "premium",
     practiceChartKey: "none",
     difficulty: "advanced",
+    skillTags: ["riffs", "rhythm"],
+    techniqueTags: ["shuffle_feel", "power_chords"],
+    targetBpm: 100,
+    masteryAccuracyThreshold: 88,
   },
   {
     id: "premium-fingerstyle",
@@ -166,5 +238,9 @@ export const MOCK_CATALOG: CatalogTrackStub[] = [
     tier: "premium",
     practiceChartKey: "none",
     difficulty: "advanced",
+    skillTags: ["fretting", "timing"],
+    techniqueTags: ["finger_independence", "sustain_control"],
+    targetBpm: 84,
+    masteryAccuracyThreshold: 90,
   },
 ];

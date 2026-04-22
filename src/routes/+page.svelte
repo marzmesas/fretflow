@@ -280,6 +280,12 @@
             {#if item.nextStep}
               <p class="path-card__next">
                 Next: <strong>{item.nextStep.track.title}</strong> · {item.nextStep.note}
+                {#if item.nextStep.track.targetBpm != null}
+                  · target {item.nextStep.track.targetBpm} BPM
+                {/if}
+                {#if item.nextStep.track.masteryAccuracyThreshold != null}
+                  · clear at {item.nextStep.track.masteryAccuracyThreshold}%+
+                {/if}
               </p>
               <button type="button" class="btn btn-primary" onclick={() => openLearningPathStep(item)}>
                 {item.status === "not_started" ? "Start path" : "Continue path"}

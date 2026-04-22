@@ -207,6 +207,15 @@
     return recommendedTracks.find((item) => item.track.id === trackId) ?? null;
   }
 
+  function trackFocusLabel(track: CatalogTrackStub): string | null {
+    const technique = track.techniqueTags?.[0];
+    if (technique) {
+      return technique.replaceAll("_", " ");
+    }
+    const skill = track.skillTags?.[0];
+    return skill ? skill.replaceAll("_", " ") : null;
+  }
+
   function trackIsInActiveCollection(trackId: string): boolean {
     return activeCollection?.trackIds.includes(trackId) ?? false;
   }
@@ -438,6 +447,9 @@
                 {#if row.kind === "catalog" && row.track.difficulty}
                   <span class="difficulty-pill difficulty-pill--{row.track.difficulty}">{row.track.difficulty}</span>
                 {/if}
+                {#if row.kind === "catalog" && trackFocusLabel(row.track)}
+                  <span class="skill-pill">{trackFocusLabel(row.track)}</span>
+                {/if}
               </div>
             </div>
             <div class="catalog-action">
@@ -497,6 +509,9 @@
                 {#if row.kind === "catalog"}
                   {#if row.track.difficulty}
                     <span class="difficulty-pill difficulty-pill--{row.track.difficulty}">{row.track.difficulty}</span>
+                  {/if}
+                  {#if trackFocusLabel(row.track)}
+                    <span class="skill-pill">{trackFocusLabel(row.track)}</span>
                   {/if}
                   {#if row.track.durationSec != null}
                     <span class="muted">{row.track.durationSec < 60 ? `${row.track.durationSec}s` : `${Math.floor(row.track.durationSec / 60)}m ${row.track.durationSec % 60}s`}</span>
@@ -567,6 +582,9 @@
               </div>
               <div class="catalog-meta">
                 <span class="muted">{row.kind === "catalog" ? row.track.artist : row.entry.artist}</span>
+                {#if row.kind === "catalog" && trackFocusLabel(row.track)}
+                  <span class="skill-pill">{trackFocusLabel(row.track)}</span>
+                {/if}
                 {#if recent}
                   <span class="resume-pill">
                     {recent.accuracyPercent}% last run · {formatSessionRecency(recent.at)}
@@ -687,8 +705,14 @@
               {#if t.difficulty}
                 <span class="difficulty-pill difficulty-pill--{t.difficulty}">{t.difficulty}</span>
               {/if}
+              {#if trackFocusLabel(t)}
+                <span class="skill-pill">{trackFocusLabel(t)}</span>
+              {/if}
               {#if t.durationSec != null}
                 <span class="muted">{t.durationSec < 60 ? `${t.durationSec}s` : `${Math.floor(t.durationSec / 60)}m ${t.durationSec % 60}s`}</span>
+              {/if}
+              {#if t.targetBpm != null}
+                <span class="muted">{t.targetBpm} BPM target</span>
               {/if}
               <span
                 class="tier-pill"
@@ -1020,6 +1044,16 @@
   .tier-pill--premium {
     border-color: color-mix(in srgb, var(--ff-accent) 55%, var(--ff-border));
     color: var(--ff-accent);
+  }
+  .skill-pill {
+    text-transform: capitalize;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0.12rem 0.45rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--ff-accent) 32%, var(--ff-border));
+    color: var(--ff-text);
+    background: color-mix(in srgb, var(--ff-accent) 8%, var(--ff-bg));
   }
   .locked-label {
     display: inline-flex;

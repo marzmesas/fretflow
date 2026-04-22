@@ -4,6 +4,32 @@ export type CatalogTierId = "free" | "premium";
 
 export type CatalogDifficulty = "beginner" | "easy" | "intermediate" | "advanced";
 
+export type CatalogSkillTag =
+  | "timing"
+  | "single_note"
+  | "fretting"
+  | "scales"
+  | "chords"
+  | "rhythm"
+  | "riffs"
+  | "arpeggios"
+  | "legato"
+  | "string_skipping"
+  | "endurance";
+
+export type CatalogTechniqueTag =
+  | "alternate_picking"
+  | "finger_independence"
+  | "position_shift"
+  | "chord_switching"
+  | "power_chords"
+  | "shuffle_feel"
+  | "string_skipping"
+  | "hammer_on"
+  | "pull_off"
+  | "arpeggio_shapes"
+  | "sustain_control";
+
 export type CatalogTrackStub = {
   id: string;
   title: string;
@@ -22,4 +48,10 @@ export type CatalogTrackStub = {
   difficulty?: CatalogDifficulty;
   /** Approximate duration in seconds (for display). */
   durationSec?: number;
+  /** Curriculum metadata for local pathing now and API-backed catalogs later. */
+  skillTags?: CatalogSkillTag[];
+  techniqueTags?: CatalogTechniqueTag[];
+  prerequisiteTrackIds?: string[];
+  targetBpm?: number;
+  masteryAccuracyThreshold?: number;
 };

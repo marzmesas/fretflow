@@ -3,7 +3,7 @@ import { getLatestSessionsByTrackId } from "../chart/session-storage";
 import { MOCK_CATALOG } from "./mock-catalog";
 import type { CatalogTrackStub } from "./types";
 
-const COMPLETION_ACCURACY_THRESHOLD = 85;
+const DEFAULT_COMPLETION_ACCURACY_THRESHOLD = 85;
 
 export type LearningPathId = "starter" | "rhythm" | "technique";
 
@@ -83,7 +83,8 @@ export function getLearningPathProgress(history: SessionSummaryV1[]): LearningPa
 
     for (const step of path.steps) {
       const latestSession = latestByTrackId[step.track.id];
-      if (latestSession == null || latestSession.accuracyPercent < COMPLETION_ACCURACY_THRESHOLD) {
+      const threshold = step.track.masteryAccuracyThreshold ?? DEFAULT_COMPLETION_ACCURACY_THRESHOLD;
+      if (latestSession == null || latestSession.accuracyPercent < threshold) {
         break;
       }
       completedSteps += 1;
