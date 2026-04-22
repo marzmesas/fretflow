@@ -3,6 +3,7 @@
   import { onMount } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
   import type { AppInfo } from "$lib/ipc";
+  import { getLearningPathProgress, type LearningPathProgress } from "$lib/catalog/learning-paths";
   import { getRecommendedTracks, type RecommendedTrack } from "$lib/catalog/recommendations";
   import {
     getRecentSessions,
@@ -25,6 +26,7 @@
   let lastSession = $state<SessionSummaryV1 | null>(null);
   let recentSessions = $state<SessionSummaryV1[]>([]);
   let recommendedTracks = $state<RecommendedTrack[]>([]);
+  let learningPaths = $state<LearningPathProgress[]>([]);
   let practiceGoals = $state<PracticeGoalsSnapshot>(toPracticeGoalsSnapshot(loadPracticeGoals()));
 
   const STEP_COPY: Record<OnboardingStepId, { title: string; detail: string; href: string }> = {
@@ -51,6 +53,7 @@
     const history = loadSessionHistory();
     recentSessions = getRecentSessions(history, 4);
     recommendedTracks = getRecommendedTracks(history, 3);
+    learningPaths = getLearningPathProgress(history);
     practiceGoals = toPracticeGoalsSnapshot(loadPracticeGoals());
   }
 
@@ -92,6 +95,15 @@
     const diffDays = Math.floor(diffHours / 24);
     if (diffDays < 7) return `${diffDays}d ago`;
     return when.toLocaleDateString();
+  }
+
+  function openLearningPathStep(path: LearningPathProgress) {
+    const trackId = path.nextStep?.track.id ?? path.path.steps[0]?.track.id;
+    if (!trackId) {
+      void goto("/library");
+      return;
+    }
+    void goto(`/practice?track=${encodeURIComponent(trackId)}`);
   }
 
   onMount(async () => {
@@ -227,6 +239,60 @@
             <span class="recent-card__detail">{item.reason}</span>
             <span class="recent-card__cta">Practice this chart</span>
           </button>
+        {/each}
+      </div>
+    </div>
+  {/if}
+
+  {#if learningPaths.length > 0}
+    <div class="panel path-panel">
+      <div class="recent-panel__header">
+        <div>
+          <h2>Learning paths</h2>
+          <p class="muted">Structured bundled-chart sequences that give the app a clearer progression than free browsing alone.</p>
+        </div>
+        <a href="/library" class="btn">Browse Library</a>
+      </div>
+      <div class="path-grid">
+        {#each learningPaths as item (item.path.id)}
+          <div class="path-card">
+            <div class="path-card__header">
+              <div>
+                <h3>{item.path.title}</h3>
+                <p>{item.path.description}</p>
+              </div>
+              <span class={`path-status path-status--${item.status}`}>
+                {item.status === "completed"
+                  ? "Completed"
+                  : item.status === "in_progress"
+                    ? "In progress"
+                    : "Ready"}
+              </span>
+            </div>
+            <div class="path-card__progress">
+              <div class="path-card__progress-bar">
+                <span style={`width: ${item.completionPercent}%`}></span>
+              </div>
+              <span class="path-card__progress-copy">
+                {item.completedSteps}/{item.totalSteps} steps complete
+              </span>
+            </div>
+            {#if item.nextStep}
+              <p class="path-card__next">
+                Next: <strong>{item.nextStep.track.title}</strong> · {item.nextStep.note}
+              </p>
+              <button type="button" class="btn btn-primary" onclick={() => openLearningPathStep(item)}>
+                {item.status === "not_started" ? "Start path" : "Continue path"}
+              </button>
+            {:else}
+              <p class="path-card__next">
+                All steps cleared at the local completion threshold. Use Library recommendations to step up further.
+              </p>
+              <button type="button" class="btn" onclick={() => void goto("/library?filter=recent")}>
+                Review recent charts
+              </button>
+            {/if}
+          </div>
         {/each}
       </div>
     </div>
@@ -414,6 +480,88 @@
     font-size: 0.82rem;
     color: var(--ff-text);
     line-height: 1.45;
+  }
+  .path-panel {
+    display: grid;
+    gap: 0.9rem;
+  }
+  .path-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    gap: 0.85rem;
+  }
+  .path-card {
+    display: grid;
+    gap: 0.75rem;
+    padding: 0.95rem;
+    border-radius: 12px;
+    border: 1px solid var(--ff-border);
+    background:
+      radial-gradient(circle at top right, color-mix(in srgb, var(--ff-accent) 8%, transparent), transparent 38%),
+      color-mix(in srgb, var(--ff-bg) 82%, transparent);
+  }
+  .path-card h3 {
+    margin: 0 0 0.25rem;
+    font-size: 0.98rem;
+  }
+  .path-card p {
+    margin: 0;
+    color: var(--ff-muted);
+    font-size: 0.84rem;
+    line-height: 1.5;
+  }
+  .path-card__header {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    align-items: flex-start;
+  }
+  .path-status {
+    display: inline-flex;
+    align-items: center;
+    min-height: 1.9rem;
+    padding: 0 0.65rem;
+    border-radius: 999px;
+    border: 1px solid var(--ff-border);
+    font-size: 0.74rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+  .path-status--completed {
+    color: var(--ff-success);
+    border-color: color-mix(in srgb, var(--ff-success) 45%, var(--ff-border));
+  }
+  .path-status--in_progress {
+    color: var(--ff-accent);
+    border-color: color-mix(in srgb, var(--ff-accent) 45%, var(--ff-border));
+  }
+  .path-status--not_started {
+    color: var(--ff-muted);
+  }
+  .path-card__progress {
+    display: grid;
+    gap: 0.35rem;
+  }
+  .path-card__progress-bar {
+    height: 0.45rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--ff-border) 75%, transparent);
+    overflow: hidden;
+  }
+  .path-card__progress-bar span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, color-mix(in srgb, var(--ff-accent) 85%, white 15%), var(--ff-accent));
+  }
+  .path-card__progress-copy {
+    font-size: 0.78rem;
+    color: var(--ff-muted);
+  }
+  .path-card__next strong {
+    color: var(--ff-text);
   }
   .goal-panel {
     display: grid;
