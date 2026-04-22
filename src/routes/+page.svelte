@@ -3,7 +3,13 @@
   import { onMount } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
   import type { AppInfo } from "$lib/ipc";
-  import { getLearningPathProgress, type LearningPathProgress } from "$lib/catalog/learning-paths";
+  import {
+    LEARNING_PATHS,
+    getLearningPathProgress,
+    recommendLearningPathSeed,
+    type LearningPathProgress,
+  } from "$lib/catalog/learning-paths";
+  import { MOCK_CATALOG } from "$lib/catalog/mock-catalog";
   import { getRecommendedTracks, type RecommendedTrack } from "$lib/catalog/recommendations";
   import {
     getRecentSessions,
@@ -14,6 +20,9 @@
   import {
     dismissOnboarding,
     getOnboardingSnapshot,
+    saveOnboardingAssessment,
+    type OnboardingExperienceLevel,
+    type OnboardingPracticeGoal,
     type OnboardingSnapshot,
     type OnboardingStepId,
   } from "$lib/onboarding-storage";
@@ -28,6 +37,8 @@
   let recommendedTracks = $state<RecommendedTrack[]>([]);
   let learningPaths = $state<LearningPathProgress[]>([]);
   let practiceGoals = $state<PracticeGoalsSnapshot>(toPracticeGoalsSnapshot(loadPracticeGoals()));
+  let assessmentExperience = $state<OnboardingExperienceLevel>("brand_new");
+  let assessmentGoal = $state<OnboardingPracticeGoal>("fundamentals");
 
   const STEP_COPY: Record<OnboardingStepId, { title: string; detail: string; href: string }> = {
     settings: {
@@ -49,6 +60,10 @@
 
   function refreshHomeState() {
     onboarding = getOnboardingSnapshot();
+    if (onboarding.assessment) {
+      assessmentExperience = onboarding.assessment.experienceLevel;
+      assessmentGoal = onboarding.assessment.practiceGoal;
+    }
     lastSession = loadLastSession();
     const history = loadSessionHistory();
     recentSessions = getRecentSessions(history, 4);
@@ -64,6 +79,37 @@
 
   function dismissSetupGuide() {
     onboarding = dismissOnboarding();
+  }
+
+  function recommendedAssessmentTrack() {
+    const trackId = onboarding?.assessment?.recommendedTrackId;
+    if (!trackId) return null;
+    return MOCK_CATALOG.find((track) => track.id === trackId) ?? null;
+  }
+
+  function recommendedAssessmentPath() {
+    const pathId = onboarding?.assessment?.recommendedPathId;
+    if (!pathId) return null;
+    return LEARNING_PATHS.find((path) => path.id === pathId) ?? null;
+  }
+
+  function saveAssessment() {
+    const recommendation = recommendLearningPathSeed(assessmentExperience, assessmentGoal);
+    onboarding = saveOnboardingAssessment({
+      experienceLevel: assessmentExperience,
+      practiceGoal: assessmentGoal,
+      recommendedPathId: recommendation.pathId,
+      recommendedTrackId: recommendation.trackId,
+    });
+  }
+
+  function openAssessmentRecommendation() {
+    const trackId = onboarding?.assessment?.recommendedTrackId;
+    if (!trackId) {
+      void goto("/practice");
+      return;
+    }
+    void goto(`/practice?track=${encodeURIComponent(trackId)}`);
   }
 
   function openLastSession() {
@@ -98,7 +144,10 @@
   }
 
   function openLearningPathStep(path: LearningPathProgress) {
-    const trackId = path.nextStep?.track.id ?? path.path.steps[0]?.track.id;
+    const trackId =
+      onboarding?.assessment?.recommendedPathId === path.path.id && onboarding.assessment.recommendedTrackId
+        ? onboarding.assessment.recommendedTrackId
+        : path.nextStep?.track.id ?? path.path.steps[0]?.track.id;
     if (!trackId) {
       void goto("/library");
       return;
@@ -145,6 +194,8 @@
 
   {#if onboarding && !onboarding.hidden}
     {@const nextStep = nextOnboardingStep()}
+    {@const seededTrack = recommendedAssessmentTrack()}
+    {@const seededPath = recommendedAssessmentPath()}
     <div class="panel onboarding-panel">
       <div class="onboarding-panel__header">
         <div>
@@ -156,6 +207,38 @@
       <p class="onboarding-panel__body">
         Fretflow works best once your input is configured and you have completed one full practice run.
       </p>
+      <div class="assessment-panel">
+        <div class="assessment-panel__copy">
+          <strong>Starting point</strong>
+          <p>Answer two questions so Fretflow can seed the right path and first chart instead of dropping you into the full catalog.</p>
+        </div>
+        <div class="assessment-panel__controls">
+          <label class="assessment-field">
+            <span>Experience</span>
+            <select bind:value={assessmentExperience}>
+              <option value="brand_new">Brand new</option>
+              <option value="returning">Returning player</option>
+              <option value="comfortable">Comfortable already</option>
+            </select>
+          </label>
+          <label class="assessment-field">
+            <span>Focus</span>
+            <select bind:value={assessmentGoal}>
+              <option value="fundamentals">Fundamentals</option>
+              <option value="rhythm">Rhythm</option>
+              <option value="technique">Technique</option>
+            </select>
+          </label>
+          <button type="button" class="btn" onclick={saveAssessment}>
+            {onboarding.assessment ? "Update recommendation" : "Save recommendation"}
+          </button>
+        </div>
+        {#if onboarding.assessment && seededTrack && seededPath}
+          <p class="assessment-panel__result">
+            Recommended path: <strong>{seededPath.title}</strong> · Start with <strong>{seededTrack.title}</strong>.
+          </p>
+        {/if}
+      </div>
       <div class="onboarding-panel__progress" role="list" aria-label="Setup steps">
         {#each Object.entries(STEP_COPY) as [stepId, meta] (stepId)}
           <div class="onboarding-step" role="listitem">
@@ -172,6 +255,11 @@
       {#if nextStep}
         <div class="onboarding-panel__actions">
           <a href={nextStep.href} class="btn btn-primary">{nextStep.title}</a>
+          {#if onboarding.assessment && seededTrack}
+            <button type="button" class="btn" onclick={openAssessmentRecommendation}>
+              Open recommended first chart
+            </button>
+          {/if}
         </div>
       {/if}
     </div>
@@ -255,6 +343,7 @@
       </div>
       <div class="path-grid">
         {#each learningPaths as item (item.path.id)}
+          {@const isSeeded = onboarding?.assessment?.recommendedPathId === item.path.id}
           <div class="path-card">
             <div class="path-card__header">
               <div>
@@ -269,6 +358,9 @@
                     : "Ready"}
               </span>
             </div>
+            {#if isSeeded}
+              <p class="path-card__seeded">Recommended from onboarding assessment</p>
+            {/if}
             <div class="path-card__progress">
               <div class="path-card__progress-bar">
                 <span style={`width: ${item.completionPercent}%`}></span>
@@ -566,6 +658,11 @@
     font-size: 0.78rem;
     color: var(--ff-muted);
   }
+  .path-card__seeded {
+    color: var(--ff-accent);
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
   .path-card__next strong {
     color: var(--ff-text);
   }
@@ -609,6 +706,45 @@
   }
   .onboarding-panel__body {
     max-width: 42rem;
+  }
+  .assessment-panel {
+    display: grid;
+    gap: 0.8rem;
+    margin-top: 1rem;
+    padding: 0.85rem 0.95rem;
+    border-radius: 10px;
+    border: 1px solid var(--ff-border);
+    background: color-mix(in srgb, var(--ff-bg) 76%, transparent);
+  }
+  .assessment-panel__copy p,
+  .assessment-panel__result {
+    margin: 0.25rem 0 0;
+    color: var(--ff-muted);
+    line-height: 1.5;
+  }
+  .assessment-panel__controls {
+    display: flex;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+    align-items: end;
+  }
+  .assessment-field {
+    display: grid;
+    gap: 0.25rem;
+    min-width: 11rem;
+    flex: 1 1 11rem;
+  }
+  .assessment-field span {
+    font-size: 0.8rem;
+    color: var(--ff-muted);
+  }
+  .assessment-field select {
+    padding: 0.42rem 0.55rem;
+    border-radius: 8px;
+    border: 1px solid var(--ff-border);
+    background: var(--ff-bg);
+    color: var(--ff-text);
+    font: inherit;
   }
   .onboarding-panel__progress {
     display: grid;

@@ -4,6 +4,7 @@ import {
   getOnboardingSnapshot,
   markOnboardingStepCompleted,
   resetOnboarding,
+  saveOnboardingAssessment,
 } from "./onboarding-storage";
 
 describe("onboarding-storage", () => {
@@ -57,5 +58,21 @@ describe("onboarding-storage", () => {
     expect(reset.hidden).toBe(false);
     expect(reset.completed).toBe(false);
     expect(reset.remainingSteps).toEqual(["settings", "library", "practice"]);
+  });
+
+  it("persists onboarding assessment answers and recommendations", () => {
+    const snapshot = saveOnboardingAssessment({
+      experienceLevel: "returning",
+      practiceGoal: "rhythm",
+      recommendedPathId: "rhythm",
+      recommendedTrackId: "bundled-power-chords",
+    });
+    expect(snapshot.assessment).toMatchObject({
+      experienceLevel: "returning",
+      practiceGoal: "rhythm",
+      recommendedPathId: "rhythm",
+      recommendedTrackId: "bundled-power-chords",
+    });
+    expect(snapshot.assessment?.answeredAt).toBeTypeOf("string");
   });
 });

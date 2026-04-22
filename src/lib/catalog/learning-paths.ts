@@ -6,6 +6,8 @@ import type { CatalogTrackStub } from "./types";
 const DEFAULT_COMPLETION_ACCURACY_THRESHOLD = 85;
 
 export type LearningPathId = "starter" | "rhythm" | "technique";
+export type OnboardingExperienceLevel = "brand_new" | "returning" | "comfortable";
+export type OnboardingPracticeGoal = "fundamentals" | "rhythm" | "technique";
 
 export type LearningPathStep = {
   track: CatalogTrackStub;
@@ -26,6 +28,11 @@ export type LearningPathProgress = {
   completionPercent: number;
   nextStep: LearningPathStep | null;
   status: "not_started" | "in_progress" | "completed";
+};
+
+export type PathSeedRecommendation = {
+  pathId: LearningPathId;
+  trackId: string;
 };
 
 function trackById(trackId: string): CatalogTrackStub {
@@ -74,6 +81,33 @@ export const LEARNING_PATHS: LearningPath[] = [
     ],
   },
 ];
+
+export function recommendLearningPathSeed(
+  experienceLevel: OnboardingExperienceLevel,
+  practiceGoal: OnboardingPracticeGoal,
+): PathSeedRecommendation {
+  if (practiceGoal === "rhythm") {
+    return {
+      pathId: "rhythm",
+      trackId: experienceLevel === "brand_new" ? "bundled-single-string" : "bundled-power-chords",
+    };
+  }
+  if (practiceGoal === "technique") {
+    return {
+      pathId: "technique",
+      trackId: experienceLevel === "comfortable" ? "bundled-spider" : "bundled-chromatic",
+    };
+  }
+  return {
+    pathId: "starter",
+    trackId:
+      experienceLevel === "comfortable"
+        ? "bundled-major-scale"
+        : experienceLevel === "returning"
+          ? "bundled-chromatic"
+          : "bundled-one-note",
+  };
+}
 
 export function getLearningPathProgress(history: SessionSummaryV1[]): LearningPathProgress[] {
   const latestByTrackId = getLatestSessionsByTrackId(history);

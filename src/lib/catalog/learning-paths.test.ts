@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getLearningPathProgress } from "./learning-paths";
+import { getLearningPathProgress, recommendLearningPathSeed } from "./learning-paths";
 import type { SessionSummaryV1 } from "$lib/chart/session-storage";
 
 function session(trackId: string, accuracyPercent: number, at: string): SessionSummaryV1 {
@@ -57,5 +57,20 @@ describe("learning paths", () => {
     expect(technique?.status).toBe("completed");
     expect(technique?.completionPercent).toBe(100);
     expect(technique?.nextStep).toBeNull();
+  });
+
+  it("maps onboarding assessment answers to a starter recommendation", () => {
+    expect(recommendLearningPathSeed("brand_new", "fundamentals")).toEqual({
+      pathId: "starter",
+      trackId: "bundled-one-note",
+    });
+    expect(recommendLearningPathSeed("returning", "rhythm")).toEqual({
+      pathId: "rhythm",
+      trackId: "bundled-power-chords",
+    });
+    expect(recommendLearningPathSeed("comfortable", "technique")).toEqual({
+      pathId: "technique",
+      trackId: "bundled-spider",
+    });
   });
 });
