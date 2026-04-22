@@ -2,6 +2,12 @@
   import { page } from "$app/state";
   import { goto } from "$app/navigation";
   import {
+    LEARNING_PATHS,
+    getLearningPathById,
+    getLearningPathTrackIds,
+    type LearningPathId,
+  } from "$lib/catalog/learning-paths";
+  import {
     createCollection,
     deleteCollection,
     getCollections,
@@ -20,10 +26,11 @@
   import { addUserChart, getUserCharts, removeUserChart, type UserChartEntry } from "$lib/catalog/user-charts";
   import { getLatestSessionsByTrackId, loadSessionHistory, type SessionSummaryV1 } from "$lib/chart/session-storage";
   import { markOnboardingStepCompleted } from "$lib/onboarding-storage";
-  import type { CatalogTrackStub } from "$lib/catalog/types";
+  import type { CatalogSkillTag, CatalogTechniqueTag, CatalogTrackStub } from "$lib/catalog/types";
   import { validateChart } from "$lib/chart/validate";
 
   type Filter = "all" | "free" | "premium" | "recent" | "favorites" | "collections" | "mine";
+  type PathFilter = LearningPathId | "all";
   type FavoriteRow =
     | { kind: "catalog"; id: string; track: CatalogTrackStub }
     | { kind: "user"; id: string; entry: UserChartEntry };
@@ -40,6 +47,9 @@
   let recommendedTracks = $state<RecommendedTrack[]>(getRecommendedTracks(initialHistory, 3));
   let collections = $state<ChartCollectionV1[]>(initialCollections);
   let activeCollectionId = $state<string | null>(initialCollections[0]?.id ?? null);
+  let activePathId = $state<PathFilter>("all");
+  let activeSkillTag = $state<CatalogSkillTag | null>(null);
+  let activeTechniqueTag = $state<CatalogTechniqueTag | null>(null);
   let newCollectionName = $state("");
   let importError = $state<string | null>(null);
   let importWarnings = $state<string[]>([]);
@@ -59,10 +69,45 @@
     return requested;
   }
 
-  function updateLibraryUrl(next: { filter?: Filter; collectionId?: string | null }) {
+  function isPathFilter(value: string | null): value is LearningPathId {
+    return value != null && LEARNING_PATHS.some((path) => path.id === value);
+  }
+
+  function pathFromUrl(): PathFilter {
+    const requested = page.url.searchParams.get("path");
+    return isPathFilter(requested) ? requested : "all";
+  }
+
+  function skillFromUrl(): CatalogSkillTag | null {
+    const requested = page.url.searchParams.get("skill");
+    const available = new Set(MOCK_CATALOG.flatMap((track) => track.skillTags ?? []));
+    return requested != null && available.has(requested as CatalogSkillTag) ? (requested as CatalogSkillTag) : null;
+  }
+
+  function techniqueFromUrl(): CatalogTechniqueTag | null {
+    const requested = page.url.searchParams.get("technique");
+    const available = new Set(MOCK_CATALOG.flatMap((track) => track.techniqueTags ?? []));
+    return requested != null && available.has(requested as CatalogTechniqueTag)
+      ? (requested as CatalogTechniqueTag)
+      : null;
+  }
+
+  function updateLibraryUrl(next: {
+    filter?: Filter;
+    collectionId?: string | null;
+    pathId?: PathFilter;
+    skillTag?: CatalogSkillTag | null;
+    techniqueTag?: CatalogTechniqueTag | null;
+  }) {
     const resolvedFilter = next.filter ?? filter;
     const resolvedCollectionId =
       Object.prototype.hasOwnProperty.call(next, "collectionId") ? next.collectionId ?? null : activeCollectionId;
+    const resolvedPathId =
+      Object.prototype.hasOwnProperty.call(next, "pathId") ? next.pathId ?? "all" : activePathId;
+    const resolvedSkillTag =
+      Object.prototype.hasOwnProperty.call(next, "skillTag") ? next.skillTag ?? null : activeSkillTag;
+    const resolvedTechniqueTag =
+      Object.prototype.hasOwnProperty.call(next, "techniqueTag") ? next.techniqueTag ?? null : activeTechniqueTag;
     const url = new URL(page.url);
     if (resolvedFilter === "all") {
       url.searchParams.delete("filter");
@@ -74,8 +119,26 @@
     } else {
       url.searchParams.set("collection", resolvedCollectionId);
     }
+    if (resolvedPathId === "all") {
+      url.searchParams.delete("path");
+    } else {
+      url.searchParams.set("path", resolvedPathId);
+    }
+    if (resolvedSkillTag == null) {
+      url.searchParams.delete("skill");
+    } else {
+      url.searchParams.set("skill", resolvedSkillTag);
+    }
+    if (resolvedTechniqueTag == null) {
+      url.searchParams.delete("technique");
+    } else {
+      url.searchParams.set("technique", resolvedTechniqueTag);
+    }
     filter = resolvedFilter;
     activeCollectionId = resolvedCollectionId;
+    activePathId = resolvedPathId;
+    activeSkillTag = resolvedSkillTag;
+    activeTechniqueTag = resolvedTechniqueTag;
     void goto(url.pathname + url.search, {
       replaceState: true,
       noScroll: true,
@@ -91,13 +154,36 @@
     updateLibraryUrl({ collectionId: next });
   }
 
+  function setActivePath(next: PathFilter) {
+    updateLibraryUrl({ pathId: next });
+  }
+
+  function setActiveSkillTag(next: CatalogSkillTag | null) {
+    updateLibraryUrl({ skillTag: next });
+  }
+
+  function setActiveTechniqueTag(next: CatalogTechniqueTag | null) {
+    updateLibraryUrl({ techniqueTag: next });
+  }
+
   const filtered = $derived.by(() => {
     if (filter === "mine") return [];
     if (filter === "favorites") return [];
     if (filter === "recent") return [];
     if (filter === "collections") return [];
-    if (filter === "all") return MOCK_CATALOG;
-    return MOCK_CATALOG.filter((t) => t.tier === filter);
+    const base = filter === "all" ? MOCK_CATALOG : MOCK_CATALOG.filter((t) => t.tier === filter);
+    return base.filter((track) => {
+      if (activePathId !== "all" && !getLearningPathTrackIds(activePathId).includes(track.id)) {
+        return false;
+      }
+      if (activeSkillTag != null && !(track.skillTags ?? []).includes(activeSkillTag)) {
+        return false;
+      }
+      if (activeTechniqueTag != null && !(track.techniqueTags ?? []).includes(activeTechniqueTag)) {
+        return false;
+      }
+      return true;
+    });
   });
 
   const favoriteRows = $derived.by<FavoriteRow[]>(() => {
@@ -216,6 +302,19 @@
     return skill ? skill.replaceAll("_", " ") : null;
   }
 
+  function formatTagLabel(value: string): string {
+    return value.replaceAll("_", " ");
+  }
+
+  function prerequisiteTracks(track: CatalogTrackStub): CatalogTrackStub[] {
+    return (track.prerequisiteTrackIds ?? [])
+      .map((trackId) => MOCK_CATALOG.find((entry) => entry.id === trackId) ?? null)
+      .filter((entry): entry is CatalogTrackStub => entry != null);
+  }
+
+  const skillTags = [...new Set(MOCK_CATALOG.flatMap((track) => track.skillTags ?? []))].sort();
+  const techniqueTags = [...new Set(MOCK_CATALOG.flatMap((track) => track.techniqueTags ?? []))].sort();
+
   function trackIsInActiveCollection(trackId: string): boolean {
     return activeCollection?.trackIds.includes(trackId) ?? false;
   }
@@ -305,6 +404,9 @@
   $effect(() => {
     const nextFilter = filterFromUrl();
     const requestedCollectionId = collectionFromUrl();
+    const nextPathId = pathFromUrl();
+    const nextSkillTag = skillFromUrl();
+    const nextTechniqueTag = techniqueFromUrl();
     const nextCollectionId =
       requestedCollectionId != null && collections.some((collection) => collection.id === requestedCollectionId)
         ? requestedCollectionId
@@ -314,6 +416,15 @@
     }
     if (activeCollectionId !== nextCollectionId) {
       activeCollectionId = nextCollectionId;
+    }
+    if (activePathId !== nextPathId) {
+      activePathId = nextPathId;
+    }
+    if (activeSkillTag !== nextSkillTag) {
+      activeSkillTag = nextSkillTag;
+    }
+    if (activeTechniqueTag !== nextTechniqueTag) {
+      activeTechniqueTag = nextTechniqueTag;
     }
   });
 </script>
@@ -410,6 +521,75 @@
                 : `My Charts (${userCharts.length})`}
       </button>
     {/each}
+  </div>
+
+  <div class="path-toolbar">
+    <div class="path-toolbar__group">
+      <span class="muted path-toolbar__label">Learning paths</span>
+      <button
+        type="button"
+        class="btn"
+        class:btn-primary={activePathId === "all"}
+        onclick={() => setActivePath("all")}
+      >
+        All paths
+      </button>
+      {#each LEARNING_PATHS as path (path.id)}
+        <button
+          type="button"
+          class="btn"
+          class:btn-primary={activePathId === path.id}
+          onclick={() => setActivePath(path.id)}
+        >
+          {path.title}
+        </button>
+      {/each}
+    </div>
+
+    <div class="path-toolbar__group">
+      <span class="muted path-toolbar__label">Skills</span>
+      <select
+        class="collection-toolbar__select"
+        value={activeSkillTag ?? ""}
+        onchange={(ev) => {
+          const value = (ev.currentTarget as HTMLSelectElement).value;
+          setActiveSkillTag(value === "" ? null : (value as CatalogSkillTag));
+        }}
+      >
+        <option value="">All skills</option>
+        {#each skillTags as skill (skill)}
+          <option value={skill}>{formatTagLabel(skill)}</option>
+        {/each}
+      </select>
+      <select
+        class="collection-toolbar__select"
+        value={activeTechniqueTag ?? ""}
+        onchange={(ev) => {
+          const value = (ev.currentTarget as HTMLSelectElement).value;
+          setActiveTechniqueTag(value === "" ? null : (value as CatalogTechniqueTag));
+        }}
+      >
+        <option value="">All techniques</option>
+        {#each techniqueTags as technique (technique)}
+          <option value={technique}>{formatTagLabel(technique)}</option>
+        {/each}
+      </select>
+    </div>
+
+    {#if activePathId !== "all" || activeSkillTag != null || activeTechniqueTag != null}
+      <p class="muted path-toolbar__summary">
+        {#if activePathId !== "all"}
+          Path: <strong>{getLearningPathById(activePathId)?.title}</strong>
+        {/if}
+        {#if activeSkillTag}
+          {activePathId !== "all" ? " · " : ""}Skill: <strong>{formatTagLabel(activeSkillTag)}</strong>
+        {/if}
+        {#if activeTechniqueTag}
+          {(activePathId !== "all" || activeSkillTag) ? " · " : ""}Technique:
+          <strong>{formatTagLabel(activeTechniqueTag)}</strong>
+        {/if}
+      </p>
+    {/if}
   </div>
 
   {#if filter === "premium"}
@@ -692,6 +872,7 @@
       {#each filtered as t (t.id)}
         {@const recent = latestSessionForTrack(t.id)}
         {@const suggested = recommendedTrackFor(t.id)}
+        {@const prerequisites = prerequisiteTracks(t)}
         <li class="catalog-row">
           <div class="catalog-main">
             <div class="catalog-title">
@@ -727,6 +908,11 @@
                 </span>
               {/if}
             </div>
+            {#if prerequisites.length > 0}
+              <p class="catalog-prereq">
+                Build-up: {#each prerequisites as prereq, index (prereq.id)}{index > 0 ? ", " : ""}<strong>{prereq.title}</strong>{/each}
+              </p>
+            {/if}
           </div>
           <div class="catalog-action">
             <button
@@ -889,6 +1075,25 @@
     margin: 0.55rem 0 0;
     font-size: 0.82rem;
   }
+  .path-toolbar {
+    margin-bottom: 1rem;
+    display: grid;
+    gap: 0.65rem;
+  }
+  .path-toolbar__group {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .path-toolbar__label {
+    font-size: 0.8rem;
+    min-width: 5.5rem;
+  }
+  .path-toolbar__summary {
+    margin: 0;
+    font-size: 0.82rem;
+  }
   .catalog-filters .btn.btn-primary {
     border-color: var(--ff-accent);
     background: var(--ff-accent-dim);
@@ -938,6 +1143,12 @@
     gap: 0.5rem 0.65rem;
     margin-top: 0.2rem;
     font-size: 0.82rem;
+  }
+  .catalog-prereq {
+    margin: 0.35rem 0 0;
+    font-size: 0.8rem;
+    color: var(--ff-muted);
+    line-height: 1.45;
   }
   .catalog-action {
     display: flex;

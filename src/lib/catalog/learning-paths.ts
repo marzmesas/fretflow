@@ -82,6 +82,14 @@ export const LEARNING_PATHS: LearningPath[] = [
   },
 ];
 
+export function getLearningPathById(pathId: LearningPathId): LearningPath | null {
+  return LEARNING_PATHS.find((path) => path.id === pathId) ?? null;
+}
+
+export function getLearningPathTrackIds(pathId: LearningPathId): string[] {
+  return getLearningPathById(pathId)?.steps.map((step) => step.track.id) ?? [];
+}
+
 export function recommendLearningPathSeed(
   experienceLevel: OnboardingExperienceLevel,
   practiceGoal: OnboardingPracticeGoal,
