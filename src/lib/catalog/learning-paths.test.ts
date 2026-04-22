@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getLearningPathProgress, recommendLearningPathSeed } from "./learning-paths";
+import { getLearningPathContinuation, getLearningPathProgress, recommendLearningPathSeed } from "./learning-paths";
 import type { SessionSummaryV1 } from "$lib/chart/session-storage";
 
 function session(trackId: string, accuracyPercent: number, at: string): SessionSummaryV1 {
@@ -71,6 +71,23 @@ describe("learning paths", () => {
     expect(recommendLearningPathSeed("comfortable", "technique")).toEqual({
       pathId: "technique",
       trackId: "bundled-spider",
+    });
+  });
+
+  it("returns a path continuation prompt for the current chart", () => {
+    expect(getLearningPathContinuation("starter", "bundled-one-note", 70)).toMatchObject({
+      state: "current_step",
+      currentStepTrackId: "bundled-one-note",
+    });
+
+    expect(getLearningPathContinuation("starter", "bundled-one-note", 95)).toMatchObject({
+      state: "advance",
+      nextTrackId: "bundled-chromatic",
+    });
+
+    expect(getLearningPathContinuation("technique", "bundled-sustained", 95)).toMatchObject({
+      state: "completed",
+      nextTrackId: null,
     });
   });
 });

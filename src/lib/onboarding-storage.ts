@@ -136,6 +136,10 @@ export function getOnboardingSnapshot(): OnboardingSnapshot {
   return toSnapshot(readState());
 }
 
+export function getOnboardingAssessment(): OnboardingAssessment | null {
+  return readState().assessment;
+}
+
 export function dismissOnboarding(): OnboardingSnapshot {
   const next: OnboardingStateV1 = {
     ...readState(),

@@ -60,7 +60,8 @@
     savePracticePreset,
     type PracticePresetV1,
   } from "./practice-presets-storage";
-  import { markOnboardingStepCompleted } from "$lib/onboarding-storage";
+  import { getOnboardingAssessment, markOnboardingStepCompleted } from "$lib/onboarding-storage";
+  import { getLearningPathContinuation } from "$lib/catalog/learning-paths";
   import { validateChart } from "./validate";
   import { resolvePracticeChart } from "$lib/catalog/resolve-practice-chart";
   import {
@@ -140,6 +141,11 @@
     getChartSessionStats(sessionHistory, { chartTitle: chart.title, practiceTrackId: trackId }),
   );
   const practiceRecommendation = $derived(getPracticeRecommendation(chartInsight));
+  const pathContinuation = $derived.by(() => {
+    const pathId = getOnboardingAssessment()?.recommendedPathId;
+    if (pathId !== "starter" && pathId !== "rhythm" && pathId !== "technique") return null;
+    return getLearningPathContinuation(pathId, trackId, chartInsight.latestAccuracy);
+  });
 
   /** From Settings → Latency; applied to hit/miss only (highway unchanged). */
   let latencyOffsetMs = $state(0);
@@ -803,6 +809,11 @@
     syncPracticeBackingAudio();
   }
 
+  function openTrack(trackIdToOpen: string | null) {
+    if (!trackIdToOpen) return;
+    window.location.assign(`/practice?track=${encodeURIComponent(trackIdToOpen)}`);
+  }
+
   function setDensityTierUser(tier: DensityTier) {
     if (tier === densityTier) return;
     densityTier = tier;
@@ -1234,6 +1245,34 @@
           {#if practiceRecommendation}
             <p class="chart-insight__note">{practiceRecommendation}</p>
           {/if}
+          {#if pathContinuation}
+            <div class="path-continuation">
+              <div class="path-continuation__title">{pathContinuation.pathTitle}</div>
+              {#if pathContinuation.state === "advance" && pathContinuation.nextTrackId && pathContinuation.nextTrackTitle}
+                <p class="path-continuation__body">
+                  You cleared this step at the path threshold. Continue with <strong>{pathContinuation.nextTrackTitle}</strong>.
+                </p>
+                <button type="button" class="btn btn-primary" style="margin-top: 0.25rem" onclick={() => openTrack(pathContinuation.nextTrackId)}>
+                  Open next path step
+                </button>
+              {:else if pathContinuation.state === "current_step"}
+                <p class="path-continuation__body">
+                  Stay on <strong>{pathContinuation.currentStepTitle}</strong> until you clear <strong>{pathContinuation.currentStepThreshold}%</strong>.
+                </p>
+              {:else if pathContinuation.state === "completed"}
+                <p class="path-continuation__body">
+                  You have completed the current onboarding path. Move into Library recommendations or start a different path.
+                </p>
+              {:else if pathContinuation.state === "not_on_path" && pathContinuation.nextTrackId && pathContinuation.nextTrackTitle}
+                <p class="path-continuation__body">
+                  This chart is outside your seeded path. Return to <strong>{pathContinuation.nextTrackTitle}</strong> to continue the recommended sequence.
+                </p>
+                <button type="button" class="btn" style="margin-top: 0.25rem" onclick={() => openTrack(pathContinuation.nextTrackId)}>
+                  Rejoin recommended path
+                </button>
+              {/if}
+            </div>
+          {/if}
         </div>
       {/if}
       {#if lastSessionSnapshot && !showHistory}
@@ -1585,6 +1624,24 @@
   }
   .chart-insight__note {
     color: var(--ff-text);
+  }
+  .path-continuation {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid color-mix(in srgb, var(--ff-border) 65%, transparent);
+  }
+  .path-continuation__title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ff-accent);
+  }
+  .path-continuation__body {
+    margin: 0.3rem 0 0;
+    font-size: 0.84rem;
+    color: var(--ff-text);
+    line-height: 1.5;
   }
   .history-stats {
     display: flex;

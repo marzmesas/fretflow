@@ -35,6 +35,17 @@ export type PathSeedRecommendation = {
   trackId: string;
 };
 
+export type LearningPathContinuation = {
+  pathId: LearningPathId;
+  pathTitle: string;
+  currentStepTrackId: string;
+  currentStepTitle: string;
+  currentStepThreshold: number;
+  nextTrackId: string | null;
+  nextTrackTitle: string | null;
+  state: "current_step" | "advance" | "completed" | "not_on_path";
+};
+
 function trackById(trackId: string): CatalogTrackStub {
   const track = MOCK_CATALOG.find((item) => item.id === trackId);
   if (track == null) {
@@ -88,6 +99,46 @@ export function getLearningPathById(pathId: LearningPathId): LearningPath | null
 
 export function getLearningPathTrackIds(pathId: LearningPathId): string[] {
   return getLearningPathById(pathId)?.steps.map((step) => step.track.id) ?? [];
+}
+
+export function getLearningPathContinuation(
+  pathId: LearningPathId,
+  currentTrackId: string | null | undefined,
+  latestAccuracyPercent: number | null | undefined,
+): LearningPathContinuation | null {
+  const path = getLearningPathById(pathId);
+  const normalizedTrackId = currentTrackId?.trim() ?? "";
+  if (path == null || normalizedTrackId === "") return null;
+
+  const stepIndex = path.steps.findIndex((step) => step.track.id === normalizedTrackId);
+  if (stepIndex === -1) {
+    return {
+      pathId,
+      pathTitle: path.title,
+      currentStepTrackId: normalizedTrackId,
+      currentStepTitle: "",
+      currentStepThreshold: DEFAULT_COMPLETION_ACCURACY_THRESHOLD,
+      nextTrackId: path.steps[0]?.track.id ?? null,
+      nextTrackTitle: path.steps[0]?.track.title ?? null,
+      state: "not_on_path",
+    };
+  }
+
+  const currentStep = path.steps[stepIndex]!;
+  const nextStep = path.steps[stepIndex + 1] ?? null;
+  const threshold = currentStep.track.masteryAccuracyThreshold ?? DEFAULT_COMPLETION_ACCURACY_THRESHOLD;
+  const canAdvance = latestAccuracyPercent != null && latestAccuracyPercent >= threshold;
+
+  return {
+    pathId,
+    pathTitle: path.title,
+    currentStepTrackId: currentStep.track.id,
+    currentStepTitle: currentStep.track.title,
+    currentStepThreshold: threshold,
+    nextTrackId: nextStep?.track.id ?? null,
+    nextTrackTitle: nextStep?.track.title ?? null,
+    state: canAdvance ? (nextStep ? "advance" : "completed") : "current_step",
+  };
 }
 
 export function recommendLearningPathSeed(
