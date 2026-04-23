@@ -20,6 +20,7 @@
   import { readingFromMicPitch, type TunerReading } from "$lib/tuner/chromatic";
   import { isTauri } from "$lib/tauri-env";
   import { createMetronomeAudioContext, playMetronomeClick } from "$lib/chart/chart-metronome";
+  import { confidenceBucket, trackAnalyticsEvent } from "$lib/analytics/events";
   import { markOnboardingStepCompleted } from "$lib/onboarding-storage";
   import {
     TAP_CALIBRATION_BEATS,
@@ -71,6 +72,7 @@
   let tapCalTimeout: ReturnType<typeof setTimeout> | null = null;
   let tapCalKeyHandler: ((e: KeyboardEvent) => void) | null = null;
   let setupGuideDismissed = $state(false);
+  let lastTrackedTunerLabel = $state<string | null>(null);
 
   const setupSteps = $derived.by(() => [
     {
@@ -282,6 +284,13 @@
           (p.confidence ?? 0) >= 0.22
         ) {
           tunerReading = readingFromMicPitch(p.note, p.pitchHz, p.confidence ?? 0);
+          if (tunerReading != null && tunerReading.label !== lastTrackedTunerLabel) {
+            trackAnalyticsEvent("tuner_note_detected", {
+              detected_note: tunerReading.label,
+              confidence_bucket: confidenceBucket(tunerReading.confidence),
+            });
+            lastTrackedTunerLabel = tunerReading.label;
+          }
         }
       });
       const conn = await invoke<InputConnectionStatus>("get_input_connection_status");
@@ -318,6 +327,7 @@
     stopTapCalibration();
     tapCalSuggested = null;
     tapCalRunning = true;
+    trackAnalyticsEvent("latency_calibration_started", { method: "tap" });
     const expectedWall: number[] = [];
     const tapsLocal: number[] = [];
     const ctx = createMetronomeAudioContext();
@@ -360,6 +370,10 @@
   async function applyTapSuggestedOffset() {
     if (tapCalSuggested == null) return;
     latencyMs = tapCalSuggested;
+    trackAnalyticsEvent("latency_calibration_applied", {
+      method: "tap",
+      offset_ms: tapCalSuggested,
+    });
     await savePrefs();
   }
 
