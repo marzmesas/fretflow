@@ -65,6 +65,12 @@
   import { validateChart } from "./validate";
   import { resolvePracticeChart } from "$lib/catalog/resolve-practice-chart";
   import {
+    deleteLoopBookmark,
+    loadLoopBookmarks,
+    saveLoopBookmark,
+    type LoopBookmarkV1,
+  } from "./loop-bookmarks-storage";
+  import {
     disposeBackingAudio,
     isBackingAudioLoaded,
     loadBackingAudio,
@@ -163,6 +169,8 @@
   let autoSpeedLoop = $state(false);
   let loopPassHits = 0;
   let loopPassMisses = 0;
+  let savedLoops = $state<LoopBookmarkV1[]>([]);
+  let newLoopBookmarkName = $state("");
   const AUTO_SPEED_LOOP_STEP = 0.05;
   const AUTO_SPEED_LOOP_MAX = 1.25;
   const AUTO_SPEED_LOOP_MIN_ACCURACY = 0.88;
@@ -525,6 +533,43 @@
     }
   }
 
+  function refreshSavedLoops() {
+    if (practicePresetKey == null) {
+      savedLoops = [];
+      return;
+    }
+    savedLoops = loadLoopBookmarks(practicePresetKey);
+  }
+
+  function saveCurrentLoopBookmark() {
+    if (practicePresetKey == null) return;
+    savedLoops = saveLoopBookmark(practicePresetKey, {
+      name: newLoopBookmarkName,
+      loopABeat,
+      loopBBeat,
+    });
+    if (savedLoops.length > 0) {
+      newLoopBookmarkName = "";
+    }
+  }
+
+  function applySavedLoop(bookmark: LoopBookmarkV1) {
+    loopEnabled = true;
+    loopABeat = bookmark.loopABeat;
+    loopBBeat = bookmark.loopBBeat;
+    normalizeLoopBeats();
+    if (playing) {
+      restart();
+    } else {
+      resetScoringState(`Loaded saved loop “${bookmark.name}”.`);
+    }
+  }
+
+  function removeSavedLoop(bookmarkId: string) {
+    if (practicePresetKey == null) return;
+    savedLoops = deleteLoopBookmark(practicePresetKey, bookmarkId);
+  }
+
   function resetPlayerToChart(next: FretflowChartV1) {
     clearWaitState();
     chart = next;
@@ -539,6 +584,7 @@
     const maxB = chartLengthBeats(next);
     practicePresetKey = getPracticePresetKey(trackId, next);
     applyPracticePreset(loadPracticePreset(practicePresetKey, maxB), maxB);
+    refreshSavedLoops();
     beatMetronome.syncAfterJump(0, next.bpm);
     resetLoopPassCounters();
     resetScoringState(null);
@@ -1436,6 +1482,39 @@
         <button type="button" class="btn" onclick={setLoopA}>Set A here</button>
         <button type="button" class="btn" onclick={setLoopB}>Set B here</button>
       </div>
+      <div class="saved-loops">
+        <div class="saved-loops__form">
+          <input
+            type="text"
+            bind:value={newLoopBookmarkName}
+            placeholder="Save current loop as…"
+            class="saved-loops__input"
+          />
+          <button type="button" class="btn" onclick={saveCurrentLoopBookmark} disabled={newLoopBookmarkName.trim() === ""}>
+            Save loop
+          </button>
+        </div>
+        {#if savedLoops.length > 0}
+          <div class="saved-loops__list">
+            {#each savedLoops as bookmark (bookmark.id)}
+              <div class="saved-loop-entry">
+                <div>
+                  <div class="saved-loop-entry__title">{bookmark.name}</div>
+                  <div class="saved-loop-entry__meta">
+                    A {bookmark.loopABeat.toFixed(2)} · B {bookmark.loopBBeat.toFixed(2)}
+                  </div>
+                </div>
+                <div class="saved-loop-entry__actions">
+                  <button type="button" class="btn" onclick={() => applySavedLoop(bookmark)}>Load</button>
+                  <button type="button" class="btn" onclick={() => removeSavedLoop(bookmark.id)}>Delete</button>
+                </div>
+              </div>
+            {/each}
+          </div>
+        {:else}
+          <p class="muted saved-loops__empty">No saved loops for this chart yet.</p>
+        {/if}
+      </div>
     </div>
 
     <p class="muted" style="margin: 0.75rem 0 0; font-size: 0.85rem">
@@ -1456,6 +1535,57 @@
   .loop-block {
     padding-top: 0.35rem;
     border-top: 1px solid var(--ff-border);
+  }
+  .saved-loops {
+    margin-top: 0.85rem;
+    display: grid;
+    gap: 0.65rem;
+  }
+  .saved-loops__form {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  .saved-loops__input {
+    min-width: 13rem;
+    flex: 1 1 13rem;
+    padding: 0.35rem 0.5rem;
+    border-radius: 6px;
+    border: 1px solid var(--ff-border);
+    background: var(--ff-bg);
+    color: var(--ff-text);
+    font: inherit;
+  }
+  .saved-loops__list {
+    display: grid;
+    gap: 0.5rem;
+  }
+  .saved-loop-entry {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.65rem 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 0.6rem 0.7rem;
+    border-radius: 8px;
+    border: 1px solid var(--ff-border);
+    background: color-mix(in srgb, var(--ff-bg) 75%, transparent);
+  }
+  .saved-loop-entry__title {
+    font-size: 0.86rem;
+    font-weight: 600;
+    color: var(--ff-text);
+  }
+  .saved-loop-entry__meta,
+  .saved-loops__empty {
+    font-size: 0.8rem;
+    color: var(--ff-muted);
+    margin: 0.2rem 0 0;
+  }
+  .saved-loop-entry__actions {
+    display: flex;
+    gap: 0.45rem;
+    flex-wrap: wrap;
   }
   .practice-preset-row {
     justify-content: space-between;
