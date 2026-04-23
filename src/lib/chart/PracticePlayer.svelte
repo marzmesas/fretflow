@@ -62,6 +62,8 @@
   } from "./practice-presets-storage";
   import { getOnboardingAssessment, markOnboardingStepCompleted } from "$lib/onboarding-storage";
   import { getLearningPathContinuation } from "$lib/catalog/learning-paths";
+  import { MOCK_CATALOG } from "$lib/catalog/mock-catalog";
+  import { getPostSessionCoaching } from "$lib/catalog/post-session-coaching";
   import { validateChart } from "./validate";
   import { resolvePracticeChart } from "$lib/catalog/resolve-practice-chart";
   import {
@@ -147,11 +149,19 @@
     getChartSessionStats(sessionHistory, { chartTitle: chart.title, practiceTrackId: trackId }),
   );
   const practiceRecommendation = $derived(getPracticeRecommendation(chartInsight));
+  const currentCatalogTrack = $derived.by(() => {
+    const normalizedTrackId = trackId?.trim();
+    if (!normalizedTrackId) return null;
+    return MOCK_CATALOG.find((track) => track.id === normalizedTrackId) ?? null;
+  });
   const pathContinuation = $derived.by(() => {
     const pathId = getOnboardingAssessment()?.recommendedPathId;
     if (pathId !== "starter" && pathId !== "rhythm" && pathId !== "technique") return null;
     return getLearningPathContinuation(pathId, trackId, chartInsight.latestAccuracy);
   });
+  const postSessionCoaching = $derived(
+    getPostSessionCoaching(currentCatalogTrack, chartInsight, pathContinuation),
+  );
 
   /** From Settings → Latency; applied to hit/miss only (highway unchanged). */
   let latencyOffsetMs = $state(0);
@@ -1291,6 +1301,16 @@
           {#if practiceRecommendation}
             <p class="chart-insight__note">{practiceRecommendation}</p>
           {/if}
+          {#if postSessionCoaching.length > 0}
+            <div class="coaching-notes">
+              {#each postSessionCoaching as note (note.id)}
+                <div class="coaching-note">
+                  <div class="coaching-note__title">{note.title}</div>
+                  <p class="coaching-note__body">{note.body}</p>
+                </div>
+              {/each}
+            </div>
+          {/if}
           {#if pathContinuation}
             <div class="path-continuation">
               <div class="path-continuation__title">{pathContinuation.pathTitle}</div>
@@ -1754,6 +1774,30 @@
   }
   .chart-insight__note {
     color: var(--ff-text);
+  }
+  .coaching-notes {
+    display: grid;
+    gap: 0.6rem;
+    margin-top: 0.75rem;
+  }
+  .coaching-note {
+    padding: 0.65rem 0.75rem;
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--ff-border) 75%, transparent);
+    background: color-mix(in srgb, var(--ff-bg) 78%, transparent);
+  }
+  .coaching-note__title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--ff-accent);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .coaching-note__body {
+    margin: 0.25rem 0 0;
+    font-size: 0.84rem;
+    color: var(--ff-text);
+    line-height: 1.5;
   }
   .path-continuation {
     margin-top: 0.75rem;
