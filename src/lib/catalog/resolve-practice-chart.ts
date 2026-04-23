@@ -1,6 +1,6 @@
 import { DEMO_CHART } from "$lib/chart/demo-chart";
 import type { FretflowChartV1 } from "$lib/chart/types";
-import { MOCK_CATALOG } from "./mock-catalog";
+import { findCatalogTrackById } from "./catalog-service";
 import { resolveUserChart } from "./user-charts";
 
 export type ResolvedPracticeChart = {
@@ -46,7 +46,7 @@ export function resolvePracticeChart(trackId: string | null | undefined): Resolv
     };
   }
 
-  const row = MOCK_CATALOG.find((r) => r.id === id);
+  const row = findCatalogTrackById(id);
   if (!row || row.tier === "premium") {
     return {
       chart: DEMO_CHART,

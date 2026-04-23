@@ -9,7 +9,7 @@
     recommendLearningPathSeed,
     type LearningPathProgress,
   } from "$lib/catalog/learning-paths";
-  import { MOCK_CATALOG } from "$lib/catalog/mock-catalog";
+  import { findCatalogTrackById } from "$lib/catalog/catalog-service";
   import { getRecommendedTracks, type RecommendedTrack } from "$lib/catalog/recommendations";
   import {
     getRecentSessions,
@@ -84,7 +84,7 @@
   function recommendedAssessmentTrack() {
     const trackId = onboarding?.assessment?.recommendedTrackId;
     if (!trackId) return null;
-    return MOCK_CATALOG.find((track) => track.id === trackId) ?? null;
+    return findCatalogTrackById(trackId);
   }
 
   function recommendedAssessmentPath() {

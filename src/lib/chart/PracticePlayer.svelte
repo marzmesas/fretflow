@@ -62,7 +62,7 @@
   } from "./practice-presets-storage";
   import { getOnboardingAssessment, markOnboardingStepCompleted } from "$lib/onboarding-storage";
   import { getLearningPathContinuation } from "$lib/catalog/learning-paths";
-  import { MOCK_CATALOG } from "$lib/catalog/mock-catalog";
+  import { findCatalogTrackById } from "$lib/catalog/catalog-service";
   import { getPostSessionCoaching } from "$lib/catalog/post-session-coaching";
   import { validateChart } from "./validate";
   import { resolvePracticeChart } from "$lib/catalog/resolve-practice-chart";
@@ -150,9 +150,7 @@
   );
   const practiceRecommendation = $derived(getPracticeRecommendation(chartInsight));
   const currentCatalogTrack = $derived.by(() => {
-    const normalizedTrackId = trackId?.trim();
-    if (!normalizedTrackId) return null;
-    return MOCK_CATALOG.find((track) => track.id === normalizedTrackId) ?? null;
+    return findCatalogTrackById(trackId);
   });
   const pathContinuation = $derived.by(() => {
     const pathId = getOnboardingAssessment()?.recommendedPathId;

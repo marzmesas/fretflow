@@ -1,6 +1,6 @@
 import type { SessionSummaryV1 } from "../chart/session-storage";
 import { getLatestSessionsByTrackId } from "../chart/session-storage";
-import { MOCK_CATALOG } from "./mock-catalog";
+import { findCatalogTrackById } from "./catalog-service";
 import type { CatalogTrackStub } from "./types";
 
 const DEFAULT_COMPLETION_ACCURACY_THRESHOLD = 85;
@@ -47,7 +47,7 @@ export type LearningPathContinuation = {
 };
 
 function trackById(trackId: string): CatalogTrackStub {
-  const track = MOCK_CATALOG.find((item) => item.id === trackId);
+  const track = findCatalogTrackById(trackId);
   if (track == null) {
     throw new Error(`Unknown learning path track: ${trackId}`);
   }

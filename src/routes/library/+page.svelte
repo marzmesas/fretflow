@@ -2,6 +2,12 @@
   import { page } from "$app/state";
   import { goto } from "$app/navigation";
   import {
+    findCatalogTrackById,
+    listCatalogSkillTags,
+    listCatalogTechniqueTags,
+    listCatalogTracks,
+  } from "$lib/catalog/catalog-service";
+  import {
     LEARNING_PATHS,
     getLearningPathById,
     getLearningPathTrackIds,
@@ -20,7 +26,6 @@
     removeFavoriteTrackId,
     toggleFavoriteTrackId,
   } from "$lib/catalog/favorites";
-  import { MOCK_CATALOG } from "$lib/catalog/mock-catalog";
   import { midiBufferToChart } from "$lib/catalog/midi-import";
   import { getRecommendedTracks, type RecommendedTrack } from "$lib/catalog/recommendations";
   import { addUserChart, getUserCharts, removeUserChart, type UserChartEntry } from "$lib/catalog/user-charts";
@@ -38,6 +43,7 @@
   type CollectionRow = FavoriteRow;
   const FILTERS = ["all", "free", "premium", "recent", "favorites", "collections", "mine"] as const;
   const initialCollections = getCollections();
+  const catalogTracks = listCatalogTracks();
 
   let filter = $state<Filter>("all");
   let userCharts = $state<UserChartEntry[]>(getUserCharts());
@@ -80,13 +86,13 @@
 
   function skillFromUrl(): CatalogSkillTag | null {
     const requested = page.url.searchParams.get("skill");
-    const available = new Set(MOCK_CATALOG.flatMap((track) => track.skillTags ?? []));
+    const available = new Set(listCatalogSkillTags());
     return requested != null && available.has(requested as CatalogSkillTag) ? (requested as CatalogSkillTag) : null;
   }
 
   function techniqueFromUrl(): CatalogTechniqueTag | null {
     const requested = page.url.searchParams.get("technique");
-    const available = new Set(MOCK_CATALOG.flatMap((track) => track.techniqueTags ?? []));
+    const available = new Set(listCatalogTechniqueTags());
     return requested != null && available.has(requested as CatalogTechniqueTag)
       ? (requested as CatalogTechniqueTag)
       : null;
@@ -171,7 +177,7 @@
     if (filter === "favorites") return [];
     if (filter === "recent") return [];
     if (filter === "collections") return [];
-    const base = filter === "all" ? MOCK_CATALOG : MOCK_CATALOG.filter((t) => t.tier === filter);
+    const base = filter === "all" ? catalogTracks : catalogTracks.filter((t) => t.tier === filter);
     return base.filter((track) => {
       if (activePathId !== "all" && !getLearningPathTrackIds(activePathId).includes(track.id)) {
         return false;
@@ -188,7 +194,7 @@
 
   const favoriteRows = $derived.by<FavoriteRow[]>(() => {
     const catalogRows = favoriteTrackIds
-      .map((id) => MOCK_CATALOG.find((track) => track.id === id))
+      .map((id) => findCatalogTrackById(id))
       .filter((track): track is CatalogTrackStub => track != null)
       .map((track) => ({ kind: "catalog", id: track.id, track }) as const);
     const userRows = favoriteTrackIds
@@ -201,7 +207,7 @@
   const recentRows = $derived.by<RecentRow[]>(() => {
     const rows = Object.entries(latestSessionByTrackId)
       .map(([id, recentSession]) => {
-        const track = MOCK_CATALOG.find((catalogTrack) => catalogTrack.id === id);
+        const track = findCatalogTrackById(id);
         if (track) {
           return { kind: "catalog", id, track, recentSession } as const;
         }
@@ -227,7 +233,7 @@
     if (collection == null) return [];
     return collection.trackIds
       .map((id) => {
-        const track = MOCK_CATALOG.find((catalogTrack) => catalogTrack.id === id);
+        const track = findCatalogTrackById(id);
         if (track) {
           return { kind: "catalog", id, track } as const;
         }
@@ -308,12 +314,12 @@
 
   function prerequisiteTracks(track: CatalogTrackStub): CatalogTrackStub[] {
     return (track.prerequisiteTrackIds ?? [])
-      .map((trackId) => MOCK_CATALOG.find((entry) => entry.id === trackId) ?? null)
+      .map((trackId) => findCatalogTrackById(trackId))
       .filter((entry): entry is CatalogTrackStub => entry != null);
   }
 
-  const skillTags = [...new Set(MOCK_CATALOG.flatMap((track) => track.skillTags ?? []))].sort();
-  const techniqueTags = [...new Set(MOCK_CATALOG.flatMap((track) => track.techniqueTags ?? []))].sort();
+  const skillTags = listCatalogSkillTags();
+  const techniqueTags = listCatalogTechniqueTags();
 
   function trackIsInActiveCollection(trackId: string): boolean {
     return activeCollection?.trackIds.includes(trackId) ?? false;
