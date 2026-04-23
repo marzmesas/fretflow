@@ -112,6 +112,23 @@
     void goto(`/practice?track=${encodeURIComponent(trackId)}`);
   }
 
+  function recommendedSetupAction() {
+    const assessment = onboarding?.assessment;
+    if (!assessment) return null;
+    if (assessment.experienceLevel === "brand_new") {
+      return {
+        title: "Use the chromatic tuner",
+        detail: "Brand-new players should verify a clean note first so mic scoring feels trustworthy before the first run.",
+        href: "/settings#audio-input-section",
+      };
+    }
+    return {
+      title: "Run latency calibration",
+      detail: "Returning or comfortable players usually get more value from tightening timing alignment before serious scored practice.",
+      href: "/settings#latency-section",
+    };
+  }
+
   function openLastSession() {
     const trackId = lastSession?.practiceTrackId?.trim();
     if (trackId) {
@@ -196,6 +213,7 @@
     {@const nextStep = nextOnboardingStep()}
     {@const seededTrack = recommendedAssessmentTrack()}
     {@const seededPath = recommendedAssessmentPath()}
+    {@const setupAction = recommendedSetupAction()}
     <div class="panel onboarding-panel">
       <div class="onboarding-panel__header">
         <div>
@@ -237,6 +255,15 @@
           <p class="assessment-panel__result">
             Recommended path: <strong>{seededPath.title}</strong> · Start with <strong>{seededTrack.title}</strong>.
           </p>
+        {/if}
+        {#if setupAction}
+          <div class="assessment-setup">
+            <div>
+              <strong>{setupAction.title}</strong>
+              <p>{setupAction.detail}</p>
+            </div>
+            <a href={setupAction.href} class="btn">Open in Settings</a>
+          </div>
         {/if}
       </div>
       <div class="onboarding-panel__progress" role="list" aria-label="Setup steps">
@@ -727,6 +754,20 @@
     gap: 0.65rem;
     flex-wrap: wrap;
     align-items: end;
+  }
+  .assessment-setup {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    padding-top: 0.75rem;
+    border-top: 1px solid color-mix(in srgb, var(--ff-border) 70%, transparent);
+  }
+  .assessment-setup p {
+    margin: 0.25rem 0 0;
+    color: var(--ff-muted);
+    line-height: 1.5;
   }
   .assessment-field {
     display: grid;
