@@ -1,5 +1,5 @@
-import { MOCK_CATALOG } from "./mock-catalog";
 import type { CatalogSkillTag, CatalogTechniqueTag, CatalogTrackStub } from "./types";
+import { buildMockRemoteCatalogPayload, normalizeRemoteCatalogPayload } from "./remote-catalog";
 
 export type CatalogSnapshot = {
   tracks: CatalogTrackStub[];
@@ -9,11 +9,12 @@ export type CatalogSnapshot = {
 };
 
 function buildCatalogSnapshot(): CatalogSnapshot {
+  const tracks = normalizeRemoteCatalogPayload(buildMockRemoteCatalogPayload());
   return {
-    tracks: MOCK_CATALOG,
-    skillTags: [...new Set(MOCK_CATALOG.flatMap((track) => track.skillTags ?? []))].sort(),
-    techniqueTags: [...new Set(MOCK_CATALOG.flatMap((track) => track.techniqueTags ?? []))].sort(),
-    playableBundledTracks: MOCK_CATALOG.filter(
+    tracks,
+    skillTags: [...new Set(tracks.flatMap((track) => track.skillTags ?? []))].sort(),
+    techniqueTags: [...new Set(tracks.flatMap((track) => track.techniqueTags ?? []))].sort(),
+    playableBundledTracks: tracks.filter(
       (track) =>
         track.tier === "free" &&
         !track.locked &&
@@ -37,7 +38,7 @@ export function listCatalogTracks(): CatalogTrackStub[] {
 export function findCatalogTrackById(trackId: string | null | undefined): CatalogTrackStub | null {
   const normalizedTrackId = trackId?.trim();
   if (!normalizedTrackId) return null;
-  return MOCK_CATALOG.find((track) => track.id === normalizedTrackId) ?? null;
+  return getCatalogSnapshot().tracks.find((track) => track.id === normalizedTrackId) ?? null;
 }
 
 export function listCatalogSkillTags(): CatalogSkillTag[] {
