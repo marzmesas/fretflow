@@ -1,4 +1,4 @@
-import { MOCK_CATALOG } from "./mock-catalog";
+import { listPlayableBundledCatalogTracks } from "./catalog-service";
 import type { CatalogDifficulty, CatalogTrackStub } from "./types";
 import type { SessionSummaryV1 } from "$lib/chart/session-storage";
 
@@ -15,17 +15,8 @@ function difficultyIndex(difficulty: CatalogDifficulty | undefined): number {
   return index === -1 ? 0 : index;
 }
 
-function playableBundledTracks(): CatalogTrackStub[] {
-  return MOCK_CATALOG.filter(
-    (track) =>
-      track.tier === "free" &&
-      !track.locked &&
-      (track.practiceChartKey === "bundled" || track.practiceChartKey === "demo"),
-  );
-}
-
 export function getRecommendedTracks(history: SessionSummaryV1[], limit = 3): RecommendedTrack[] {
-  const bundled = playableBundledTracks();
+  const bundled = listPlayableBundledCatalogTracks();
   if (bundled.length === 0) return [];
 
   const practicedTrackIds = history

@@ -18,3 +18,12 @@ export function listCatalogSkillTags(): CatalogSkillTag[] {
 export function listCatalogTechniqueTags(): CatalogTechniqueTag[] {
   return [...new Set(MOCK_CATALOG.flatMap((track) => track.techniqueTags ?? []))].sort();
 }
+
+export function listPlayableBundledCatalogTracks(): CatalogTrackStub[] {
+  return MOCK_CATALOG.filter(
+    (track) =>
+      track.tier === "free" &&
+      !track.locked &&
+      (track.practiceChartKey === "bundled" || track.practiceChartKey === "demo"),
+  );
+}
