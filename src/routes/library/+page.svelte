@@ -1,11 +1,11 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import { page } from "$app/state";
   import { goto } from "$app/navigation";
   import {
     findCatalogTrackById,
-    listCatalogSkillTags,
-    listCatalogTechniqueTags,
-    listCatalogTracks,
+    getCatalogSnapshot,
+    loadCatalogSnapshot,
   } from "$lib/catalog/catalog-service";
   import {
     LEARNING_PATHS,
@@ -43,9 +43,10 @@
   type CollectionRow = FavoriteRow;
   const FILTERS = ["all", "free", "premium", "recent", "favorites", "collections", "mine"] as const;
   const initialCollections = getCollections();
-  const catalogTracks = listCatalogTracks();
+  const initialCatalog = getCatalogSnapshot();
 
   let filter = $state<Filter>("all");
+  let catalogTracks = $state<CatalogTrackStub[]>(initialCatalog.tracks);
   let userCharts = $state<UserChartEntry[]>(getUserCharts());
   let favoriteTrackIds = $state<string[]>(getFavoriteTrackIds());
   const initialHistory = loadSessionHistory();
@@ -59,6 +60,8 @@
   let newCollectionName = $state("");
   let importError = $state<string | null>(null);
   let importWarnings = $state<string[]>([]);
+  let skillTags = $state<CatalogSkillTag[]>(initialCatalog.skillTags);
+  let techniqueTags = $state<CatalogTechniqueTag[]>(initialCatalog.techniqueTags);
 
   function isFilter(value: string | null): value is Filter {
     return value != null && (FILTERS as readonly string[]).includes(value);
@@ -86,13 +89,13 @@
 
   function skillFromUrl(): CatalogSkillTag | null {
     const requested = page.url.searchParams.get("skill");
-    const available = new Set(listCatalogSkillTags());
+    const available = new Set(skillTags);
     return requested != null && available.has(requested as CatalogSkillTag) ? (requested as CatalogSkillTag) : null;
   }
 
   function techniqueFromUrl(): CatalogTechniqueTag | null {
     const requested = page.url.searchParams.get("technique");
-    const available = new Set(listCatalogTechniqueTags());
+    const available = new Set(techniqueTags);
     return requested != null && available.has(requested as CatalogTechniqueTag)
       ? (requested as CatalogTechniqueTag)
       : null;
@@ -318,8 +321,14 @@
       .filter((entry): entry is CatalogTrackStub => entry != null);
   }
 
-  const skillTags = listCatalogSkillTags();
-  const techniqueTags = listCatalogTechniqueTags();
+  onMount(() => {
+    void (async () => {
+      const snapshot = await loadCatalogSnapshot();
+      catalogTracks = snapshot.tracks;
+      skillTags = snapshot.skillTags;
+      techniqueTags = snapshot.techniqueTags;
+    })();
+  });
 
   function trackIsInActiveCollection(trackId: string): boolean {
     return activeCollection?.trackIds.includes(trackId) ?? false;

@@ -1,8 +1,37 @@
 import { MOCK_CATALOG } from "./mock-catalog";
 import type { CatalogSkillTag, CatalogTechniqueTag, CatalogTrackStub } from "./types";
 
+export type CatalogSnapshot = {
+  tracks: CatalogTrackStub[];
+  skillTags: CatalogSkillTag[];
+  techniqueTags: CatalogTechniqueTag[];
+  playableBundledTracks: CatalogTrackStub[];
+};
+
+function buildCatalogSnapshot(): CatalogSnapshot {
+  return {
+    tracks: MOCK_CATALOG,
+    skillTags: [...new Set(MOCK_CATALOG.flatMap((track) => track.skillTags ?? []))].sort(),
+    techniqueTags: [...new Set(MOCK_CATALOG.flatMap((track) => track.techniqueTags ?? []))].sort(),
+    playableBundledTracks: MOCK_CATALOG.filter(
+      (track) =>
+        track.tier === "free" &&
+        !track.locked &&
+        (track.practiceChartKey === "bundled" || track.practiceChartKey === "demo"),
+    ),
+  };
+}
+
+export function getCatalogSnapshot(): CatalogSnapshot {
+  return buildCatalogSnapshot();
+}
+
+export async function loadCatalogSnapshot(): Promise<CatalogSnapshot> {
+  return buildCatalogSnapshot();
+}
+
 export function listCatalogTracks(): CatalogTrackStub[] {
-  return MOCK_CATALOG;
+  return getCatalogSnapshot().tracks;
 }
 
 export function findCatalogTrackById(trackId: string | null | undefined): CatalogTrackStub | null {
@@ -12,18 +41,13 @@ export function findCatalogTrackById(trackId: string | null | undefined): Catalo
 }
 
 export function listCatalogSkillTags(): CatalogSkillTag[] {
-  return [...new Set(MOCK_CATALOG.flatMap((track) => track.skillTags ?? []))].sort();
+  return getCatalogSnapshot().skillTags;
 }
 
 export function listCatalogTechniqueTags(): CatalogTechniqueTag[] {
-  return [...new Set(MOCK_CATALOG.flatMap((track) => track.techniqueTags ?? []))].sort();
+  return getCatalogSnapshot().techniqueTags;
 }
 
 export function listPlayableBundledCatalogTracks(): CatalogTrackStub[] {
-  return MOCK_CATALOG.filter(
-    (track) =>
-      track.tier === "free" &&
-      !track.locked &&
-      (track.practiceChartKey === "bundled" || track.practiceChartKey === "demo"),
-  );
+  return getCatalogSnapshot().playableBundledTracks;
 }
