@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { sendPendingAnalyticsBatch, getPendingAnalyticsEventCount } from "./delivery";
+import {
+  getAnalyticsDeliveryStatus,
+  getPendingAnalyticsEventCount,
+  maybeSendScheduledAnalyticsBatch,
+  sendPendingAnalyticsBatch,
+  shouldRetryAnalyticsNow,
+} from "./delivery";
 import { clearAnalyticsEvents, trackAnalyticsEvent } from "./events";
 
 describe("analytics delivery", () => {
@@ -72,6 +78,48 @@ describe("analytics delivery", () => {
     ).resolves.toEqual({
       status: "skipped",
       reason: "no_events",
+    });
+  });
+
+  it("records retry metadata after a failed delivery", async () => {
+    trackAnalyticsEvent("latency_calibration_started", { method: "tap" });
+    await expect(
+      sendPendingAnalyticsBatch({
+        apiBaseUrl: "http://127.0.0.1:8787",
+        fetchImpl: vi.fn(async () => ({
+          ok: false,
+          status: 503,
+        })) as unknown as typeof fetch,
+      }),
+    ).rejects.toThrow("analytics batch delivery failed: 503");
+
+    const status = getAnalyticsDeliveryStatus();
+    expect(status.consecutiveFailures).toBe(1);
+    expect(status.lastError).toContain("503");
+    expect(status.nextRetryAt).toEqual(expect.any(String));
+    expect(shouldRetryAnalyticsNow(new Date(Date.parse(status.nextRetryAt!) - 1))).toBe(false);
+  });
+
+  it("skips scheduled delivery until the retry window is due", async () => {
+    trackAnalyticsEvent("latency_calibration_started", { method: "tap" });
+    await expect(
+      sendPendingAnalyticsBatch({
+        apiBaseUrl: "http://127.0.0.1:8787",
+        fetchImpl: vi.fn(async () => ({
+          ok: false,
+          status: 503,
+        })) as unknown as typeof fetch,
+      }),
+    ).rejects.toThrow();
+
+    await expect(
+      maybeSendScheduledAnalyticsBatch({
+        apiBaseUrl: "http://127.0.0.1:8787",
+        fetchImpl: vi.fn(),
+      }),
+    ).resolves.toEqual({
+      status: "skipped",
+      reason: "retry_not_due",
     });
   });
 });

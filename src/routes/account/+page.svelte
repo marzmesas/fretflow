@@ -18,7 +18,9 @@
     type CatalogSourceMode,
   } from "$lib/catalog/catalog-source";
   import {
+    getAnalyticsDeliveryStatus,
     getPendingAnalyticsEventCount,
+    maybeSendScheduledAnalyticsBatch,
     sendPendingAnalyticsBatch,
   } from "$lib/analytics/delivery";
   import type { RemoteCatalogMigrationTarget } from "$lib/catalog/remote-catalog";
@@ -40,6 +42,7 @@
   let analyticsError = $state<string | null>(null);
   let analyticsStatus = $state<string | null>(null);
   let pendingAnalyticsEvents = $state(0);
+  let analyticsRetryAt = $state<string | null>(null);
   const catalogMigrationTarget = getCatalogMigrationTarget();
 
   const syncCandidatePolicies = listMutationPoliciesByOwnership("sync_candidate");
@@ -87,6 +90,7 @@
       subscriptionApiBase = subscription.apiBaseUrl;
       subscriptionError = null;
       refreshProfile(session, subscription);
+      void maybeSendScheduledAnalyticsNow();
     } catch (e) {
       subscription = null;
       subscriptionError = e instanceof Error ? e.message : String(e);
@@ -134,6 +138,7 @@
       subscription = await invoke<SubscriptionState>("sync_subscription_now");
       subscriptionApiBase = subscription.apiBaseUrl;
       refreshProfile(session, subscription);
+      void maybeSendScheduledAnalyticsNow();
     } catch (e) {
       subscriptionError = e instanceof Error ? e.message : String(e);
     } finally {
@@ -151,6 +156,7 @@
       });
       subscriptionApiBase = subscription.apiBaseUrl;
       refreshProfile(session, subscription);
+      void maybeSendScheduledAnalyticsNow();
     } catch (e) {
       subscriptionError = e instanceof Error ? e.message : String(e);
     } finally {
@@ -165,6 +171,7 @@
 
   function refreshAnalyticsState(): void {
     pendingAnalyticsEvents = getPendingAnalyticsEventCount();
+    analyticsRetryAt = getAnalyticsDeliveryStatus().nextRetryAt;
     refreshProfile(session, subscription);
   }
 
@@ -198,6 +205,24 @@
     } finally {
       refreshAnalyticsState();
       sendingAnalytics = false;
+    }
+  }
+
+  async function maybeSendScheduledAnalyticsNow() {
+    analyticsError = null;
+    try {
+      const result = await maybeSendScheduledAnalyticsBatch({
+        apiBaseUrl: subscriptionApiBase,
+      });
+      if (result.status === "sent") {
+        analyticsStatus = `Sent ${result.acceptedEvents} analytics event${
+          result.acceptedEvents === 1 ? "" : "s"
+        } after retry scheduling.`;
+      }
+    } catch (e) {
+      analyticsError = e instanceof Error ? e.message : String(e);
+    } finally {
+      refreshAnalyticsState();
     }
   }
 
@@ -268,6 +293,7 @@
     void refreshSession();
     void refreshSubscription();
     refreshAnalyticsState();
+    void maybeSendScheduledAnalyticsNow();
   });
 </script>
 
@@ -478,6 +504,11 @@
           {/if}
           {#if analyticsStatus}
             <p class="muted account-footnote">{analyticsStatus}</p>
+          {/if}
+          {#if analyticsRetryAt}
+            <p class="muted account-footnote">
+              Next retry window: {new Date(analyticsRetryAt).toLocaleString()}
+            </p>
           {/if}
           <div class="account-actions">
             <button
