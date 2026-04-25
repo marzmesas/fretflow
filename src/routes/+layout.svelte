@@ -4,6 +4,10 @@
   import { page } from "$app/stores";
   import { onDestroy, onMount } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
+  import {
+    loadLocalFrontendUserProfile,
+    type FrontendUserProfile,
+  } from "$lib/account/profile";
   import type { AppSession, InputConnectionStatus } from "$lib/ipc";
   import { isTauri } from "$lib/tauri-env";
 
@@ -16,12 +20,22 @@
 
   let connectionStatus = $state<InputConnectionStatus | null>(null);
   let session = $state<AppSession | null>(null);
+  let profile = $state<FrontendUserProfile | null>(null);
   let pollId: ReturnType<typeof setInterval> | null = null;
+
+  function refreshProfile(nextSession: AppSession | null): void {
+    if (!isTauri()) {
+      profile = null;
+      return;
+    }
+    profile = loadLocalFrontendUserProfile(nextSession, null);
+  }
 
   async function refreshShellState() {
     if (!isTauri()) {
       connectionStatus = null;
       session = null;
+      profile = null;
       return;
     }
     try {
@@ -34,6 +48,7 @@
     } catch {
       session = null;
     }
+    refreshProfile(session);
   }
 
   onMount(() => {
@@ -67,12 +82,12 @@
         <a
           href="/account"
           class="connection-pill session-account-pill"
-          class:connection-pill--on={session?.signedIn ?? false}
+          class:connection-pill--on={profile?.auth.signedIn ?? false}
           aria-current={$page.url.pathname === "/account" ? "page" : undefined}
           title="Account"
         >
-          {#if session?.signedIn}
-            {session.displayName || "Dev"}
+          {#if profile?.auth.signedIn}
+            {profile.auth.accountLabel}
           {:else}
             Sign in
           {/if}

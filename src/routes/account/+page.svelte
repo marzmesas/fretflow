@@ -2,6 +2,10 @@
   import { invoke } from "@tauri-apps/api/core";
   import { onMount } from "svelte";
   import {
+    loadLocalFrontendUserProfile,
+    type FrontendUserProfile,
+  } from "$lib/account/profile";
+  import {
     listMutationPoliciesByOwnership,
     type CatalogMutationPolicy,
     type MutationOwnership,
@@ -17,6 +21,7 @@
 
   let session = $state<AppSession | null>(null);
   let subscription = $state<SubscriptionState | null>(null);
+  let profile = $state<FrontendUserProfile | null>(null);
   let displayName = $state("");
   let subscriptionApiBase = $state("");
   let busy = $state(false);
@@ -34,17 +39,32 @@
   const localOnlyPolicies = listMutationPoliciesByOwnership("local_only");
   const laterPolicies = listMutationPoliciesByOwnership("server_backed_later");
 
+  function refreshProfile(
+    nextSession: AppSession | null = session,
+    nextSubscription: SubscriptionState | null = subscription,
+  ): void {
+    if (!isTauri()) {
+      profile = null;
+      return;
+    }
+    profile = loadLocalFrontendUserProfile(nextSession, nextSubscription);
+    pendingAnalyticsEvents = profile.analytics.pendingEvents;
+  }
+
   async function refreshSession() {
     if (!isTauri()) {
       session = null;
+      profile = null;
       return;
     }
     try {
       session = await invoke<AppSession>("get_session");
       error = null;
+      refreshProfile(session, subscription);
     } catch (e) {
       session = null;
       error = e instanceof Error ? e.message : String(e);
+      refreshProfile(null, subscription);
     }
   }
 
@@ -52,15 +72,18 @@
     if (!isTauri()) {
       subscription = null;
       subscriptionApiBase = "";
+      profile = null;
       return;
     }
     try {
       subscription = await invoke<SubscriptionState>("get_subscription_state");
       subscriptionApiBase = subscription.apiBaseUrl;
       subscriptionError = null;
+      refreshProfile(session, subscription);
     } catch (e) {
       subscription = null;
       subscriptionError = e instanceof Error ? e.message : String(e);
+      refreshProfile(session, null);
     }
   }
 
@@ -73,6 +96,7 @@
       session = await invoke<AppSession>("dev_sign_in", {
         payload: { displayName: name || null },
       });
+      refreshProfile(session, subscription);
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
     } finally {
@@ -87,6 +111,7 @@
     try {
       session = await invoke<AppSession>("sign_out");
       displayName = "";
+      refreshProfile(session, subscription);
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
     } finally {
@@ -101,6 +126,7 @@
     try {
       subscription = await invoke<SubscriptionState>("sync_subscription_now");
       subscriptionApiBase = subscription.apiBaseUrl;
+      refreshProfile(session, subscription);
     } catch (e) {
       subscriptionError = e instanceof Error ? e.message : String(e);
     } finally {
@@ -117,6 +143,7 @@
         payload: { url: subscriptionApiBase.trim() },
       });
       subscriptionApiBase = subscription.apiBaseUrl;
+      refreshProfile(session, subscription);
     } catch (e) {
       subscriptionError = e instanceof Error ? e.message : String(e);
     } finally {
@@ -126,6 +153,7 @@
 
   function refreshAnalyticsState(): void {
     pendingAnalyticsEvents = getPendingAnalyticsEventCount();
+    refreshProfile(session, subscription);
   }
 
   async function sendAnalyticsBatchNow() {
@@ -245,24 +273,68 @@
 
   <div class="account-grid">
     <div class="panel account-panel">
+      <div class="account-panel__header">
+        <div>
+          <h2>Profile</h2>
+          <p class="muted" style="margin: 0.25rem 0 0; font-size: 0.88rem">
+            This is the frontend boundary that should survive the move from local dev auth to real
+            accounts.
+          </p>
+        </div>
+      </div>
+
+      {#if profile}
+        <div class="subscription-grid">
+          <div class="subscription-stat">
+            <span class="muted">Identity</span>
+            <strong>{profile.auth.accountLabel}</strong>
+          </div>
+          <div class="subscription-stat">
+            <span class="muted">Auth state</span>
+            <strong>{profile.auth.state === "local_dev" ? "Local dev" : "Guest"}</strong>
+          </div>
+          <div class="subscription-stat">
+            <span class="muted">Recommended path</span>
+            <strong>{profile.learning.recommendedPathTitle ?? "Not set"}</strong>
+          </div>
+          <div class="subscription-stat">
+            <span class="muted">Daily goal</span>
+            <strong>{profile.practice.goalProgress}</strong>
+          </div>
+        </div>
+
+        <p class="muted account-footnote">
+          {#if profile.learning.recommendedTrackTitle}
+            Next seeded chart: {profile.learning.recommendedTrackTitle}.
+          {:else}
+            No onboarding seed saved yet.
+          {/if}
+          Pending analytics events: {profile.analytics.pendingEvents}.
+        </p>
+      {:else}
+        <p class="muted" style="margin: 0">Loading profile…</p>
+      {/if}
+    </div>
+
+    <div class="panel account-panel">
       <h2>Session</h2>
-      {#if session}
-        {#if session.signedIn}
+      {#if session && profile}
+        {#if profile.auth.signedIn}
           <p style="margin: 0 0 0.5rem">
-            Signed in as <strong>{session.authKind ?? "?"}</strong>
-            {#if session.displayName}
-              · {session.displayName}
+            Signed in as <strong>{profile.auth.authKind ?? "?"}</strong>
+            {#if profile.auth.displayName}
+              · {profile.auth.displayName}
             {/if}
           </p>
-          {#if session.signedInAtUnixMs != null}
+          {#if profile.auth.signedInAtUnixMs != null}
             <p class="muted" style="margin: 0 0 0.75rem; font-size: 0.88rem">
-              Since {new Date(session.signedInAtUnixMs).toLocaleString()}
+              Since {new Date(profile.auth.signedInAtUnixMs).toLocaleString()}
             </p>
           {/if}
-          {#if session.entitlements.length > 0}
+          {#if profile.auth.entitlements.length > 0}
             <p class="muted" style="margin: 0 0 0.5rem; font-size: 0.85rem">Capabilities</p>
             <ul class="account-list">
-              {#each session.entitlements as e (e)}
+              {#each profile.auth.entitlements as e (e)}
                 <li><code>{e}</code></li>
               {/each}
             </ul>
@@ -317,11 +389,11 @@
         <div class="subscription-grid">
           <div class="subscription-stat">
             <span class="muted">Plan</span>
-            <strong>{subscription.tier ?? "None"}</strong>
+            <strong>{profile?.subscription.tier ?? subscription.tier ?? "None"}</strong>
           </div>
           <div class="subscription-stat">
             <span class="muted">Status</span>
-            <strong>{subscription.subscriptionStatus}</strong>
+            <strong>{profile?.subscription.status ?? subscription.subscriptionStatus}</strong>
           </div>
           <div class="subscription-stat">
             <span class="muted">Valid until</span>
@@ -385,7 +457,7 @@
           <div class="subscription-grid">
             <div class="subscription-stat">
               <span class="muted">Pending events</span>
-              <strong>{pendingAnalyticsEvents}</strong>
+              <strong>{profile?.analytics.pendingEvents ?? pendingAnalyticsEvents}</strong>
             </div>
           </div>
           {#if analyticsError}
