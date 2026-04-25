@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
+  buildPendingAnalyticsBatch,
   clearAnalyticsEvents,
   confidenceBucket,
   loadAnalyticsEvents,
+  markAnalyticsBatchSent,
   trackAnalyticsEvent,
 } from "./events";
 
@@ -41,6 +43,8 @@ describe("analytics events", () => {
       name: "latency_calibration_started",
       payload: { method: "tap" },
     });
+    expect(event?.id).toEqual(expect.any(String));
+    expect(event?.sentAt).toBeNull();
   });
 
   it("clears stored events", () => {
@@ -53,5 +57,17 @@ describe("analytics events", () => {
     expect(confidenceBucket(0.2)).toBe("low");
     expect(confidenceBucket(0.5)).toBe("medium");
     expect(confidenceBucket(0.92)).toBe("high");
+  });
+
+  it("builds and marks a pending analytics batch", () => {
+    const event = trackAnalyticsEvent("latency_calibration_started", { method: "tap" });
+    const batch = buildPendingAnalyticsBatch();
+    expect(batch).not.toBeNull();
+    expect(batch?.schemaVersion).toBe(1);
+    expect(batch?.events[0]?.id).toBe(event.id);
+
+    markAnalyticsBatchSent([event.id]);
+    expect(buildPendingAnalyticsBatch()).toBeNull();
+    expect(loadAnalyticsEvents()[0]?.sentAt).toEqual(expect.any(String));
   });
 });
