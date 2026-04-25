@@ -7,6 +7,10 @@
     type MutationOwnership,
   } from "$lib/catalog/mutation-policies";
   import { getCatalogMigrationTarget } from "$lib/catalog/catalog-service";
+  import {
+    getPendingAnalyticsEventCount,
+    sendPendingAnalyticsBatch,
+  } from "$lib/analytics/delivery";
   import type { RemoteCatalogMigrationTarget } from "$lib/catalog/remote-catalog";
   import type { AppSession, SubscriptionState } from "$lib/ipc";
   import { isTauri } from "$lib/tauri-env";
@@ -18,8 +22,12 @@
   let busy = $state(false);
   let syncingSubscription = $state(false);
   let savingApiBase = $state(false);
+  let sendingAnalytics = $state(false);
   let error = $state<string | null>(null);
   let subscriptionError = $state<string | null>(null);
+  let analyticsError = $state<string | null>(null);
+  let analyticsStatus = $state<string | null>(null);
+  let pendingAnalyticsEvents = $state(0);
   const catalogMigrationTarget = getCatalogMigrationTarget();
 
   const syncCandidatePolicies = listMutationPoliciesByOwnership("sync_candidate");
@@ -116,6 +124,43 @@
     }
   }
 
+  function refreshAnalyticsState(): void {
+    pendingAnalyticsEvents = getPendingAnalyticsEventCount();
+  }
+
+  async function sendAnalyticsBatchNow() {
+    sendingAnalytics = true;
+    analyticsError = null;
+    analyticsStatus = null;
+    try {
+      const result = await sendPendingAnalyticsBatch({
+        apiBaseUrl: subscriptionApiBase,
+      });
+      switch (result.status) {
+        case "skipped":
+          analyticsStatus =
+            result.reason === "missing_api_base"
+              ? "Set the API base before sending analytics."
+              : "No pending analytics events to send.";
+          break;
+        case "sent":
+          analyticsStatus = `Sent ${result.acceptedEvents} analytics event${
+            result.acceptedEvents === 1 ? "" : "s"
+          }.`;
+          break;
+        default: {
+          const exhaustiveCheck: never = result;
+          throw new Error(`Unhandled analytics send result: ${exhaustiveCheck}`);
+        }
+      }
+    } catch (e) {
+      analyticsError = e instanceof Error ? e.message : String(e);
+    } finally {
+      refreshAnalyticsState();
+      sendingAnalytics = false;
+    }
+  }
+
   function formatTimestamp(unixMs: number | null): string {
     if (unixMs == null || unixMs <= 0) return "Never";
     return new Date(unixMs).toLocaleString();
@@ -181,6 +226,7 @@
   onMount(() => {
     void refreshSession();
     void refreshSubscription();
+    refreshAnalyticsState();
   });
 </script>
 
@@ -326,6 +372,38 @@
           >
             {syncingSubscription ? "Syncing…" : "Sync now"}
           </button>
+        </div>
+
+        <div class="account-divider"></div>
+
+        <div class="policy-group">
+          <h3>Analytics delivery</h3>
+          <p class="muted" style="margin: 0; font-size: 0.88rem">
+            Uses the same API base and posts the first local analytics batch envelope to the
+            server.
+          </p>
+          <div class="subscription-grid">
+            <div class="subscription-stat">
+              <span class="muted">Pending events</span>
+              <strong>{pendingAnalyticsEvents}</strong>
+            </div>
+          </div>
+          {#if analyticsError}
+            <p class="account-error">{analyticsError}</p>
+          {/if}
+          {#if analyticsStatus}
+            <p class="muted account-footnote">{analyticsStatus}</p>
+          {/if}
+          <div class="account-actions">
+            <button
+              type="button"
+              class="btn"
+              onclick={sendAnalyticsBatchNow}
+              disabled={sendingAnalytics || savingApiBase || syncingSubscription}
+            >
+              {sendingAnalytics ? "Sending…" : "Send analytics batch"}
+            </button>
+          </div>
         </div>
       {:else}
         <p class="muted" style="margin: 0">Loading subscription state…</p>
@@ -482,6 +560,10 @@
     display: flex;
     gap: 0.65rem;
     flex-wrap: wrap;
+  }
+
+  .account-divider {
+    border-top: 1px solid var(--ff-border);
   }
 
   .subscription-grid {

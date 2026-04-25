@@ -5,6 +5,7 @@
 import cors from "cors";
 import express from "express";
 import Stripe from "stripe";
+import { isAnalyticsBatchV1 } from "./analytics.js";
 import { buildMockCatalogPayload } from "./catalog.js";
 
 const PORT = Number(process.env.PORT) || 8787;
@@ -36,6 +37,23 @@ app.get("/api/v1/subscription", (_req, res) => {
 /** Metadata-only catalog seed for frontend migration away from hardcoded catalog access. */
 app.get("/api/v1/catalog", (_req, res) => {
   res.json(buildMockCatalogPayload());
+});
+
+app.post("/api/v1/analytics/batch", express.json({ limit: "256kb" }), (req, res) => {
+  if (!isAnalyticsBatchV1(req.body)) {
+    return res.status(400).json({ error: "Invalid analytics batch payload" });
+  }
+  console.info(
+    "[fretflow-server] analytics batch:",
+    req.body.batchId,
+    `events=${req.body.events.length}`,
+  );
+  return res.json({
+    schemaVersion: 1,
+    received: true,
+    batchId: req.body.batchId,
+    acceptedEvents: req.body.events.length,
+  });
 });
 
 app.post(
