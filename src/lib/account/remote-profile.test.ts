@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildRemoteUserProfileSeed } from "./remote-profile";
+import { buildRemoteUserProfileSeed, loadRemoteUserProfile } from "./remote-profile";
 import type { FrontendUserProfile } from "./profile";
 
 function makeProfile(overrides: Partial<FrontendUserProfile> = {}): FrontendUserProfile {
@@ -93,5 +93,26 @@ describe("remote profile seed", () => {
         dailyGoalSessions: 2,
       },
     });
+  });
+
+  it("loads the remote profile payload from the API", async () => {
+    const profile = await loadRemoteUserProfile({
+      apiBaseUrl: "http://127.0.0.1:8787",
+      fetchImpl: (async () => ({
+        ok: true,
+        json: async () => ({
+          schemaVersion: 1,
+          fields: {
+            displayName: "Local dev",
+            practiceGoal: "fundamentals",
+            recommendedPathId: "starter",
+            recommendedTrackId: "bundled-one-note",
+            dailyGoalSessions: 1,
+          },
+        }),
+      })) as unknown as typeof fetch,
+    });
+
+    expect(profile.fields.recommendedPathId).toBe("starter");
   });
 });

@@ -5,7 +5,11 @@
     loadLocalFrontendUserProfile,
     type FrontendUserProfile,
   } from "$lib/account/profile";
-  import { buildRemoteUserProfileSeed } from "$lib/account/remote-profile";
+  import {
+    buildRemoteUserProfileSeed,
+    loadRemoteUserProfile,
+    type RemoteUserProfileV1,
+  } from "$lib/account/remote-profile";
   import {
     listMutationPoliciesByOwnership,
     type CatalogMutationPolicy,
@@ -43,6 +47,9 @@
   let analyticsStatus = $state<string | null>(null);
   let pendingAnalyticsEvents = $state(0);
   let analyticsRetryAt = $state<string | null>(null);
+  let remoteProfile = $state<RemoteUserProfileV1 | null>(null);
+  let remoteProfileError = $state<string | null>(null);
+  let loadingRemoteProfile = $state(false);
   const catalogMigrationTarget = getCatalogMigrationTarget();
 
   const syncCandidatePolicies = listMutationPoliciesByOwnership("sync_candidate");
@@ -91,6 +98,7 @@
       subscriptionError = null;
       refreshProfile(session, subscription);
       void maybeSendScheduledAnalyticsNow();
+      void refreshRemoteProfile();
     } catch (e) {
       subscription = null;
       subscriptionError = e instanceof Error ? e.message : String(e);
@@ -139,6 +147,7 @@
       subscriptionApiBase = subscription.apiBaseUrl;
       refreshProfile(session, subscription);
       void maybeSendScheduledAnalyticsNow();
+      void refreshRemoteProfile();
     } catch (e) {
       subscriptionError = e instanceof Error ? e.message : String(e);
     } finally {
@@ -157,10 +166,34 @@
       subscriptionApiBase = subscription.apiBaseUrl;
       refreshProfile(session, subscription);
       void maybeSendScheduledAnalyticsNow();
+      void refreshRemoteProfile();
     } catch (e) {
       subscriptionError = e instanceof Error ? e.message : String(e);
     } finally {
       savingApiBase = false;
+    }
+  }
+
+  async function refreshRemoteProfile() {
+    if (!isTauri()) {
+      remoteProfile = null;
+      return;
+    }
+    const apiBaseUrl = subscriptionApiBase.trim();
+    if (apiBaseUrl === "") {
+      remoteProfile = null;
+      remoteProfileError = null;
+      return;
+    }
+    loadingRemoteProfile = true;
+    remoteProfileError = null;
+    try {
+      remoteProfile = await loadRemoteUserProfile({ apiBaseUrl });
+    } catch (e) {
+      remoteProfile = null;
+      remoteProfileError = e instanceof Error ? e.message : String(e);
+    } finally {
+      loadingRemoteProfile = false;
     }
   }
 
@@ -294,6 +327,7 @@
     void refreshSubscription();
     refreshAnalyticsState();
     void maybeSendScheduledAnalyticsNow();
+    void refreshRemoteProfile();
   });
 </script>
 
@@ -648,6 +682,29 @@
               </div>
             </li>
           </ul>
+        </div>
+
+        <div class="policy-group">
+          <div class="policy-item">
+            <div class="policy-item__header">
+              <strong>Remote profile preview</strong>
+              <button type="button" class="btn" onclick={refreshRemoteProfile} disabled={loadingRemoteProfile}>
+                {loadingRemoteProfile ? "Loading…" : "Refresh"}
+              </button>
+            </div>
+            {#if remoteProfileError}
+              <p class="account-error">{remoteProfileError}</p>
+            {:else if remoteProfile}
+              <p class="muted">
+                Remote display name: <strong>{remoteProfile.fields.displayName ?? "Not set"}</strong><br />
+                Remote practice goal: <strong>{remoteProfile.fields.practiceGoal ?? "Not set"}</strong><br />
+                Remote seeded path: <strong>{remoteProfile.fields.recommendedPathId ?? "Not set"}</strong><br />
+                Remote daily goal target: <strong>{remoteProfile.fields.dailyGoalSessions}</strong>
+              </p>
+            {:else}
+              <p class="muted">No remote profile loaded yet. Set an API base and refresh to preview `/api/v1/profile`.</p>
+            {/if}
+          </div>
         </div>
       {/if}
     </div>
