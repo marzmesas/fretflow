@@ -11,6 +11,11 @@
     type RemoteUserProfileV1,
   } from "$lib/account/remote-profile";
   import {
+    listProfileFieldPoliciesByOwnership,
+    type ProfileFieldPolicy,
+    type ProfileFieldOwnership,
+  } from "$lib/account/profile-field-policies";
+  import {
     listMutationPoliciesByOwnership,
     type CatalogMutationPolicy,
     type MutationOwnership,
@@ -55,6 +60,8 @@
   const syncCandidatePolicies = listMutationPoliciesByOwnership("sync_candidate");
   const localOnlyPolicies = listMutationPoliciesByOwnership("local_only");
   const laterPolicies = listMutationPoliciesByOwnership("server_backed_later");
+  const remoteFirstProfilePolicies = listProfileFieldPoliciesByOwnership("remote_first");
+  const localOnlyProfilePolicies = listProfileFieldPoliciesByOwnership("local_only");
 
   function refreshProfile(
     nextSession: AppSession | null = session,
@@ -318,6 +325,17 @@
       { label: "Entitlement checks", included: target.includesEntitlements },
       { label: "Imported charts", included: target.includesImportedCharts },
       { label: "Practice asset delivery", included: target.includesPracticeAssets },
+    ];
+  }
+
+  function profileOwnershipLabel(ownership: ProfileFieldOwnership): string {
+    return ownership === "remote_first" ? "Remote first" : "Local only";
+  }
+
+  function profilePolicyGroups(): Array<{ title: string; policies: ProfileFieldPolicy[] }> {
+    return [
+      { title: "Remote-backed after auth", policies: remoteFirstProfilePolicies },
+      { title: "Stay on device", policies: localOnlyProfilePolicies },
     ];
   }
 
@@ -706,6 +724,25 @@
             {/if}
           </div>
         </div>
+
+        {#each profilePolicyGroups() as group (group.title)}
+          <div class="policy-group">
+            <h3>{group.title}</h3>
+            <ul class="policy-list">
+              {#each group.policies as policy (policy.key)}
+                <li class="policy-item">
+                  <div class="policy-item__header">
+                    <strong>{policy.label}</strong>
+                    <span class={`status-pill status-pill--${policy.ownership === "remote_first" ? "active" : "inactive"}`}>
+                      {profileOwnershipLabel(policy.ownership)}
+                    </span>
+                  </div>
+                  <p class="muted">{policy.rationale}</p>
+                </li>
+              {/each}
+            </ul>
+          </div>
+        {/each}
       {/if}
     </div>
   </div>
