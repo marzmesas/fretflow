@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { invoke } from "@tauri-apps/api/core";
   import { onMount } from "svelte";
   import { page } from "$app/state";
   import { goto } from "$app/navigation";
@@ -13,6 +14,7 @@
     getLearningPathTrackIds,
     type LearningPathId,
   } from "$lib/catalog/learning-paths";
+  import { getCatalogTrackAccess } from "$lib/catalog/entitlement-overlay";
   import {
     createCollection,
     deleteCollection,
@@ -31,7 +33,9 @@
   import { addUserChart, getUserCharts, removeUserChart, type UserChartEntry } from "$lib/catalog/user-charts";
   import { getLatestSessionsByTrackId, loadSessionHistory, type SessionSummaryV1 } from "$lib/chart/session-storage";
   import { markOnboardingStepCompleted } from "$lib/onboarding-storage";
+  import type { SubscriptionState } from "$lib/ipc";
   import type { CatalogSkillTag, CatalogTechniqueTag, CatalogTrackStub } from "$lib/catalog/types";
+  import { isTauri } from "$lib/tauri-env";
   import { validateChart } from "$lib/chart/validate";
 
   type Filter = "all" | "free" | "premium" | "recent" | "favorites" | "collections" | "mine";
@@ -53,6 +57,7 @@
   let latestSessionByTrackId = $state<Record<string, SessionSummaryV1>>(getLatestSessionsByTrackId(initialHistory));
   let recommendedTracks = $state<RecommendedTrack[]>(getRecommendedTracks(initialHistory, 3));
   let collections = $state<ChartCollectionV1[]>(initialCollections);
+  let subscription = $state<SubscriptionState | null>(null);
   let activeCollectionId = $state<string | null>(initialCollections[0]?.id ?? null);
   let activePathId = $state<PathFilter>("all");
   let activeSkillTag = $state<CatalogSkillTag | null>(null);
@@ -249,19 +254,21 @@
       .filter((row): row is CollectionRow => row != null);
   });
 
+  function trackAccess(track: CatalogTrackStub) {
+    return getCatalogTrackAccess(track, subscription);
+  }
+
   function isLocked(t: CatalogTrackStub): boolean {
-    return t.tier === "premium" || Boolean(t.locked);
+    const access = trackAccess(t);
+    return access.isPremiumLocked || access.isComingSoon;
   }
 
   function isPremiumPreview(t: CatalogTrackStub): boolean {
-    return t.tier === "premium";
+    return trackAccess(t).isPremiumLocked;
   }
 
   function canOpenInPractice(t: CatalogTrackStub): boolean {
-    if (isLocked(t)) return false;
-    if (t.practiceChartKey === "demo") return true;
-    if (t.practiceChartKey === "bundled") return Boolean(t.bundledChartFile?.trim());
-    return false;
+    return trackAccess(t).canPractice;
   }
 
   function openInPractice(t: CatalogTrackStub) {
@@ -327,6 +334,13 @@
       catalogTracks = snapshot.tracks;
       skillTags = snapshot.skillTags;
       techniqueTags = snapshot.techniqueTags;
+      if (isTauri()) {
+        try {
+          subscription = await invoke<SubscriptionState>("get_subscription_state");
+        } catch {
+          subscription = null;
+        }
+      }
     })();
   });
 
