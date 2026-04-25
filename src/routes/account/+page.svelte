@@ -5,6 +5,7 @@
     loadLocalFrontendUserProfile,
     type FrontendUserProfile,
   } from "$lib/account/profile";
+  import { buildRemoteUserProfileSeed } from "$lib/account/remote-profile";
   import {
     listMutationPoliciesByOwnership,
     type CatalogMutationPolicy,
@@ -532,6 +533,51 @@
           {/each}
         </ul>
       </div>
+
+      {#if profile}
+        {@const remoteProfileSeed = buildRemoteUserProfileSeed(profile)}
+        <div class="policy-group">
+          <h3>First remote profile scope</h3>
+          <p class="muted" style="margin: 0; font-size: 0.88rem">
+            These are the first non-billing profile fields that should move server-side once auth
+            exists.
+          </p>
+          <ul class="policy-list">
+            <li class="policy-item policy-item--compact">
+              <div class="policy-item__header">
+                <strong>Display name</strong>
+                <span class="status-pill status-pill--active">
+                  {remoteProfileSeed.fields.displayName ?? "Not set"}
+                </span>
+              </div>
+            </li>
+            <li class="policy-item policy-item--compact">
+              <div class="policy-item__header">
+                <strong>Practice goal</strong>
+                <span class="status-pill status-pill--active">
+                  {remoteProfileSeed.fields.practiceGoal ?? "Not set"}
+                </span>
+              </div>
+            </li>
+            <li class="policy-item policy-item--compact">
+              <div class="policy-item__header">
+                <strong>Seeded path / chart</strong>
+                <span class="status-pill status-pill--active">
+                  {remoteProfileSeed.fields.recommendedPathId ?? "Not set"} / {remoteProfileSeed.fields.recommendedTrackId ?? "Not set"}
+                </span>
+              </div>
+            </li>
+            <li class="policy-item policy-item--compact">
+              <div class="policy-item__header">
+                <strong>Daily goal target</strong>
+                <span class="status-pill status-pill--active">
+                  {remoteProfileSeed.fields.dailyGoalSessions}
+                </span>
+              </div>
+            </li>
+          </ul>
+        </div>
+      {/if}
     </div>
   </div>
 {/if}

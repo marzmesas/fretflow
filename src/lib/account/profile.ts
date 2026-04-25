@@ -1,7 +1,12 @@
 import { getPendingAnalyticsEventCount } from "../analytics/delivery";
 import { findCatalogTrackById } from "../catalog/catalog-service";
 import { getLearningPathById, type LearningPathId } from "../catalog/learning-paths";
-import { getOnboardingSnapshot, type OnboardingSnapshot } from "../onboarding-storage";
+import {
+  getOnboardingSnapshot,
+  type OnboardingExperienceLevel,
+  type OnboardingPracticeGoal,
+  type OnboardingSnapshot,
+} from "../onboarding-storage";
 import {
   loadPracticeGoals,
   toPracticeGoalsSnapshot,
@@ -34,6 +39,8 @@ export type FrontendUserProfile = {
     onboardingCompleted: boolean;
     onboardingHidden: boolean;
     remainingSteps: string[];
+    experienceLevel: OnboardingExperienceLevel | null;
+    practiceGoal: OnboardingPracticeGoal | null;
     recommendedPathId: LearningPathId | null;
     recommendedPathTitle: string | null;
     recommendedTrackId: string | null;
@@ -111,6 +118,8 @@ export function buildFrontendUserProfile(
       onboardingCompleted: input.onboarding.completed,
       onboardingHidden: input.onboarding.hidden,
       remainingSteps: input.onboarding.remainingSteps,
+      experienceLevel: assessment?.experienceLevel ?? null,
+      practiceGoal: assessment?.practiceGoal ?? null,
       recommendedPathId,
       recommendedPathTitle: recommendedPath?.title ?? null,
       recommendedTrackId: assessment?.recommendedTrackId ?? null,

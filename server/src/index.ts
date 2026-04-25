@@ -7,6 +7,7 @@ import express from "express";
 import Stripe from "stripe";
 import { isAnalyticsBatchV1 } from "./analytics.js";
 import { buildMockCatalogPayload } from "./catalog.js";
+import { buildMockUserProfilePayload } from "./profile.js";
 
 const PORT = Number(process.env.PORT) || 8787;
 const MOCK_SUBSCRIPTION_STATUS = (process.env.MOCK_SUBSCRIPTION_STATUS ?? "none").toLowerCase();
@@ -37,6 +38,10 @@ app.get("/api/v1/subscription", (_req, res) => {
 /** Metadata-only catalog seed for frontend migration away from hardcoded catalog access. */
 app.get("/api/v1/catalog", (_req, res) => {
   res.json(buildMockCatalogPayload());
+});
+
+app.get("/api/v1/profile", (_req, res) => {
+  res.json(buildMockUserProfilePayload());
 });
 
 app.post("/api/v1/analytics/batch", express.json({ limit: "256kb" }), (req, res) => {
