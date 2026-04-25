@@ -8,6 +8,7 @@
     getCatalogSnapshot,
     loadCatalogSnapshot,
   } from "$lib/catalog/catalog-service";
+  import { getCatalogSourceMode } from "$lib/catalog/catalog-source";
   import {
     LEARNING_PATHS,
     getLearningPathById,
@@ -341,6 +342,14 @@
           subscription = null;
         }
       }
+      const sourceMode = getCatalogSourceMode();
+      const refreshedSnapshot = await loadCatalogSnapshot({
+        sourceMode,
+        apiBaseUrl: subscription?.apiBaseUrl ?? "",
+      });
+      catalogTracks = refreshedSnapshot.tracks;
+      skillTags = refreshedSnapshot.skillTags;
+      techniqueTags = refreshedSnapshot.techniqueTags;
     })();
   });
 

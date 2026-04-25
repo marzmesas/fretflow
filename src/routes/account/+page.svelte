@@ -11,7 +11,12 @@
     type CatalogMutationPolicy,
     type MutationOwnership,
   } from "$lib/catalog/mutation-policies";
-  import { getCatalogMigrationTarget } from "$lib/catalog/catalog-service";
+  import { getCatalogMigrationTarget, invalidateCatalogSnapshot } from "$lib/catalog/catalog-service";
+  import {
+    getCatalogSourceMode,
+    setCatalogSourceMode,
+    type CatalogSourceMode,
+  } from "$lib/catalog/catalog-source";
   import {
     getPendingAnalyticsEventCount,
     sendPendingAnalyticsBatch,
@@ -25,6 +30,7 @@
   let profile = $state<FrontendUserProfile | null>(null);
   let displayName = $state("");
   let subscriptionApiBase = $state("");
+  let catalogSourceMode = $state<CatalogSourceMode>("local_seed");
   let busy = $state(false);
   let syncingSubscription = $state(false);
   let savingApiBase = $state(false);
@@ -152,6 +158,11 @@
     }
   }
 
+  function saveCatalogSourceMode(mode: CatalogSourceMode): void {
+    catalogSourceMode = setCatalogSourceMode(mode);
+    invalidateCatalogSnapshot();
+  }
+
   function refreshAnalyticsState(): void {
     pendingAnalyticsEvents = getPendingAnalyticsEventCount();
     refreshProfile(session, subscription);
@@ -253,6 +264,7 @@
   }
 
   onMount(() => {
+    catalogSourceMode = getCatalogSourceMode();
     void refreshSession();
     void refreshSubscription();
     refreshAnalyticsState();
@@ -532,6 +544,35 @@
             </li>
           {/each}
         </ul>
+      </div>
+
+      <div class="policy-group">
+        <h3>Catalog source rollout</h3>
+        <p class="muted" style="margin: 0; font-size: 0.88rem">
+          Remote catalog consumption stays behind a local flag for now so the library can opt into
+          `/api/v1/catalog` without changing the default product path.
+        </p>
+        <div class="account-actions">
+          <button
+            type="button"
+            class="btn"
+            class:btn-primary={catalogSourceMode === "local_seed"}
+            onclick={() => saveCatalogSourceMode("local_seed")}
+          >
+            Local seed
+          </button>
+          <button
+            type="button"
+            class="btn"
+            class:btn-primary={catalogSourceMode === "remote_api"}
+            onclick={() => saveCatalogSourceMode("remote_api")}
+          >
+            Remote API
+          </button>
+        </div>
+        <p class="muted account-footnote">
+          Current mode: <strong>{catalogSourceMode === "remote_api" ? "Remote API" : "Local seed"}</strong>.
+        </p>
       </div>
 
       {#if profile}

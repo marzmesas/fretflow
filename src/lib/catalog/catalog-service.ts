@@ -1,11 +1,14 @@
 import type { CatalogSkillTag, CatalogTechniqueTag, CatalogTrackStub } from "./types";
+import type { CatalogSourceMode } from "./catalog-source";
 import {
   buildMockRemoteCatalogPayload,
   normalizeRemoteCatalogPayload,
+  type RemoteCatalogPayloadV1,
   type RemoteCatalogMigrationTarget,
 } from "./remote-catalog";
 
 export type CatalogSnapshot = {
+  sourceMode: CatalogSourceMode;
   migrationTarget: RemoteCatalogMigrationTarget;
   tracks: CatalogTrackStub[];
   skillTags: CatalogSkillTag[];
@@ -15,15 +18,22 @@ export type CatalogSnapshot = {
 
 export type LoadCatalogSnapshotOptions = {
   forceRefresh?: boolean;
+  sourceMode?: CatalogSourceMode;
+  apiBaseUrl?: string | null;
+  fetchImpl?: typeof fetch;
 };
 
-let cachedSnapshot: CatalogSnapshot | null = null;
-let pendingSnapshot: Promise<CatalogSnapshot> | null = null;
+const cachedSnapshots = new Map<string, CatalogSnapshot>();
+const pendingSnapshots = new Map<string, Promise<CatalogSnapshot>>();
 
-function buildCatalogSnapshot(): CatalogSnapshot {
-  const normalized = normalizeRemoteCatalogPayload(buildMockRemoteCatalogPayload());
+function buildCatalogSnapshot(
+  payload: unknown,
+  sourceMode: CatalogSourceMode,
+): CatalogSnapshot {
+  const normalized = normalizeRemoteCatalogPayload(payload);
   const tracks = normalized.tracks;
   return {
+    sourceMode,
     migrationTarget: normalized.migrationTarget,
     tracks,
     skillTags: [...new Set(tracks.flatMap((track) => track.skillTags ?? []))].sort(),
@@ -37,36 +47,83 @@ function buildCatalogSnapshot(): CatalogSnapshot {
   };
 }
 
-export function getCatalogSnapshot(): CatalogSnapshot {
-  if (cachedSnapshot == null) {
-    cachedSnapshot = buildCatalogSnapshot();
+function cacheKey(sourceMode: CatalogSourceMode, apiBaseUrl?: string | null): string {
+  return `${sourceMode}:${apiBaseUrl?.trim() ?? ""}`;
+}
+
+function buildLocalCatalogSnapshot(): CatalogSnapshot {
+  return buildCatalogSnapshot(buildMockRemoteCatalogPayload(), "local_seed");
+}
+
+async function loadRemoteCatalogPayload(
+  apiBaseUrl: string,
+  fetchImpl: typeof fetch,
+): Promise<RemoteCatalogPayloadV1> {
+  const normalizedBase = apiBaseUrl.trim().replace(/\/+$/, "");
+  const response = await fetchImpl(`${normalizedBase}/api/v1/catalog`);
+  if (!response.ok) {
+    throw new Error(`catalog fetch failed: ${response.status}`);
   }
-  return cachedSnapshot;
+  return (await response.json()) as RemoteCatalogPayloadV1;
+}
+
+export function getCatalogSnapshot(
+  options: Pick<LoadCatalogSnapshotOptions, "sourceMode" | "apiBaseUrl"> = {},
+): CatalogSnapshot {
+  const sourceMode = options.sourceMode ?? "local_seed";
+  if (sourceMode !== "local_seed") {
+    const key = cacheKey(sourceMode, options.apiBaseUrl);
+    return cachedSnapshots.get(key) ?? buildLocalCatalogSnapshot();
+  }
+  const key = cacheKey("local_seed");
+  const cachedSnapshot = cachedSnapshots.get(key);
+  if (cachedSnapshot != null) {
+    return cachedSnapshot;
+  }
+  const snapshot = buildLocalCatalogSnapshot();
+  cachedSnapshots.set(key, snapshot);
+  return snapshot;
 }
 
 export async function loadCatalogSnapshot(
   options: LoadCatalogSnapshotOptions = {},
 ): Promise<CatalogSnapshot> {
+  const sourceMode = options.sourceMode ?? "local_seed";
+  const key = cacheKey(sourceMode, options.apiBaseUrl);
   if (options.forceRefresh) {
-    invalidateCatalogSnapshot();
+    invalidateCatalogSnapshot(key);
   }
+  const cachedSnapshot = cachedSnapshots.get(key);
   if (cachedSnapshot != null) {
     return cachedSnapshot;
   }
+  const pendingSnapshot = pendingSnapshots.get(key);
   if (pendingSnapshot != null) {
     return pendingSnapshot;
   }
-  pendingSnapshot = Promise.resolve(buildCatalogSnapshot()).then((snapshot) => {
-    cachedSnapshot = snapshot;
-    pendingSnapshot = null;
+  const nextPendingSnapshot = Promise.resolve().then(async () => {
+    if (sourceMode === "remote_api" && (options.apiBaseUrl?.trim() ?? "") !== "") {
+      const payload = await loadRemoteCatalogPayload(options.apiBaseUrl ?? "", options.fetchImpl ?? fetch);
+      return buildCatalogSnapshot(payload, "remote_api");
+    }
+    return buildLocalCatalogSnapshot();
+  }).then((snapshot) => {
+    cachedSnapshots.set(key, snapshot);
+    pendingSnapshots.delete(key);
     return snapshot;
   });
-  return pendingSnapshot;
+  pendingSnapshots.set(key, nextPendingSnapshot);
+  return nextPendingSnapshot;
 }
 
-export function invalidateCatalogSnapshot(): void {
-  cachedSnapshot = null;
-  pendingSnapshot = null;
+export function invalidateCatalogSnapshot(key?: string): void {
+  if (key != null) {
+    cachedSnapshots.delete(key);
+    pendingSnapshots.delete(key);
+    return;
+  }
+  cachedSnapshots.clear();
+  pendingSnapshots.clear();
 }
 
 export function listCatalogTracks(): CatalogTrackStub[] {
