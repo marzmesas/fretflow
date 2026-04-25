@@ -5,6 +5,7 @@
 import cors from "cors";
 import express from "express";
 import Stripe from "stripe";
+import { buildMockCatalogPayload } from "./catalog.js";
 
 const PORT = Number(process.env.PORT) || 8787;
 const MOCK_SUBSCRIPTION_STATUS = (process.env.MOCK_SUBSCRIPTION_STATUS ?? "none").toLowerCase();
@@ -30,6 +31,11 @@ app.get("/api/v1/subscription", (_req, res) => {
     tier,
     validUntilUnixMs: null,
   });
+});
+
+/** Metadata-only catalog seed for frontend migration away from hardcoded catalog access. */
+app.get("/api/v1/catalog", (_req, res) => {
+  res.json(buildMockCatalogPayload());
 });
 
 app.post(

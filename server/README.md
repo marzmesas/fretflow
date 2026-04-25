@@ -12,7 +12,15 @@ npm run dev
 ```
 
 - Health: `GET http://127.0.0.1:8787/health`
+- Catalog seed: `GET /api/v1/catalog`
 - Subscription (for `sync_subscription_now` when you wire it; no checkout in the product UI yet): `GET /api/v1/subscription`
 - Stripe: `POST /api/stripe/webhook` (raw body). Set `STRIPE_WEBHOOK_SECRET` + `STRIPE_SECRET_KEY` to verify signatures; otherwise the handler logs and returns `{ received: true, verified: false }` for local testing.
+
+`GET /api/v1/catalog` is intentionally narrow right now:
+
+- metadata only for bundled/free rows plus premium preview rows
+- no entitlement filtering
+- no imported chart sync
+- no practice asset delivery
 
 Set `MOCK_SUBSCRIPTION_STATUS=active` to simulate a paid plan while the real billing integration is built.
