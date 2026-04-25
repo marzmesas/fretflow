@@ -1,6 +1,11 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
   import { onMount } from "svelte";
+  import {
+    listMutationPoliciesByOwnership,
+    type CatalogMutationPolicy,
+    type MutationOwnership,
+  } from "$lib/catalog/mutation-policies";
   import type { AppSession, SubscriptionState } from "$lib/ipc";
   import { isTauri } from "$lib/tauri-env";
 
@@ -13,6 +18,10 @@
   let savingApiBase = $state(false);
   let error = $state<string | null>(null);
   let subscriptionError = $state<string | null>(null);
+
+  const syncCandidatePolicies = listMutationPoliciesByOwnership("sync_candidate");
+  const localOnlyPolicies = listMutationPoliciesByOwnership("local_only");
+  const laterPolicies = listMutationPoliciesByOwnership("server_backed_later");
 
   async function refreshSession() {
     if (!isTauri()) {
@@ -114,6 +123,44 @@
     if (state.entitled) return state.offlineGraceActive ? "grace" : "active";
     if (state.subscriptionStatus === "past_due") return "warning";
     return "inactive";
+  }
+
+  function ownershipLabel(ownership: MutationOwnership): string {
+    switch (ownership) {
+      case "local_only":
+        return "Local only";
+      case "sync_candidate":
+        return "Sync next";
+      case "server_backed_later":
+        return "Account later";
+      default: {
+        const exhaustiveCheck: never = ownership;
+        throw new Error(`Unhandled mutation ownership: ${exhaustiveCheck}`);
+      }
+    }
+  }
+
+  function ownershipTone(ownership: MutationOwnership): string {
+    switch (ownership) {
+      case "local_only":
+        return "inactive";
+      case "sync_candidate":
+        return "active";
+      case "server_backed_later":
+        return "warning";
+      default: {
+        const exhaustiveCheck: never = ownership;
+        throw new Error(`Unhandled mutation ownership: ${exhaustiveCheck}`);
+      }
+    }
+  }
+
+  function policyGroups(): Array<{ title: string; policies: CatalogMutationPolicy[] }> {
+    return [
+      { title: "Sync first", policies: syncCandidatePolicies },
+      { title: "Keep on device", policies: localOnlyPolicies },
+      { title: "Account-backed later", policies: laterPolicies },
+    ].filter((group) => group.policies.length > 0);
   }
 
   onMount(() => {
@@ -269,6 +316,37 @@
         <p class="muted" style="margin: 0">Loading subscription state…</p>
       {/if}
     </div>
+
+    <div class="panel account-panel">
+      <div class="account-panel__header">
+        <div>
+          <h2>Sync roadmap</h2>
+          <p class="muted" style="margin: 0.25rem 0 0; font-size: 0.88rem">
+            The catalog layer now distinguishes device-local practice state from library state that
+            should sync once real accounts land.
+          </p>
+        </div>
+      </div>
+
+      {#each policyGroups() as group (group.title)}
+        <div class="policy-group">
+          <h3>{group.title}</h3>
+          <ul class="policy-list">
+            {#each group.policies as policy (policy.key)}
+              <li class="policy-item">
+                <div class="policy-item__header">
+                  <strong>{policy.label}</strong>
+                  <span class={`status-pill status-pill--${ownershipTone(policy.ownership)}`}>
+                    {ownershipLabel(policy.ownership)}
+                  </span>
+                </div>
+                <p class="muted">{policy.rationale}</p>
+              </li>
+            {/each}
+          </ul>
+        </div>
+      {/each}
+    </div>
   </div>
 {/if}
 
@@ -290,6 +368,11 @@
     font-size: 1.05rem;
   }
 
+  .account-panel h3 {
+    margin: 0;
+    font-size: 0.95rem;
+  }
+
   .account-panel__header {
     display: flex;
     justify-content: space-between;
@@ -302,6 +385,42 @@
     margin: 0 0 1rem;
     padding-left: 1.25rem;
     font-size: 0.88rem;
+  }
+
+  .policy-group {
+    display: grid;
+    gap: 0.55rem;
+  }
+
+  .policy-list {
+    list-style: none;
+    display: grid;
+    gap: 0.65rem;
+    margin: 0;
+    padding: 0;
+  }
+
+  .policy-item {
+    display: grid;
+    gap: 0.35rem;
+    padding: 0.8rem 0.9rem;
+    border-radius: 10px;
+    border: 1px solid var(--ff-border);
+    background: color-mix(in srgb, var(--ff-bg) 82%, transparent);
+  }
+
+  .policy-item p {
+    margin: 0;
+    font-size: 0.86rem;
+    line-height: 1.45;
+  }
+
+  .policy-item__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
   }
 
   .account-field {
