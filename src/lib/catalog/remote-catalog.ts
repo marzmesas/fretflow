@@ -7,6 +7,17 @@ import type {
   CatalogTrackStub,
 } from "./types";
 
+export type RemoteCatalogMigrationTarget = {
+  schemaVersion: 1;
+  key: "bundled_metadata_seed";
+  label: string;
+  includesPremiumPreviewRows: boolean;
+  includesPlayablePremiumTracks: boolean;
+  includesEntitlements: boolean;
+  includesImportedCharts: boolean;
+  includesPracticeAssets: boolean;
+};
+
 export type RemoteCatalogTrackV1 = {
   id: string;
   title: string;
@@ -27,7 +38,19 @@ export type RemoteCatalogTrackV1 = {
 export type RemoteCatalogPayloadV1 = {
   schemaVersion: 1;
   generatedAt: string;
+  migrationTarget: RemoteCatalogMigrationTarget;
   tracks: RemoteCatalogTrackV1[];
+};
+
+const DEFAULT_REMOTE_CATALOG_MIGRATION_TARGET: RemoteCatalogMigrationTarget = {
+  schemaVersion: 1,
+  key: "bundled_metadata_seed",
+  label: "Bundled metadata seed",
+  includesPremiumPreviewRows: true,
+  includesPlayablePremiumTracks: false,
+  includesEntitlements: false,
+  includesImportedCharts: false,
+  includesPracticeAssets: false,
 };
 
 function isTrack(value: unknown): value is RemoteCatalogTrackV1 {
@@ -63,17 +86,40 @@ function normalizeTrack(track: RemoteCatalogTrackV1): CatalogTrackStub {
   };
 }
 
-export function normalizeRemoteCatalogPayload(payload: unknown): CatalogTrackStub[] {
-  if (payload == null || typeof payload !== "object") return [];
+function isMigrationTarget(value: unknown): value is RemoteCatalogMigrationTarget {
+  if (value == null || typeof value !== "object") return false;
+  const target = value as Partial<RemoteCatalogMigrationTarget>;
+  return target.schemaVersion === 1 && target.key === "bundled_metadata_seed" && typeof target.label === "string";
+}
+
+export type NormalizedRemoteCatalogPayload = {
+  migrationTarget: RemoteCatalogMigrationTarget;
+  tracks: CatalogTrackStub[];
+};
+
+export function normalizeRemoteCatalogPayload(
+  payload: unknown,
+): NormalizedRemoteCatalogPayload {
+  if (payload == null || typeof payload !== "object") {
+    return { migrationTarget: DEFAULT_REMOTE_CATALOG_MIGRATION_TARGET, tracks: [] };
+  }
   const candidate = payload as Partial<RemoteCatalogPayloadV1>;
-  if (candidate.schemaVersion !== 1 || !Array.isArray(candidate.tracks)) return [];
-  return candidate.tracks.filter(isTrack).map(normalizeTrack);
+  if (candidate.schemaVersion !== 1 || !Array.isArray(candidate.tracks)) {
+    return { migrationTarget: DEFAULT_REMOTE_CATALOG_MIGRATION_TARGET, tracks: [] };
+  }
+  return {
+    migrationTarget: isMigrationTarget(candidate.migrationTarget)
+      ? candidate.migrationTarget
+      : DEFAULT_REMOTE_CATALOG_MIGRATION_TARGET,
+    tracks: candidate.tracks.filter(isTrack).map(normalizeTrack),
+  };
 }
 
 export function buildMockRemoteCatalogPayload(): RemoteCatalogPayloadV1 {
   return {
     schemaVersion: 1,
     generatedAt: new Date(0).toISOString(),
+    migrationTarget: DEFAULT_REMOTE_CATALOG_MIGRATION_TARGET,
     tracks: MOCK_CATALOG.map((track) => ({
       id: track.id,
       title: track.title,

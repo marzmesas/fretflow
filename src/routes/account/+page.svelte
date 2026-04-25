@@ -6,6 +6,8 @@
     type CatalogMutationPolicy,
     type MutationOwnership,
   } from "$lib/catalog/mutation-policies";
+  import { getCatalogMigrationTarget } from "$lib/catalog/catalog-service";
+  import type { RemoteCatalogMigrationTarget } from "$lib/catalog/remote-catalog";
   import type { AppSession, SubscriptionState } from "$lib/ipc";
   import { isTauri } from "$lib/tauri-env";
 
@@ -18,6 +20,7 @@
   let savingApiBase = $state(false);
   let error = $state<string | null>(null);
   let subscriptionError = $state<string | null>(null);
+  const catalogMigrationTarget = getCatalogMigrationTarget();
 
   const syncCandidatePolicies = listMutationPoliciesByOwnership("sync_candidate");
   const localOnlyPolicies = listMutationPoliciesByOwnership("local_only");
@@ -161,6 +164,18 @@
       { title: "Keep on device", policies: localOnlyPolicies },
       { title: "Account-backed later", policies: laterPolicies },
     ].filter((group) => group.policies.length > 0);
+  }
+
+  function migrationTargetChecklist(
+    target: RemoteCatalogMigrationTarget,
+  ): Array<{ label: string; included: boolean }> {
+    return [
+      { label: "Bundled and preview metadata", included: true },
+      { label: "Playable premium tracks", included: target.includesPlayablePremiumTracks },
+      { label: "Entitlement checks", included: target.includesEntitlements },
+      { label: "Imported charts", included: target.includesImportedCharts },
+      { label: "Practice asset delivery", included: target.includesPracticeAssets },
+    ];
   }
 
   onMount(() => {
@@ -346,6 +361,27 @@
           </ul>
         </div>
       {/each}
+
+      <div class="policy-group">
+        <h3>First remote catalog cut</h3>
+        <p class="muted" style="margin: 0; font-size: 0.88rem">
+          {catalogMigrationTarget.label} is the first API target. It keeps the initial remote
+          migration metadata-only so the app can adopt server catalog delivery before asset
+          streaming, entitlements, or user uploads.
+        </p>
+        <ul class="policy-list">
+          {#each migrationTargetChecklist(catalogMigrationTarget) as item (item.label)}
+            <li class="policy-item policy-item--compact">
+              <div class="policy-item__header">
+                <strong>{item.label}</strong>
+                <span class={`status-pill status-pill--${item.included ? "active" : "inactive"}`}>
+                  {item.included ? "Included" : "Later"}
+                </span>
+              </div>
+            </li>
+          {/each}
+        </ul>
+      </div>
     </div>
   </div>
 {/if}
@@ -407,6 +443,10 @@
     border-radius: 10px;
     border: 1px solid var(--ff-border);
     background: color-mix(in srgb, var(--ff-bg) 82%, transparent);
+  }
+
+  .policy-item--compact {
+    padding-block: 0.7rem;
   }
 
   .policy-item p {

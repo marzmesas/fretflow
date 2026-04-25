@@ -1,7 +1,12 @@
 import type { CatalogSkillTag, CatalogTechniqueTag, CatalogTrackStub } from "./types";
-import { buildMockRemoteCatalogPayload, normalizeRemoteCatalogPayload } from "./remote-catalog";
+import {
+  buildMockRemoteCatalogPayload,
+  normalizeRemoteCatalogPayload,
+  type RemoteCatalogMigrationTarget,
+} from "./remote-catalog";
 
 export type CatalogSnapshot = {
+  migrationTarget: RemoteCatalogMigrationTarget;
   tracks: CatalogTrackStub[];
   skillTags: CatalogSkillTag[];
   techniqueTags: CatalogTechniqueTag[];
@@ -9,8 +14,10 @@ export type CatalogSnapshot = {
 };
 
 function buildCatalogSnapshot(): CatalogSnapshot {
-  const tracks = normalizeRemoteCatalogPayload(buildMockRemoteCatalogPayload());
+  const normalized = normalizeRemoteCatalogPayload(buildMockRemoteCatalogPayload());
+  const tracks = normalized.tracks;
   return {
+    migrationTarget: normalized.migrationTarget,
     tracks,
     skillTags: [...new Set(tracks.flatMap((track) => track.skillTags ?? []))].sort(),
     techniqueTags: [...new Set(tracks.flatMap((track) => track.techniqueTags ?? []))].sort(),
@@ -51,4 +58,8 @@ export function listCatalogTechniqueTags(): CatalogTechniqueTag[] {
 
 export function listPlayableBundledCatalogTracks(): CatalogTrackStub[] {
   return getCatalogSnapshot().playableBundledTracks;
+}
+
+export function getCatalogMigrationTarget(): RemoteCatalogMigrationTarget {
+  return getCatalogSnapshot().migrationTarget;
 }
