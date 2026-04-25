@@ -10,6 +10,7 @@
     loadRemoteUserProfile,
     type RemoteUserProfileV1,
   } from "$lib/account/remote-profile";
+  import { getRemoteProfileRole } from "$lib/account/remote-profile-gate";
   import {
     listProfileFieldPoliciesByOwnership,
     type ProfileFieldPolicy,
@@ -710,6 +711,10 @@
                 {loadingRemoteProfile ? "Loading…" : "Refresh"}
               </button>
             </div>
+            <p class="muted">
+              Current role:
+              <strong>{getRemoteProfileRole(session) === "preview_only" ? "Preview only" : "Primary source"}</strong>
+            </p>
             {#if remoteProfileError}
               <p class="account-error">{remoteProfileError}</p>
             {:else if remoteProfile}
