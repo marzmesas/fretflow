@@ -13,6 +13,13 @@ export type CatalogSnapshot = {
   playableBundledTracks: CatalogTrackStub[];
 };
 
+export type LoadCatalogSnapshotOptions = {
+  forceRefresh?: boolean;
+};
+
+let cachedSnapshot: CatalogSnapshot | null = null;
+let pendingSnapshot: Promise<CatalogSnapshot> | null = null;
+
 function buildCatalogSnapshot(): CatalogSnapshot {
   const normalized = normalizeRemoteCatalogPayload(buildMockRemoteCatalogPayload());
   const tracks = normalized.tracks;
@@ -31,11 +38,35 @@ function buildCatalogSnapshot(): CatalogSnapshot {
 }
 
 export function getCatalogSnapshot(): CatalogSnapshot {
-  return buildCatalogSnapshot();
+  if (cachedSnapshot == null) {
+    cachedSnapshot = buildCatalogSnapshot();
+  }
+  return cachedSnapshot;
 }
 
-export async function loadCatalogSnapshot(): Promise<CatalogSnapshot> {
-  return buildCatalogSnapshot();
+export async function loadCatalogSnapshot(
+  options: LoadCatalogSnapshotOptions = {},
+): Promise<CatalogSnapshot> {
+  if (options.forceRefresh) {
+    invalidateCatalogSnapshot();
+  }
+  if (cachedSnapshot != null) {
+    return cachedSnapshot;
+  }
+  if (pendingSnapshot != null) {
+    return pendingSnapshot;
+  }
+  pendingSnapshot = Promise.resolve(buildCatalogSnapshot()).then((snapshot) => {
+    cachedSnapshot = snapshot;
+    pendingSnapshot = null;
+    return snapshot;
+  });
+  return pendingSnapshot;
+}
+
+export function invalidateCatalogSnapshot(): void {
+  cachedSnapshot = null;
+  pendingSnapshot = null;
 }
 
 export function listCatalogTracks(): CatalogTrackStub[] {
