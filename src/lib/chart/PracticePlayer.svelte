@@ -1035,67 +1035,73 @@
 </script>
 
 <div class="practice-player">
-  <div class="row" style="margin-bottom: 0.75rem; justify-content: space-between; flex-wrap: wrap">
-    <div>
-      <h2 style="margin: 0; font-size: 1.05rem">{chart.title}</h2>
-      <p class="muted" style="margin: 0.25rem 0 0">
-        {practiceChart.bpm} BPM · {practiceChart.timeSignature[0]}/{practiceChart.timeSignature[1]} · {totalBeats.toFixed(1)} beats
-        {#if densityTier !== "full"}
-          <span> · Density <strong>{DENSITY_TIER_LABEL[densityTier]}</strong></span>
-        {/if}
-      </p>
-    </div>
-    <div class="row">
-      <button type="button" class="btn btn-primary" onclick={togglePlay}>
-        {playing ? "Pause" : "Play"}
-      </button>
-      <button type="button" class="btn" onclick={restart}>Restart</button>
-    </div>
-  </div>
-
-  <ChartHighway
-    chart={practiceChart}
-    {timeSec}
-    {pixelsPerSecond}
-    hitIndices={hitIndicesDisplay}
-    missIndices={missIndicesDisplay}
-  />
-
-  {#if upcomingChordNotes.length >= 2}
-    <ChordFretboard notes={upcomingChordNotes} />
-  {/if}
-
-  {#if isTauri() && audioStreamError}
-    <div class="practice-audio-error" role="alert">
-      <div class="practice-audio-error__row">
-        <p class="practice-audio-error__text"><strong>Input monitor error.</strong> {audioStreamError}</p>
-        <button type="button" class="btn" onclick={() => (audioStreamError = null)}>Dismiss</button>
+  <section class="panel practice-stage">
+    <div class="practice-stage__header">
+      <div>
+        <p class="practice-stage__eyebrow">Live chart stage</p>
+        <h2 class="practice-stage__title">{chart.title}</h2>
+        <div class="practice-stage__meta">
+          <span class="practice-stage__chip">{practiceChart.bpm} BPM</span>
+          <span class="practice-stage__chip">{practiceChart.timeSignature[0]}/{practiceChart.timeSignature[1]}</span>
+          <span class="practice-stage__chip">{totalBeats.toFixed(1)} beats</span>
+          {#if densityTier !== "full"}
+            <span class="practice-stage__chip practice-stage__chip--accent">
+              Density {DENSITY_TIER_LABEL[densityTier]}
+            </span>
+          {/if}
+        </div>
       </div>
-      <p class="muted practice-audio-error__hint">
-        Fix device or stream settings in <a href="/settings">Settings</a>, then start monitoring again.
-      </p>
+      <div class="practice-stage__transport">
+        <button type="button" class="btn btn-primary" onclick={togglePlay}>
+          {playing ? "Pause" : "Play"}
+        </button>
+        <button type="button" class="btn" onclick={restart}>Restart</button>
+      </div>
     </div>
-  {/if}
 
-  {#if isTauri() && readinessIssues.length > 0}
-    <div class="practice-readiness" role="status">
-      <p class="practice-readiness__title">Before you play</p>
-      <ul class="practice-readiness__list">
-        {#each readinessIssues as line}
-          <li>{line}</li>
-        {/each}
-      </ul>
-      <p class="practice-readiness__link muted">
-        <a href="/settings">Open Settings</a>
-        — Mic and MIDI status also appear as pills in the header.
-      </p>
-    </div>
-  {/if}
+    <ChartHighway
+      chart={practiceChart}
+      {timeSec}
+      {pixelsPerSecond}
+      hitIndices={hitIndicesDisplay}
+      missIndices={missIndicesDisplay}
+    />
 
-  <div class="scoring-block">
-    <label class="row" style="gap: 0.5rem; cursor: pointer; margin-bottom: 0.5rem"
-      title="When on, incoming notes are matched against the chart. MIDI works out of the box; mic modes are optional betas below."
-    >
+    {#if upcomingChordNotes.length >= 2}
+      <ChordFretboard notes={upcomingChordNotes} />
+    {/if}
+
+    {#if isTauri() && audioStreamError}
+      <div class="practice-audio-error" role="alert">
+        <div class="practice-audio-error__row">
+          <p class="practice-audio-error__text"><strong>Input monitor error.</strong> {audioStreamError}</p>
+          <button type="button" class="btn" onclick={() => (audioStreamError = null)}>Dismiss</button>
+        </div>
+        <p class="muted practice-audio-error__hint">
+          Fix device or stream settings in <a href="/settings">Settings</a>, then start monitoring again.
+        </p>
+      </div>
+    {/if}
+
+    {#if isTauri() && readinessIssues.length > 0}
+      <div class="practice-readiness" role="status">
+        <p class="practice-readiness__title">Before you play</p>
+        <ul class="practice-readiness__list">
+          {#each readinessIssues as line}
+            <li>{line}</li>
+          {/each}
+        </ul>
+        <p class="practice-readiness__link muted">
+          <a href="/settings">Open Settings</a>
+          — Mic and MIDI status also appear as pills in the header.
+        </p>
+      </div>
+    {/if}
+
+    <div class="scoring-block">
+      <label class="row" style="gap: 0.5rem; cursor: pointer; margin-bottom: 0.5rem"
+        title="When on, incoming notes are matched against the chart. MIDI works out of the box; mic modes are optional betas below."
+      >
       <input type="checkbox" bind:checked={scoringEnabled} />
       <span>Scoring</span>
       <span class="muted" style="font-size: 0.85rem">MIDI by default; optional mic modes below</span>
@@ -1214,161 +1220,170 @@
         Scoring needs the desktop app (MIDI and mic use Tauri events).
       {/if}
     </p>
-  </div>
-
-  <div class="practice-goals panel-inner">
-    <h3 style="margin: 0 0 0.45rem; font-size: 0.95rem">Daily goal &amp; streak</h3>
-    <div class="practice-goals__row">
-      <span>Today: <strong>{practiceGoals.progressToday}</strong> sessions</span>
-      {#if practiceGoals.goalMetToday}
-        <span class="practice-goals__met">Daily goal met</span>
-      {/if}
     </div>
-    <p class="muted" style="margin: 0.35rem 0 0.5rem; font-size: 0.82rem">
-      Streak: <strong>{practiceGoals.streakDays}</strong> day{practiceGoals.streakDays === 1 ? "" : "s"} with practice
-      (local calendar). Counts when you finish a full chart run.
-    </p>
-    <label class="row" style="gap: 0.5rem; align-items: center; flex-wrap: wrap">
-      <span class="muted" style="font-size: 0.82rem">Sessions per day target</span>
-      <select
-        class="practice-goals__select"
-        value={String(practiceGoals.dailyGoalSessions)}
-        onchange={(ev) => {
-          const n = Number((ev.currentTarget as HTMLSelectElement).value);
-          practiceGoals = toPracticeGoalsSnapshot(setDailyGoalSessions(n));
-        }}
-      >
-        {#each [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as n (n)}
-          <option value={String(n)}>{n}</option>
-        {/each}
-      </select>
-    </label>
-  </div>
+  </section>
 
-  {#if lastSessionSnapshot || sessionHistory.length > 0}
-    {@const stats = getSessionStats(sessionHistory)}
-    <div class="session-history panel-inner">
-      <div class="row" style="justify-content: space-between; align-items: center; margin-bottom: 0.5rem">
-        <h3 style="margin: 0; font-size: 0.95rem">Practice history</h3>
-        <div class="row" style="gap: 0.5rem">
-          {#if sessionHistory.length > 0}
-            <button type="button" class="btn" style="font-size: 0.78rem; padding: 0.25rem 0.55rem" onclick={() => (showHistory = !showHistory)}>
-              {showHistory ? "Hide" : `Show all (${sessionHistory.length})`}
-            </button>
-            <button type="button" class="btn" style="font-size: 0.78rem; padding: 0.25rem 0.55rem; color: var(--ff-muted)"
-              onclick={() => { clearSessionHistory(); lastSessionSnapshot = null; sessionHistory = []; showHistory = false; }}
-            >Clear</button>
+  <aside class="practice-sidebar">
+    <section class="panel practice-card">
+      <p class="practice-card__eyebrow">Momentum</p>
+      <h3 class="practice-card__title">Goals and session insight</h3>
+
+      <div class="practice-goals">
+        <div class="practice-goals__row">
+          <span>Today: <strong>{practiceGoals.progressToday}</strong> sessions</span>
+          {#if practiceGoals.goalMetToday}
+            <span class="practice-goals__met">Daily goal met</span>
           {/if}
         </div>
+        <p class="muted" style="margin: 0.35rem 0 0.5rem; font-size: 0.82rem">
+          Streak: <strong>{practiceGoals.streakDays}</strong> day{practiceGoals.streakDays === 1 ? "" : "s"} with practice
+          (local calendar). Counts when you finish a full chart run.
+        </p>
+        <label class="row" style="gap: 0.5rem; align-items: center; flex-wrap: wrap">
+          <span class="muted" style="font-size: 0.82rem">Sessions per day target</span>
+          <select
+            class="practice-goals__select"
+            value={String(practiceGoals.dailyGoalSessions)}
+            onchange={(ev) => {
+              const n = Number((ev.currentTarget as HTMLSelectElement).value);
+              practiceGoals = toPracticeGoalsSnapshot(setDailyGoalSessions(n));
+            }}
+          >
+            {#each [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as n (n)}
+              <option value={String(n)}>{n}</option>
+            {/each}
+          </select>
+        </label>
       </div>
-      {#if stats.totalSessions > 0}
-        <div class="history-stats">
-          <span><strong>{stats.totalSessions}</strong> sessions</span>
-          <span><strong>{stats.uniqueCharts}</strong> charts</span>
-          {#if stats.averageAccuracy != null}
-            <span>avg <strong>{stats.averageAccuracy}%</strong></span>
-          {/if}
-          {#if stats.bestAccuracy != null}
-            <span>best <strong>{stats.bestAccuracy}%</strong></span>
-          {/if}
-          <span>top combo <strong>{stats.bestCombo}</strong></span>
-        </div>
-      {/if}
-      {#if chartInsight.totalSessions > 0}
-        <div class="chart-insight">
-          <div class="chart-insight__title">This chart</div>
-          <div class="history-stats">
-            <span><strong>{chartInsight.totalSessions}</strong> runs</span>
-            {#if chartInsight.latestAccuracy != null}
-              <span>latest <strong>{chartInsight.latestAccuracy}%</strong></span>
-            {/if}
-            {#if chartInsight.averageAccuracy != null}
-              <span>avg <strong>{chartInsight.averageAccuracy}%</strong></span>
-            {/if}
-            {#if chartInsight.bestAccuracy != null}
-              <span>best <strong>{chartInsight.bestAccuracy}%</strong></span>
-            {/if}
-            <span>top combo <strong>{chartInsight.bestCombo}</strong></span>
+
+      {#if lastSessionSnapshot || sessionHistory.length > 0}
+        {@const stats = getSessionStats(sessionHistory)}
+        <div class="session-history">
+          <div class="row" style="justify-content: space-between; align-items: center; margin-bottom: 0.5rem">
+            <h3 style="margin: 0; font-size: 0.95rem">Practice history</h3>
+            <div class="row" style="gap: 0.5rem">
+              {#if sessionHistory.length > 0}
+                <button type="button" class="btn" style="font-size: 0.78rem; padding: 0.25rem 0.55rem" onclick={() => (showHistory = !showHistory)}>
+                  {showHistory ? "Hide" : `Show all (${sessionHistory.length})`}
+                </button>
+                <button type="button" class="btn" style="font-size: 0.78rem; padding: 0.25rem 0.55rem; color: var(--ff-muted)"
+                  onclick={() => { clearSessionHistory(); lastSessionSnapshot = null; sessionHistory = []; showHistory = false; }}
+                >Clear</button>
+              {/if}
+            </div>
           </div>
-          {#if chartInsight.accuracyDelta != null}
-            <p class="chart-insight__delta muted">
-              {chartInsight.accuracyDelta >= 0 ? "Up" : "Down"} <strong>{Math.abs(chartInsight.accuracyDelta)}%</strong>
-              from the previous run on this chart.
-            </p>
-          {/if}
-          {#if practiceRecommendation}
-            <p class="chart-insight__note">{practiceRecommendation}</p>
-          {/if}
-          {#if postSessionCoaching.length > 0}
-            <div class="coaching-notes">
-              {#each postSessionCoaching as note (note.id)}
-                <div class="coaching-note">
-                  <div class="coaching-note__title">{note.title}</div>
-                  <p class="coaching-note__body">{note.body}</p>
-                </div>
-              {/each}
+          {#if stats.totalSessions > 0}
+            <div class="history-stats">
+              <span><strong>{stats.totalSessions}</strong> sessions</span>
+              <span><strong>{stats.uniqueCharts}</strong> charts</span>
+              {#if stats.averageAccuracy != null}
+                <span>avg <strong>{stats.averageAccuracy}%</strong></span>
+              {/if}
+              {#if stats.bestAccuracy != null}
+                <span>best <strong>{stats.bestAccuracy}%</strong></span>
+              {/if}
+              <span>top combo <strong>{stats.bestCombo}</strong></span>
             </div>
           {/if}
-          {#if pathContinuation}
-            <div class="path-continuation">
-              <div class="path-continuation__title">{pathContinuation.pathTitle}</div>
-              {#if pathContinuation.state === "advance" && pathContinuation.nextTrackId && pathContinuation.nextTrackTitle}
-                <p class="path-continuation__body">
-                  You cleared this step at the path threshold. Continue with <strong>{pathContinuation.nextTrackTitle}</strong>.
+          {#if chartInsight.totalSessions > 0}
+            <div class="chart-insight">
+              <div class="chart-insight__title">This chart</div>
+              <div class="history-stats">
+                <span><strong>{chartInsight.totalSessions}</strong> runs</span>
+                {#if chartInsight.latestAccuracy != null}
+                  <span>latest <strong>{chartInsight.latestAccuracy}%</strong></span>
+                {/if}
+                {#if chartInsight.averageAccuracy != null}
+                  <span>avg <strong>{chartInsight.averageAccuracy}%</strong></span>
+                {/if}
+                {#if chartInsight.bestAccuracy != null}
+                  <span>best <strong>{chartInsight.bestAccuracy}%</strong></span>
+                {/if}
+                <span>top combo <strong>{chartInsight.bestCombo}</strong></span>
+              </div>
+              {#if chartInsight.accuracyDelta != null}
+                <p class="chart-insight__delta muted">
+                  {chartInsight.accuracyDelta >= 0 ? "Up" : "Down"} <strong>{Math.abs(chartInsight.accuracyDelta)}%</strong>
+                  from the previous run on this chart.
                 </p>
-                <button type="button" class="btn btn-primary" style="margin-top: 0.25rem" onclick={() => openTrack(pathContinuation.nextTrackId)}>
-                  Open next path step
-                </button>
-              {:else if pathContinuation.state === "current_step"}
-                <p class="path-continuation__body">
-                  Stay on <strong>{pathContinuation.currentStepTitle}</strong> until you clear <strong>{pathContinuation.currentStepThreshold}%</strong>.
-                </p>
-              {:else if pathContinuation.state === "completed"}
-                <p class="path-continuation__body">
-                  You have completed the current onboarding path. Move into Library recommendations or start a different path.
-                </p>
-              {:else if pathContinuation.state === "not_on_path" && pathContinuation.nextTrackId && pathContinuation.nextTrackTitle}
-                <p class="path-continuation__body">
-                  This chart is outside your seeded path. Return to <strong>{pathContinuation.nextTrackTitle}</strong> to continue the recommended sequence.
-                </p>
-                <button type="button" class="btn" style="margin-top: 0.25rem" onclick={() => openTrack(pathContinuation.nextTrackId)}>
-                  Rejoin recommended path
-                </button>
+              {/if}
+              {#if practiceRecommendation}
+                <p class="chart-insight__note">{practiceRecommendation}</p>
+              {/if}
+              {#if postSessionCoaching.length > 0}
+                <div class="coaching-notes">
+                  {#each postSessionCoaching as note (note.id)}
+                    <div class="coaching-note">
+                      <div class="coaching-note__title">{note.title}</div>
+                      <p class="coaching-note__body">{note.body}</p>
+                    </div>
+                  {/each}
+                </div>
+              {/if}
+              {#if pathContinuation}
+                <div class="path-continuation">
+                  <div class="path-continuation__title">{pathContinuation.pathTitle}</div>
+                  {#if pathContinuation.state === "advance" && pathContinuation.nextTrackId && pathContinuation.nextTrackTitle}
+                    <p class="path-continuation__body">
+                      You cleared this step at the path threshold. Continue with <strong>{pathContinuation.nextTrackTitle}</strong>.
+                    </p>
+                    <button type="button" class="btn btn-primary" style="margin-top: 0.25rem" onclick={() => openTrack(pathContinuation.nextTrackId)}>
+                      Open next path step
+                    </button>
+                  {:else if pathContinuation.state === "current_step"}
+                    <p class="path-continuation__body">
+                      Stay on <strong>{pathContinuation.currentStepTitle}</strong> until you clear <strong>{pathContinuation.currentStepThreshold}%</strong>.
+                    </p>
+                  {:else if pathContinuation.state === "completed"}
+                    <p class="path-continuation__body">
+                      You have completed the current onboarding path. Move into Library recommendations or start a different path.
+                    </p>
+                  {:else if pathContinuation.state === "not_on_path" && pathContinuation.nextTrackId && pathContinuation.nextTrackTitle}
+                    <p class="path-continuation__body">
+                      This chart is outside your seeded path. Return to <strong>{pathContinuation.nextTrackTitle}</strong> to continue the recommended sequence.
+                    </p>
+                    <button type="button" class="btn" style="margin-top: 0.25rem" onclick={() => openTrack(pathContinuation.nextTrackId)}>
+                      Rejoin recommended path
+                    </button>
+                  {/if}
+                </div>
               {/if}
             </div>
           {/if}
-        </div>
-      {/if}
-      {#if lastSessionSnapshot && !showHistory}
-        <div class="history-entry">
-          <div class="history-entry__title">{lastSessionSnapshot.chartTitle}</div>
-          <div class="history-entry__meta">
-            {lastSessionSnapshot.accuracyPercent}% · {lastSessionSnapshot.hits}/{lastSessionSnapshot.totalNotes ?? (lastSessionSnapshot.hits + lastSessionSnapshot.misses)} hits · combo {lastSessionSnapshot.maxCombo}
-            · {lastSessionSnapshot.scoringMode}
-            {#if lastSessionSnapshot.inputSource} · {lastSessionSnapshot.inputSource}{/if}
-          </div>
-          <div class="history-entry__time">{new Date(lastSessionSnapshot.at).toLocaleString()}</div>
-        </div>
-      {/if}
-      {#if showHistory}
-        <ul class="history-list">
-          {#each sessionHistory as s, i (s.at + i)}
-            <li class="history-entry">
-              <div class="history-entry__title">{s.chartTitle}</div>
+          {#if lastSessionSnapshot && !showHistory}
+            <div class="history-entry">
+              <div class="history-entry__title">{lastSessionSnapshot.chartTitle}</div>
               <div class="history-entry__meta">
-                {s.accuracyPercent}% · {s.hits}/{s.totalNotes ?? (s.hits + s.misses)} hits · combo {s.maxCombo}
-                · {s.scoringMode}
-                {#if s.inputSource} · {s.inputSource}{/if}
+                {lastSessionSnapshot.accuracyPercent}% · {lastSessionSnapshot.hits}/{lastSessionSnapshot.totalNotes ?? (lastSessionSnapshot.hits + lastSessionSnapshot.misses)} hits · combo {lastSessionSnapshot.maxCombo}
+                · {lastSessionSnapshot.scoringMode}
+                {#if lastSessionSnapshot.inputSource} · {lastSessionSnapshot.inputSource}{/if}
               </div>
-              <div class="history-entry__time">{new Date(s.at).toLocaleString()}</div>
-            </li>
-          {/each}
-        </ul>
+              <div class="history-entry__time">{new Date(lastSessionSnapshot.at).toLocaleString()}</div>
+            </div>
+          {/if}
+          {#if showHistory}
+            <ul class="history-list">
+              {#each sessionHistory as s, i (s.at + i)}
+                <li class="history-entry">
+                  <div class="history-entry__title">{s.chartTitle}</div>
+                  <div class="history-entry__meta">
+                    {s.accuracyPercent}% · {s.hits}/{s.totalNotes ?? (s.hits + s.misses)} hits · combo {s.maxCombo}
+                    · {s.scoringMode}
+                    {#if s.inputSource} · {s.inputSource}{/if}
+                  </div>
+                  <div class="history-entry__time">{new Date(s.at).toLocaleString()}</div>
+                </li>
+              {/each}
+            </ul>
+          {/if}
+        </div>
       {/if}
-    </div>
-  {/if}
+    </section>
 
-  <div class="panel-inner">
+    <section class="panel practice-card">
+      <p class="practice-card__eyebrow">Playback</p>
+      <h3 class="practice-card__title">Feel, timing, and backing</h3>
+
     <label class="row" style="gap: 0.5rem; margin-bottom: 0.5rem; cursor: pointer">
       <input
         type="checkbox"
@@ -1465,8 +1480,13 @@
         Reset saved preset
       </button>
     </div>
+    </section>
 
-    <div class="loop-block">
+    <section class="panel practice-card">
+      <p class="practice-card__eyebrow">Loop work</p>
+      <h3 class="practice-card__title">Target the phrase, then save it</h3>
+
+      <div class="loop-block">
       <label class="row" style="gap: 0.5rem; margin-bottom: 0.5rem; cursor: pointer">
         <input type="checkbox" bind:checked={loopEnabled} />
         <span>Loop A–B</span>
@@ -1533,26 +1553,103 @@
           <p class="muted saved-loops__empty">No saved loops for this chart yet.</p>
         {/if}
       </div>
-    </div>
+      </div>
 
-    <p class="muted" style="margin: 0.75rem 0 0; font-size: 0.85rem">
-      Load chart JSON (schema v1):
-      <input type="file" accept="application/json,.json" onchange={onChartFile} style="margin-left: 0.35rem" />
-    </p>
-  </div>
+      <p class="muted" style="margin: 0.75rem 0 0; font-size: 0.85rem">
+        Load chart JSON (schema v1):
+        <input type="file" accept="application/json,.json" onchange={onChartFile} style="margin-left: 0.35rem" />
+      </p>
+    </section>
+  </aside>
 </div>
 
 <style>
   .practice-player {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(20rem, 0.95fr);
+    gap: 1rem;
     margin-bottom: 1rem;
   }
-  .panel-inner {
-    margin-top: 1rem;
-    padding: 0;
+  .practice-stage,
+  .practice-card {
+    margin-bottom: 0;
+  }
+  .practice-stage {
+    display: grid;
+    gap: 1rem;
+    padding: 1.2rem;
+    background:
+      radial-gradient(circle at top right, rgba(63, 208, 195, 0.14), transparent 28%),
+      radial-gradient(circle at left center, rgba(213, 138, 84, 0.16), transparent 24%),
+      linear-gradient(180deg, rgba(29, 22, 27, 0.96), rgba(18, 15, 19, 0.96));
+  }
+  .practice-stage__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    gap: 0.85rem 1rem;
+    flex-wrap: wrap;
+  }
+  .practice-stage__eyebrow,
+  .practice-card__eyebrow {
+    margin: 0 0 0.35rem;
+    color: var(--ff-highlight-strong);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  .practice-stage__title {
+    margin: 0;
+    font-size: 1.8rem;
+    line-height: 1;
+  }
+  .practice-stage__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin-top: 0.55rem;
+  }
+  .practice-stage__chip {
+    display: inline-flex;
+    min-height: 32px;
+    align-items: center;
+    padding: 0.35rem 0.65rem;
+    border-radius: 999px;
+    border: 1px solid var(--ff-border);
+    color: var(--ff-muted-strong);
+    font-size: 0.82rem;
+    font-weight: 600;
+    background: rgba(9, 8, 10, 0.28);
+  }
+  .practice-stage__chip--accent {
+    border-color: color-mix(in srgb, var(--ff-accent) 45%, var(--ff-border));
+    color: var(--ff-text);
+    background: color-mix(in srgb, var(--ff-accent) 10%, rgba(9, 8, 10, 0.28));
+  }
+  .practice-stage__transport {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    align-items: center;
+  }
+  .practice-sidebar {
+    display: grid;
+    gap: 1rem;
+    align-content: start;
+  }
+  .practice-card {
+    display: grid;
+    gap: 0.9rem;
+    padding: 1.05rem 1.1rem;
+  }
+  .practice-card__title {
+    margin: -0.25rem 0 0;
+    font-size: 1.2rem;
   }
   .loop-block {
-    padding-top: 0.35rem;
-    border-top: 1px solid var(--ff-border);
+    display: grid;
+    gap: 0.65rem;
   }
   .saved-loops {
     margin-top: 0.85rem;
@@ -1609,13 +1706,15 @@
     justify-content: space-between;
     align-items: center;
     gap: 0.65rem 1rem;
-    margin-bottom: 0.75rem;
     flex-wrap: wrap;
   }
   .scoring-block {
-    margin-top: 1rem;
-    padding: 0.85rem 0 0;
-    border-top: 1px solid var(--ff-border);
+    padding: 1rem;
+    border-radius: 18px;
+    border: 1px solid var(--ff-border);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 30%),
+      rgba(9, 8, 10, 0.22);
   }
   .wait-hold-banner {
     margin: 0.35rem 0 0.5rem;
@@ -1650,9 +1749,8 @@
     gap: 0.25rem;
   }
   .practice-readiness {
-    margin-top: 1rem;
     padding: 0.75rem 1rem;
-    border-radius: 8px;
+    border-radius: 16px;
     border: 1px solid color-mix(in srgb, #f59e0b 55%, var(--ff-border));
     background: color-mix(in srgb, #f59e0b 12%, var(--ff-surface));
   }
@@ -1674,9 +1772,8 @@
     font-size: 0.82rem;
   }
   .practice-audio-error {
-    margin-top: 1rem;
     padding: 0.75rem 1rem;
-    border-radius: 8px;
+    border-radius: 16px;
     border: 1px solid color-mix(in srgb, #f87171 50%, var(--ff-border));
     background: color-mix(in srgb, #f87171 10%, var(--ff-surface));
   }
@@ -1746,16 +1843,17 @@
     border-top: 1px solid color-mix(in srgb, var(--ff-border) 70%, transparent);
   }
   .session-history {
-    margin-top: 0.75rem;
-    padding: 0.75rem 0 0;
-    border-top: 1px solid var(--ff-border);
+    padding-top: 0.2rem;
+    border-top: 1px solid color-mix(in srgb, var(--ff-border) 65%, transparent);
   }
   .chart-insight {
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.35rem;
     padding: 0.75rem 0.85rem;
-    border: 1px solid var(--ff-border);
-    border-radius: 10px;
-    background: color-mix(in srgb, var(--ff-bg) 65%, transparent);
+    border: 1px solid color-mix(in srgb, var(--ff-border) 78%, transparent);
+    border-radius: 16px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 30%),
+      rgba(9, 8, 10, 0.22);
   }
   .chart-insight__title {
     margin-bottom: 0.45rem;
@@ -1854,9 +1952,8 @@
     margin-top: 0.1rem;
   }
   .practice-goals {
-    margin-top: 1rem;
-    padding: 0.75rem 0 0;
-    border-top: 1px solid var(--ff-border);
+    padding-top: 0.2rem;
+    border-top: 1px solid color-mix(in srgb, var(--ff-border) 65%, transparent);
   }
   .practice-goals__row {
     display: flex;
@@ -1876,5 +1973,10 @@
     border: 1px solid var(--ff-border);
     background: var(--ff-bg);
     color: var(--ff-text);
+  }
+  @media (max-width: 960px) {
+    .practice-player {
+      grid-template-columns: 1fr;
+    }
   }
 </style>

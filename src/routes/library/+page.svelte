@@ -343,6 +343,12 @@
     return value.replaceAll("_", " ");
   }
 
+  function formatDuration(durationSec: number): string {
+    return durationSec < 60
+      ? `${durationSec}s`
+      : `${Math.floor(durationSec / 60)}m ${durationSec % 60}s`;
+  }
+
   function prerequisiteTracks(track: CatalogTrackStub): CatalogTrackStub[] {
     return (track.prerequisiteTrackIds ?? [])
       .map((trackId) => findCatalogTrackById(trackId))
@@ -725,23 +731,31 @@
           <li class="catalog-row">
             <div class="catalog-main">
               <div class="catalog-title">
-                {row.kind === "catalog" ? row.track.title : row.entry.title}
-                <span class="recent-badge">Recent</span>
-                {#if suggested}
-                  <span class="suggested-badge">Suggested</span>
-                {/if}
+                <span class="catalog-title__name">{row.kind === "catalog" ? row.track.title : row.entry.title}</span>
+                <div class="catalog-badges">
+                  <span class="recent-badge">Recent</span>
+                  {#if suggested}
+                    <span class="suggested-badge">Suggested</span>
+                  {/if}
+                </div>
               </div>
               <div class="catalog-meta">
-                <span class="muted">{row.kind === "catalog" ? row.track.artist : row.entry.artist}</span>
-                <span class="resume-pill">
-                  {row.recentSession.accuracyPercent}% last run · {formatSessionRecency(row.recentSession.at)}
-                </span>
-                <span class="muted">combo {row.recentSession.maxCombo}</span>
-                {#if row.kind === "catalog" && row.track.difficulty}
-                  <span class="difficulty-pill difficulty-pill--{row.track.difficulty}">{row.track.difficulty}</span>
-                {/if}
-                {#if row.kind === "catalog" && trackFocusLabel(row.track)}
-                  <span class="skill-pill">{trackFocusLabel(row.track)}</span>
+                <div class="catalog-meta__primary">
+                  <span class="catalog-artist">{row.kind === "catalog" ? row.track.artist : row.entry.artist}</span>
+                  <span class="resume-pill">
+                    {row.recentSession.accuracyPercent}% last run · {formatSessionRecency(row.recentSession.at)}
+                  </span>
+                  <span class="muted">combo {row.recentSession.maxCombo}</span>
+                </div>
+                {#if row.kind === "catalog" && (row.track.difficulty || trackFocusLabel(row.track))}
+                  <div class="catalog-meta__secondary">
+                    {#if row.track.difficulty}
+                      <span class="difficulty-pill difficulty-pill--{row.track.difficulty}">{row.track.difficulty}</span>
+                    {/if}
+                    {#if trackFocusLabel(row.track)}
+                      <span class="skill-pill">{trackFocusLabel(row.track)}</span>
+                    {/if}
+                  </div>
                 {/if}
               </div>
             </div>
@@ -791,31 +805,38 @@
           <li class="catalog-row">
             <div class="catalog-main">
               <div class="catalog-title">
-                {row.kind === "catalog" ? row.track.title : row.entry.title}
-                <span class="favorite-badge">Favorite</span>
-                {#if suggested}
-                  <span class="suggested-badge">Suggested</span>
-                {/if}
+                <span class="catalog-title__name">{row.kind === "catalog" ? row.track.title : row.entry.title}</span>
+                <div class="catalog-badges">
+                  <span class="favorite-badge">Favorite</span>
+                  {#if suggested}
+                    <span class="suggested-badge">Suggested</span>
+                  {/if}
+                </div>
               </div>
               <div class="catalog-meta">
-                <span class="muted">{row.kind === "catalog" ? row.track.artist : row.entry.artist}</span>
-                {#if row.kind === "catalog"}
-                  {#if row.track.difficulty}
-                    <span class="difficulty-pill difficulty-pill--{row.track.difficulty}">{row.track.difficulty}</span>
+                <div class="catalog-meta__primary">
+                  <span class="catalog-artist">{row.kind === "catalog" ? row.track.artist : row.entry.artist}</span>
+                  {#if row.kind === "user"}
+                    <span class="muted">{new Date(row.entry.addedAt).toLocaleDateString()}</span>
                   {/if}
-                  {#if trackFocusLabel(row.track)}
-                    <span class="skill-pill">{trackFocusLabel(row.track)}</span>
+                  {#if recent}
+                    <span class="resume-pill">
+                      {recent.accuracyPercent}% last run · {formatSessionRecency(recent.at)}
+                    </span>
                   {/if}
-                  {#if row.track.durationSec != null}
-                    <span class="muted">{row.track.durationSec < 60 ? `${row.track.durationSec}s` : `${Math.floor(row.track.durationSec / 60)}m ${row.track.durationSec % 60}s`}</span>
-                  {/if}
-                {:else}
-                  <span class="muted">{new Date(row.entry.addedAt).toLocaleDateString()}</span>
-                {/if}
-                {#if recent}
-                  <span class="resume-pill">
-                    {recent.accuracyPercent}% last run · {formatSessionRecency(recent.at)}
-                  </span>
+                </div>
+                {#if row.kind === "catalog" && (row.track.difficulty || trackFocusLabel(row.track) || row.track.durationSec != null)}
+                  <div class="catalog-meta__secondary">
+                    {#if row.track.difficulty}
+                      <span class="difficulty-pill difficulty-pill--{row.track.difficulty}">{row.track.difficulty}</span>
+                    {/if}
+                    {#if trackFocusLabel(row.track)}
+                      <span class="skill-pill">{trackFocusLabel(row.track)}</span>
+                    {/if}
+                    {#if row.track.durationSec != null}
+                      <span class="muted">{formatDuration(row.track.durationSec)}</span>
+                    {/if}
+                  </div>
                 {/if}
               </div>
             </div>
@@ -867,21 +888,27 @@
           <li class="catalog-row">
             <div class="catalog-main">
               <div class="catalog-title">
-                {row.kind === "catalog" ? row.track.title : row.entry.title}
-                <span class="collection-badge">{activeCollection.name}</span>
-                {#if suggested}
-                  <span class="suggested-badge">Suggested</span>
-                {/if}
+                <span class="catalog-title__name">{row.kind === "catalog" ? row.track.title : row.entry.title}</span>
+                <div class="catalog-badges">
+                  <span class="collection-badge">{activeCollection.name}</span>
+                  {#if suggested}
+                    <span class="suggested-badge">Suggested</span>
+                  {/if}
+                </div>
               </div>
               <div class="catalog-meta">
-                <span class="muted">{row.kind === "catalog" ? row.track.artist : row.entry.artist}</span>
+                <div class="catalog-meta__primary">
+                  <span class="catalog-artist">{row.kind === "catalog" ? row.track.artist : row.entry.artist}</span>
+                  {#if recent}
+                    <span class="resume-pill">
+                      {recent.accuracyPercent}% last run · {formatSessionRecency(recent.at)}
+                    </span>
+                  {/if}
+                </div>
                 {#if row.kind === "catalog" && trackFocusLabel(row.track)}
-                  <span class="skill-pill">{trackFocusLabel(row.track)}</span>
-                {/if}
-                {#if recent}
-                  <span class="resume-pill">
-                    {recent.accuracyPercent}% last run · {formatSessionRecency(recent.at)}
-                  </span>
+                  <div class="catalog-meta__secondary">
+                    <span class="skill-pill">{trackFocusLabel(row.track)}</span>
+                  </div>
                 {/if}
               </div>
             </div>
@@ -930,19 +957,23 @@
           <li class="catalog-row">
             <div class="catalog-main">
               <div class="catalog-title">
-                {entry.title}
-                {#if suggested}
-                  <span class="suggested-badge">Suggested</span>
-                {/if}
+                <span class="catalog-title__name">{entry.title}</span>
+                <div class="catalog-badges">
+                  {#if suggested}
+                    <span class="suggested-badge">Suggested</span>
+                  {/if}
+                </div>
               </div>
               <div class="catalog-meta">
-                <span class="muted">{entry.artist}</span>
-                <span class="muted">{new Date(entry.addedAt).toLocaleDateString()}</span>
-                {#if recent}
-                  <span class="resume-pill">
-                    {recent.accuracyPercent}% last run · {formatSessionRecency(recent.at)}
-                  </span>
-                {/if}
+                <div class="catalog-meta__primary">
+                  <span class="catalog-artist">{entry.artist}</span>
+                  <span class="muted">{new Date(entry.addedAt).toLocaleDateString()}</span>
+                  {#if recent}
+                    <span class="resume-pill">
+                      {recent.accuracyPercent}% last run · {formatSessionRecency(recent.at)}
+                    </span>
+                  {/if}
+                </div>
               </div>
             </div>
             <div class="catalog-action">
@@ -989,37 +1020,43 @@
         <li class="catalog-row">
           <div class="catalog-main">
             <div class="catalog-title">
-              {t.title}
-              {#if suggested}
-                <span class="suggested-badge">Suggested</span>
-              {/if}
+              <span class="catalog-title__name">{t.title}</span>
+              <div class="catalog-badges">
+                {#if suggested}
+                  <span class="suggested-badge">Suggested</span>
+                {/if}
+              </div>
             </div>
             <div class="catalog-meta">
-              <span class="muted">{t.artist}</span>
-              {#if t.difficulty}
-                <span class="difficulty-pill difficulty-pill--{t.difficulty}">{t.difficulty}</span>
-              {/if}
-              {#if trackFocusLabel(t)}
-                <span class="skill-pill">{trackFocusLabel(t)}</span>
-              {/if}
-              {#if t.durationSec != null}
-                <span class="muted">{t.durationSec < 60 ? `${t.durationSec}s` : `${Math.floor(t.durationSec / 60)}m ${t.durationSec % 60}s`}</span>
-              {/if}
-              {#if t.targetBpm != null}
-                <span class="muted">{t.targetBpm} BPM target</span>
-              {/if}
-              <span
-                class="tier-pill"
-                class:tier-pill--free={t.tier === "free"}
-                class:tier-pill--premium={t.tier === "premium"}
-              >
-                {t.tier}
-              </span>
-              {#if recent}
-                <span class="resume-pill">
-                  {recent.accuracyPercent}% last run · {formatSessionRecency(recent.at)}
+              <div class="catalog-meta__primary">
+                <span class="catalog-artist">{t.artist}</span>
+                {#if recent}
+                  <span class="resume-pill">
+                    {recent.accuracyPercent}% last run · {formatSessionRecency(recent.at)}
+                  </span>
+                {/if}
+              </div>
+              <div class="catalog-meta__secondary">
+                {#if t.difficulty}
+                  <span class="difficulty-pill difficulty-pill--{t.difficulty}">{t.difficulty}</span>
+                {/if}
+                {#if trackFocusLabel(t)}
+                  <span class="skill-pill">{trackFocusLabel(t)}</span>
+                {/if}
+                {#if t.durationSec != null}
+                  <span class="muted">{formatDuration(t.durationSec)}</span>
+                {/if}
+                {#if t.targetBpm != null}
+                  <span class="muted">{t.targetBpm} BPM target</span>
+                {/if}
+                <span
+                  class="tier-pill"
+                  class:tier-pill--free={t.tier === "free"}
+                  class:tier-pill--premium={t.tier === "premium"}
+                >
+                  {t.tier}
                 </span>
-              {/if}
+              </div>
             </div>
             {#if prerequisites.length > 0}
               <p class="catalog-prereq">
@@ -1300,34 +1337,67 @@
     border: 1px solid color-mix(in srgb, var(--ff-accent) 40%, var(--ff-border));
     background: color-mix(in srgb, var(--ff-accent) 8%, var(--ff-bg));
   }
+  .catalog-list {
+    display: grid;
+    gap: 0.75rem;
+  }
   .catalog-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.65rem 1rem;
-    padding: 0.75rem 0;
-    border-bottom: 1px solid var(--ff-border);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.9rem 1rem;
+    padding: 1rem;
+    border: 1px solid var(--ff-border);
+    border-radius: 18px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 30%),
+      rgba(9, 8, 10, 0.2);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
   }
-  .catalog-row:last-child {
-    border-bottom: none;
-    padding-bottom: 0;
+  .catalog-row:hover {
+    border-color: color-mix(in srgb, var(--ff-accent) 24%, var(--ff-border));
+    background:
+      linear-gradient(180deg, rgba(63, 208, 195, 0.04), transparent 30%),
+      rgba(9, 8, 10, 0.24);
   }
-  .catalog-row:first-child {
-    padding-top: 0;
+  .catalog-main {
+    min-width: 0;
+    display: grid;
+    gap: 0.5rem;
   }
   .catalog-title {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.6rem;
+    align-items: center;
     font-weight: 600;
     color: var(--ff-text);
-    font-size: 0.95rem;
+    font-size: 1rem;
+    letter-spacing: -0.01em;
+  }
+  .catalog-title__name {
+    min-width: 0;
+  }
+  .catalog-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    align-items: center;
   }
   .catalog-meta {
+    display: grid;
+    gap: 0.38rem;
+    font-size: 0.84rem;
+  }
+  .catalog-meta__primary,
+  .catalog-meta__secondary {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.5rem 0.65rem;
-    margin-top: 0.2rem;
-    font-size: 0.82rem;
+    gap: 0.45rem 0.6rem;
+  }
+  .catalog-artist {
+    color: var(--ff-muted-strong);
+    font-weight: 600;
   }
   .catalog-prereq {
     margin: 0.35rem 0 0;
@@ -1337,8 +1407,10 @@
   }
   .catalog-action {
     display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
     gap: 0.5rem;
-    align-items: center;
+    align-items: start;
   }
   .favorite-toggle {
     min-width: 2.5rem;
@@ -1387,7 +1459,6 @@
   }
   .collection-badge {
     display: inline-flex;
-    margin-left: 0.45rem;
     padding: 0.1rem 0.4rem;
     border-radius: 999px;
     border: 1px solid color-mix(in srgb, var(--ff-accent) 50%, var(--ff-border));
@@ -1400,7 +1471,6 @@
   }
   .suggested-badge {
     display: inline-flex;
-    margin-left: 0.45rem;
     padding: 0.1rem 0.4rem;
     border-radius: 999px;
     border: 1px solid color-mix(in srgb, var(--ff-accent) 55%, var(--ff-border));
@@ -1516,6 +1586,12 @@
     }
     .path-toolbar__selectors {
       grid-template-columns: 1fr;
+    }
+    .catalog-row {
+      grid-template-columns: 1fr;
+    }
+    .catalog-action {
+      justify-content: flex-start;
     }
   }
 </style>
