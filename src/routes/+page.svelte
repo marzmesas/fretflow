@@ -173,6 +173,17 @@
     void goto(`/practice?track=${encodeURIComponent(trackId)}`);
   }
 
+  function isActivationMode(): boolean {
+    return Boolean(onboarding && !onboarding.hidden);
+  }
+
+  function hasReturningDashboard(): boolean {
+    return (
+      !isActivationMode() ||
+      Boolean(lastSession || recentSessions.length > 1 || recommendedTracks.length > 0 || learningPaths.length > 0)
+    );
+  }
+
   onMount(async () => {
     refreshHomeState();
     if (!isTauri()) {
@@ -242,273 +253,308 @@
     {@const seededTrack = recommendedAssessmentTrack()}
     {@const seededPath = recommendedAssessmentPath()}
     {@const setupAction = recommendedSetupAction()}
-    <div class="panel onboarding-panel">
-      <div class="onboarding-panel__header">
-        <div>
-          <p class="onboarding-panel__eyebrow">First run</p>
-          <h2>Setup guide</h2>
-        </div>
-        <button type="button" class="btn" onclick={dismissSetupGuide}>Dismiss</button>
-      </div>
-      <p class="onboarding-panel__body">
-        Fretflow works best once your input is configured and you have completed one full practice run.
-      </p>
-      <div class="assessment-panel">
-        <div class="assessment-panel__copy">
-          <strong>Starting point</strong>
-          <p>Answer two questions so Fretflow can seed the right path and first chart instead of dropping you into the full catalog.</p>
-        </div>
-        <div class="assessment-panel__controls">
-          <label class="assessment-field">
-            <span>Experience</span>
-            <select bind:value={assessmentExperience}>
-              <option value="brand_new">Brand new</option>
-              <option value="returning">Returning player</option>
-              <option value="comfortable">Comfortable already</option>
-            </select>
-          </label>
-          <label class="assessment-field">
-            <span>Focus</span>
-            <select bind:value={assessmentGoal}>
-              <option value="fundamentals">Fundamentals</option>
-              <option value="rhythm">Rhythm</option>
-              <option value="technique">Technique</option>
-            </select>
-          </label>
-          <button type="button" class="btn" onclick={saveAssessment}>
-            {onboarding.assessment ? "Update recommendation" : "Save recommendation"}
-          </button>
-        </div>
-        {#if onboarding.assessment && seededTrack && seededPath}
-          <p class="assessment-panel__result">
-            Recommended path: <strong>{seededPath.title}</strong> · Start with <strong>{seededTrack.title}</strong>.
-          </p>
-        {/if}
-        {#if setupAction}
-          <div class="assessment-setup">
-            <div>
-              <strong>{setupAction.title}</strong>
-              <p>{setupAction.detail}</p>
-            </div>
-            <a href={setupAction.href} class="btn">Open in Settings</a>
+    <section class="home-activation">
+      <div class="panel onboarding-panel">
+        <div class="onboarding-panel__header">
+          <div>
+            <p class="onboarding-panel__eyebrow">First run</p>
+            <h2>Setup guide</h2>
           </div>
-        {/if}
-      </div>
-      <div class="onboarding-panel__progress" role="list" aria-label="Setup steps">
-        {#each Object.entries(STEP_COPY) as [stepId, meta] (stepId)}
-          <div class="onboarding-step" role="listitem">
-            <span class:completed={!onboarding.remainingSteps.includes(stepId as OnboardingStepId)}>
-              {!onboarding.remainingSteps.includes(stepId as OnboardingStepId) ? "Done" : "Next"}
-            </span>
-            <div>
-              <strong>{meta.title}</strong>
-              <p>{meta.detail}</p>
-            </div>
+          <button type="button" class="btn" onclick={dismissSetupGuide}>Dismiss</button>
+        </div>
+        <p class="onboarding-panel__body">
+          Fretflow works best once your input is configured and you have completed one full practice run.
+        </p>
+        <div class="assessment-panel">
+          <div class="assessment-panel__copy">
+            <strong>Starting point</strong>
+            <p>Answer two questions so Fretflow can seed the right path and first chart instead of dropping you into the full catalog.</p>
           </div>
-        {/each}
-      </div>
-      {#if nextStep}
-        <div class="onboarding-panel__actions">
-          <a href={nextStep.href} class="btn btn-primary">{nextStep.title}</a>
-          {#if onboarding.assessment && seededTrack}
-            <button type="button" class="btn" onclick={openAssessmentRecommendation}>
-              Open recommended first chart
+          <div class="assessment-panel__controls">
+            <label class="assessment-field">
+              <span>Experience</span>
+              <select bind:value={assessmentExperience}>
+                <option value="brand_new">Brand new</option>
+                <option value="returning">Returning player</option>
+                <option value="comfortable">Comfortable already</option>
+              </select>
+            </label>
+            <label class="assessment-field">
+              <span>Focus</span>
+              <select bind:value={assessmentGoal}>
+                <option value="fundamentals">Fundamentals</option>
+                <option value="rhythm">Rhythm</option>
+                <option value="technique">Technique</option>
+              </select>
+            </label>
+            <button type="button" class="btn" onclick={saveAssessment}>
+              {onboarding.assessment ? "Update recommendation" : "Save recommendation"}
             </button>
+          </div>
+          {#if onboarding.assessment && seededTrack && seededPath}
+            <p class="assessment-panel__result">
+              Recommended path: <strong>{seededPath.title}</strong> · Start with <strong>{seededTrack.title}</strong>.
+            </p>
+          {/if}
+          {#if setupAction}
+            <div class="assessment-setup">
+              <div>
+                <strong>{setupAction.title}</strong>
+                <p>{setupAction.detail}</p>
+              </div>
+              <a href={setupAction.href} class="btn">Open in Settings</a>
+            </div>
           {/if}
         </div>
-      {/if}
-    </div>
-  {/if}
-
-  {#if lastSession}
-    <div class="panel continue-panel">
-      <div>
-        <h2>Continue practicing</h2>
-        <p>
-          Last session: <strong>{lastSession.chartTitle}</strong> · {lastSession.accuracyPercent}% accuracy ·
-          combo {lastSession.maxCombo}
-        </p>
-      </div>
-      <button type="button" class="btn btn-primary" onclick={openLastSession}>
-        {lastSession.practiceTrackId ? "Resume last track" : "Open practice"}
-      </button>
-    </div>
-  {/if}
-
-  {#if recentSessions.length > 1}
-    <div class="panel recent-panel">
-      <div class="recent-panel__header">
-        <div>
-          <h2>Recent practice queue</h2>
-          <p class="muted">Jump back into charts you have touched recently without digging through Library.</p>
-        </div>
-        <a href="/library?filter=recent" class="btn">Open recent in Library</a>
-      </div>
-      <div class="recent-grid">
-        {#each recentSessions.slice(0, 4) as session (session.practiceTrackId ?? session.at)}
-          <button type="button" class="recent-card" onclick={() => openSession(session)}>
-            <span class="recent-card__title">{session.chartTitle}</span>
-            <span class="recent-card__meta">
-              {session.accuracyPercent}% · combo {session.maxCombo} · {formatSessionRecency(session.at)}
-            </span>
-            <span class="recent-card__cta">{session.practiceTrackId ? "Resume track" : "Open practice"}</span>
-          </button>
-        {/each}
-      </div>
-    </div>
-  {/if}
-
-  {#if recommendedTracks.length > 0}
-    <div class="panel recent-panel">
-      <div class="recent-panel__header">
-        <div>
-          <h2>Suggested next charts</h2>
-          <p class="muted">Recommendations are based on your recent bundled-chart runs and current accuracy.</p>
-        </div>
-        <a href="/library" class="btn">Browse all charts</a>
-      </div>
-      <div class="recent-grid">
-        {#each recommendedTracks as item (item.track.id)}
-          <button
-            type="button"
-            class="recent-card"
-            onclick={() => void goto(`/practice?track=${encodeURIComponent(item.track.id)}`)}
-          >
-            <span class="recent-card__title">{item.track.title}</span>
-            <span class="recent-card__meta">
-              {item.track.artist}
-              {#if item.track.difficulty} · {item.track.difficulty}{/if}
-            </span>
-            <span class="recent-card__detail">{item.reason}</span>
-            <span class="recent-card__cta">Practice this chart</span>
-          </button>
-        {/each}
-      </div>
-    </div>
-  {/if}
-
-  {#if learningPaths.length > 0}
-    <div class="panel path-panel">
-      <div class="recent-panel__header">
-        <div>
-          <h2>Learning paths</h2>
-          <p class="muted">Structured bundled-chart sequences that give the app a clearer progression than free browsing alone.</p>
-        </div>
-        <a href="/library" class="btn">Browse Library</a>
-      </div>
-      <div class="path-grid">
-        {#each learningPaths as item (item.path.id)}
-          {@const isSeeded = onboarding?.assessment?.recommendedPathId === item.path.id}
-          <div class="path-card">
-            <div class="path-card__header">
+        <div class="onboarding-panel__progress" role="list" aria-label="Setup steps">
+          {#each Object.entries(STEP_COPY) as [stepId, meta] (stepId)}
+            <div class="onboarding-step" role="listitem">
+              <span class:completed={!onboarding.remainingSteps.includes(stepId as OnboardingStepId)}>
+                {!onboarding.remainingSteps.includes(stepId as OnboardingStepId) ? "Done" : "Next"}
+              </span>
               <div>
-                <h3>{item.path.title}</h3>
-                <p>{item.path.description}</p>
+                <strong>{meta.title}</strong>
+                <p>{meta.detail}</p>
               </div>
-              <span class={`path-status path-status--${item.status}`}>
-                {item.status === "completed"
-                  ? "Completed"
-                  : item.status === "in_progress"
-                    ? "In progress"
-                    : "Ready"}
-              </span>
             </div>
-            {#if isSeeded}
-              <p class="path-card__seeded">Recommended from onboarding assessment</p>
-            {/if}
-            <div class="path-card__progress">
-              <div class="path-card__progress-bar">
-                <span style={`width: ${item.completionPercent}%`}></span>
-              </div>
-              <span class="path-card__progress-copy">
-                {item.completedSteps}/{item.totalSteps} steps complete
-              </span>
-            </div>
-            {#if item.nextStep}
-              <p class="path-card__next">
-                Next: <strong>{item.nextStep.track.title}</strong> · {item.nextStep.note}
-                {#if item.nextStep.track.targetBpm != null}
-                  · target {item.nextStep.track.targetBpm} BPM
-                {/if}
-                {#if item.nextStep.track.masteryAccuracyThreshold != null}
-                  · clear at {item.nextStep.track.masteryAccuracyThreshold}%+
-                {/if}
-              </p>
-              <button type="button" class="btn btn-primary" onclick={() => openLearningPathStep(item)}>
-                {item.status === "not_started" ? "Start path" : "Continue path"}
-              </button>
-            {:else}
-              <p class="path-card__next">
-                All steps cleared at the local completion threshold. Use Library recommendations to step up further.
-              </p>
-              <button type="button" class="btn" onclick={() => void goto("/library?filter=recent")}>
-                Review recent charts
+          {/each}
+        </div>
+        {#if nextStep}
+          <div class="onboarding-panel__actions">
+            <a href={nextStep.href} class="btn btn-primary">{nextStep.title}</a>
+            {#if onboarding.assessment && seededTrack}
+              <button type="button" class="btn" onclick={openAssessmentRecommendation}>
+                Open recommended first chart
               </button>
             {/if}
           </div>
-        {/each}
+        {/if}
       </div>
-    </div>
+
+      <aside class="home-activation__rail">
+        <div class="panel home-note-card">
+          <p class="home-note-card__eyebrow">First session target</p>
+          <h2>Get one clean run recorded.</h2>
+          <p>
+            The first completed chart unlocks recent practice, smarter recommendations, and a more useful return-to-practice dashboard.
+          </p>
+          <ol class="home-steps">
+            <li>Verify your mic or MIDI setup in <a href="/settings">Settings</a>.</li>
+            <li>Choose a bundled chart from <a href="/library">Library</a>.</li>
+            <li>Finish one full run in <a href="/practice">Practice</a> to seed progress.</li>
+          </ol>
+        </div>
+
+        {#if seededPath}
+          <div class="panel home-note-card home-note-card--accent">
+            <p class="home-note-card__eyebrow">Seeded recommendation</p>
+            <h2>{seededPath.title}</h2>
+            <p>
+              {seededPath.description}
+              {#if seededTrack}
+                Start with <strong>{seededTrack.title}</strong> for the cleanest first step.
+              {/if}
+            </p>
+            {#if seededTrack}
+              <button type="button" class="btn btn-primary" onclick={openAssessmentRecommendation}>
+                Open recommended chart
+              </button>
+            {/if}
+          </div>
+        {/if}
+
+        <div class="panel home-note-card">
+          <p class="home-note-card__eyebrow">Core tools</p>
+          <h2>Built for repetition that actually compounds.</h2>
+          <ul class="home-features">
+            <li>Scrolling tab with real-time accuracy and combo feedback</li>
+            <li>Loop A-B, metronome, speed control, and saved practice state</li>
+            <li>Mic pitch detection or MIDI input with local scoring</li>
+            <li>Recent runs, path guidance, and recommendation continuity</li>
+          </ul>
+        </div>
+      </aside>
+    </section>
   {/if}
 
-  <div class="panel goal-panel">
-    <div class="recent-panel__header">
-      <div>
-        <h2>Daily goal &amp; streak</h2>
-        <p class="muted">Consistency is stored locally and updates after each completed chart run.</p>
+  {#if hasReturningDashboard()}
+    <section class="home-dashboard">
+      <div class="home-dashboard__top">
+        {#if lastSession}
+          <div class="panel continue-panel home-dashboard__hero-card">
+            <div>
+              <p class="home-note-card__eyebrow">Continue practicing</p>
+              <h2>Pick up where the last run ended.</h2>
+              <p>
+                Last session: <strong>{lastSession.chartTitle}</strong> · {lastSession.accuracyPercent}% accuracy ·
+                combo {lastSession.maxCombo}
+              </p>
+            </div>
+            <button type="button" class="btn btn-primary" onclick={openLastSession}>
+              {lastSession.practiceTrackId ? "Resume last track" : "Open practice"}
+            </button>
+          </div>
+        {/if}
+
+        <div class="panel goal-panel home-dashboard__goal-card">
+          <div class="recent-panel__header">
+            <div>
+              <p class="home-note-card__eyebrow">Daily rhythm</p>
+              <h2>Daily goal &amp; streak</h2>
+              <p class="muted">Consistency is stored locally and updates after each completed chart run.</p>
+            </div>
+            <a href="/practice" class="btn">Open Practice</a>
+          </div>
+          <div class="goal-panel__grid">
+            <div class="goal-panel__stat">
+              <span class="goal-panel__label">Today</span>
+              <strong>{practiceGoals.progressToday}</strong>
+              <span class="muted">sessions complete</span>
+            </div>
+            <div class="goal-panel__stat">
+              <span class="goal-panel__label">Streak</span>
+              <strong>{practiceGoals.streakDays}</strong>
+              <span class="muted">day{practiceGoals.streakDays === 1 ? "" : "s"} in a row</span>
+            </div>
+            <div class="goal-panel__stat">
+              <span class="goal-panel__label">Target</span>
+              <strong>{practiceGoals.dailyGoalSessions}</strong>
+              <span class="muted">session{practiceGoals.dailyGoalSessions === 1 ? "" : "s"} per day</span>
+            </div>
+          </div>
+          <p class="goal-panel__message">
+            {#if practiceGoals.goalMetToday}
+              Goal met today. Another full run still counts toward recent history and recommendations.
+            {:else}
+              {@const remaining = practiceGoals.dailyGoalSessions - Math.min(practiceGoals.sessionsToday, practiceGoals.dailyGoalSessions)}
+              {remaining} more full run{remaining === 1 ? "" : "s"} to hit today's target.
+            {/if}
+          </p>
+        </div>
       </div>
-      <a href="/practice" class="btn">Open Practice</a>
-    </div>
-    <div class="goal-panel__grid">
-      <div class="goal-panel__stat">
-        <span class="goal-panel__label">Today</span>
-        <strong>{practiceGoals.progressToday}</strong>
-        <span class="muted">sessions complete</span>
+
+      <div class="home-dashboard__grid">
+        {#if recentSessions.length > 1}
+          <div class="panel recent-panel">
+            <div class="recent-panel__header">
+              <div>
+                <p class="home-note-card__eyebrow">Quick return</p>
+                <h2>Recent practice queue</h2>
+                <p class="muted">Jump back into charts you have touched recently without digging through Library.</p>
+              </div>
+              <a href="/library?filter=recent" class="btn">Open recent in Library</a>
+            </div>
+            <div class="recent-grid">
+              {#each recentSessions.slice(0, 4) as session (session.practiceTrackId ?? session.at)}
+                <button type="button" class="recent-card" onclick={() => openSession(session)}>
+                  <span class="recent-card__title">{session.chartTitle}</span>
+                  <span class="recent-card__meta">
+                    {session.accuracyPercent}% · combo {session.maxCombo} · {formatSessionRecency(session.at)}
+                  </span>
+                  <span class="recent-card__cta">{session.practiceTrackId ? "Resume track" : "Open practice"}</span>
+                </button>
+              {/each}
+            </div>
+          </div>
+        {/if}
+
+        {#if recommendedTracks.length > 0}
+          <div class="panel recent-panel">
+            <div class="recent-panel__header">
+              <div>
+                <p class="home-note-card__eyebrow">Momentum picks</p>
+                <h2>Suggested next charts</h2>
+                <p class="muted">Recommendations are based on your recent bundled-chart runs and current accuracy.</p>
+              </div>
+              <a href="/library" class="btn">Browse all charts</a>
+            </div>
+            <div class="recent-grid">
+              {#each recommendedTracks as item (item.track.id)}
+                <button
+                  type="button"
+                  class="recent-card"
+                  onclick={() => void goto(`/practice?track=${encodeURIComponent(item.track.id)}`)}
+                >
+                  <span class="recent-card__title">{item.track.title}</span>
+                  <span class="recent-card__meta">
+                    {item.track.artist}
+                    {#if item.track.difficulty} · {item.track.difficulty}{/if}
+                  </span>
+                  <span class="recent-card__detail">{item.reason}</span>
+                  <span class="recent-card__cta">Practice this chart</span>
+                </button>
+              {/each}
+            </div>
+          </div>
+        {/if}
       </div>
-      <div class="goal-panel__stat">
-        <span class="goal-panel__label">Streak</span>
-        <strong>{practiceGoals.streakDays}</strong>
-        <span class="muted">day{practiceGoals.streakDays === 1 ? "" : "s"} in a row</span>
-      </div>
-      <div class="goal-panel__stat">
-        <span class="goal-panel__label">Target</span>
-        <strong>{practiceGoals.dailyGoalSessions}</strong>
-        <span class="muted">session{practiceGoals.dailyGoalSessions === 1 ? "" : "s"} per day</span>
-      </div>
-    </div>
-    <p class="goal-panel__message">
-      {#if practiceGoals.goalMetToday}
-        Goal met today. Another full run still counts toward recent history and recommendations.
-      {:else}
-        {@const remaining = practiceGoals.dailyGoalSessions - Math.min(practiceGoals.sessionsToday, practiceGoals.dailyGoalSessions)}
-        {remaining} more full run{remaining === 1 ? "" : "s"} to hit today's target.
+
+      {#if learningPaths.length > 0}
+        <div class="panel path-panel">
+          <div class="recent-panel__header">
+            <div>
+              <p class="home-note-card__eyebrow">Structured progression</p>
+              <h2>Learning paths</h2>
+              <p class="muted">Structured bundled-chart sequences that give the app a clearer progression than free browsing alone.</p>
+            </div>
+            <a href="/library" class="btn">Browse Library</a>
+          </div>
+          <div class="path-grid">
+            {#each learningPaths as item (item.path.id)}
+              {@const isSeeded = onboarding?.assessment?.recommendedPathId === item.path.id}
+              <div class="path-card">
+                <div class="path-card__header">
+                  <div>
+                    <h3>{item.path.title}</h3>
+                    <p>{item.path.description}</p>
+                  </div>
+                  <span class={`path-status path-status--${item.status}`}>
+                    {item.status === "completed"
+                      ? "Completed"
+                      : item.status === "in_progress"
+                        ? "In progress"
+                        : "Ready"}
+                  </span>
+                </div>
+                {#if isSeeded}
+                  <p class="path-card__seeded">Recommended from onboarding assessment</p>
+                {/if}
+                <div class="path-card__progress">
+                  <div class="path-card__progress-bar">
+                    <span style={`width: ${item.completionPercent}%`}></span>
+                  </div>
+                  <span class="path-card__progress-copy">
+                    {item.completedSteps}/{item.totalSteps} steps complete
+                  </span>
+                </div>
+                {#if item.nextStep}
+                  <p class="path-card__next">
+                    Next: <strong>{item.nextStep.track.title}</strong> · {item.nextStep.note}
+                    {#if item.nextStep.track.targetBpm != null}
+                      · target {item.nextStep.track.targetBpm} BPM
+                    {/if}
+                    {#if item.nextStep.track.masteryAccuracyThreshold != null}
+                      · clear at {item.nextStep.track.masteryAccuracyThreshold}%+
+                    {/if}
+                  </p>
+                  <button type="button" class="btn btn-primary" onclick={() => openLearningPathStep(item)}>
+                    {item.status === "not_started" ? "Start path" : "Continue path"}
+                  </button>
+                {:else}
+                  <p class="path-card__next">
+                    All steps cleared at the local completion threshold. Use Library recommendations to step up further.
+                  </p>
+                  <button type="button" class="btn" onclick={() => void goto("/library?filter=recent")}>
+                    Review recent charts
+                  </button>
+                {/if}
+              </div>
+            {/each}
+          </div>
+        </div>
       {/if}
-    </p>
-  </div>
-
-  <div class="home-cards">
-    <div class="panel home-card">
-      <h2>Get started</h2>
-      <ol class="home-steps">
-        <li>Pick a chart from the <a href="/library">Library</a> or import your own MIDI / JSON file</li>
-        <li>Connect your guitar via <strong>MIDI</strong> or use the built-in <strong>mic</strong> (configure in <a href="/settings">Settings</a>)</li>
-        <li>Hit <strong>Play</strong> and follow the scrolling highway — aim for <strong>Perfect</strong> timing</li>
-      </ol>
-    </div>
-
-    <div class="panel home-card">
-      <h2>Features</h2>
-      <ul class="home-features">
-        <li>14 bundled exercises from beginner to advanced</li>
-        <li>Import your own MIDI or chart JSON files</li>
-        <li>MIDI scoring with latency calibration</li>
-        <li>Mic pitch detection (YIN) with adaptive onset</li>
-        <li>Practice and Performance timing modes</li>
-        <li>Loop A–B, metronome, speed control</li>
-        <li>Session history with accuracy tracking</li>
-      </ul>
-    </div>
-  </div>
+    </section>
+  {/if}
 
   {#if appInfo}
     <p class="home-version muted">
@@ -604,14 +650,56 @@
     font-size: 0.84rem;
     line-height: 1.55;
   }
-  .home-cards {
+  .home-activation {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
     gap: 1rem;
-    margin-bottom: 1rem;
+    grid-template-columns: minmax(0, 1.5fr) minmax(18rem, 0.9fr);
   }
-  .home-card h2 {
-    margin: 0 0 0.6rem;
+  .home-activation__rail {
+    display: grid;
+    gap: 1rem;
+    align-content: start;
+  }
+  .home-dashboard {
+    display: grid;
+    gap: 1rem;
+  }
+  .home-dashboard__top,
+  .home-dashboard__grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .home-dashboard__hero-card,
+  .home-dashboard__goal-card {
+    margin-bottom: 0;
+  }
+  .home-note-card {
+    display: grid;
+    gap: 0.7rem;
+  }
+  .home-note-card__eyebrow {
+    margin: 0;
+    color: var(--ff-highlight-strong);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+  .home-note-card h2 {
+    margin: 0;
+    font-size: 1.35rem;
+  }
+  .home-note-card p {
+    margin: 0;
+    color: var(--ff-muted);
+    line-height: 1.6;
+  }
+  .home-note-card--accent {
+    background:
+      radial-gradient(circle at top right, rgba(63, 208, 195, 0.14), transparent 35%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 26%),
+      linear-gradient(180deg, rgba(30, 24, 29, 0.94), rgba(18, 15, 19, 0.94));
   }
   .home-steps {
     margin: 0;
@@ -620,11 +708,15 @@
     color: var(--ff-text);
     line-height: 1.65;
   }
+  .home-steps li + li,
+  .home-features li + li {
+    margin-top: 0.35rem;
+  }
   .home-features {
     margin: 0;
     padding-left: 1.3rem;
-    font-size: 0.88rem;
-    color: var(--ff-muted);
+    font-size: 0.9rem;
+    color: var(--ff-muted-strong);
     line-height: 1.65;
   }
   .home-version {
@@ -926,6 +1018,11 @@
   }
   @media (max-width: 640px) {
     .home-hero {
+      grid-template-columns: 1fr;
+    }
+    .home-activation,
+    .home-dashboard__top,
+    .home-dashboard__grid {
       grid-template-columns: 1fr;
     }
     .onboarding-step {

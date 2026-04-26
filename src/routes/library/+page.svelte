@@ -237,6 +237,26 @@
       : collections.find((collection) => collection.id === activeCollectionId) ?? null,
   );
 
+  function isBrowseFilter(value: Filter): boolean {
+    return value === "all" || value === "free" || value === "premium";
+  }
+
+  function filterLabel(value: Filter): string {
+    return value === "all"
+      ? "All charts"
+      : value === "free"
+        ? "Free starter charts"
+        : value === "premium"
+          ? "Premium previews"
+          : value === "recent"
+            ? "Recent practice"
+            : value === "favorites"
+              ? "Favorites"
+              : value === "collections"
+                ? "Collections"
+                : "My charts";
+  }
+
   const collectionRows = $derived.by<CollectionRow[]>(() => {
     const collection = activeCollection;
     if (collection == null) return [];
@@ -467,13 +487,52 @@
   });
 </script>
 
-<h1 style="margin: 0 0 0.5rem; font-size: 1.5rem">Library</h1>
-<p class="muted" style="margin: 0 0 1rem">
-  Browse bundled exercises or import your own charts (JSON or MIDI files).
-</p>
+<section class="panel library-hero">
+  <div class="library-hero__copy">
+    <p class="library-hero__eyebrow">Browse without clutter</p>
+    <h1>Pick a mode first, then choose the right chart.</h1>
+    <p class="muted">
+      Bundled drills, recommended next steps, collections, and imported charts all stay here, but the screen should stop asking you to manage every dimension at once.
+    </p>
+  </div>
+  <div class="library-hero__stats">
+    <div class="library-hero__stat">
+      <span class="library-hero__stat-label">Bundled</span>
+      <strong>{catalogTracks.length}</strong>
+      <span class="muted">charts in the local catalog</span>
+    </div>
+    <div class="library-hero__stat">
+      <span class="library-hero__stat-label">Imported</span>
+      <strong>{userCharts.length}</strong>
+      <span class="muted">personal charts on this device</span>
+    </div>
+    <div class="library-hero__stat">
+      <span class="library-hero__stat-label">Current view</span>
+      <strong>{filterLabel(filter)}</strong>
+      <span class="muted">
+        {#if activePathId !== "all"}
+          Filtered by {getLearningPathById(activePathId)?.title}
+        {:else if activeSkillTag}
+          Skill: {formatTagLabel(activeSkillTag)}
+        {:else if activeTechniqueTag}
+          Technique: {formatTagLabel(activeTechniqueTag)}
+        {:else}
+          No path or technique narrowing active
+        {/if}
+      </span>
+    </div>
+  </div>
+</section>
 
 <div class="panel">
-  <h2>Browse</h2>
+  <div class="library-panel__header">
+    <div>
+      <p class="library-section__eyebrow">Library modes</p>
+      <h2>Catalog</h2>
+      <p class="muted">Choose a browsing mode first. Secondary controls appear only when they help the current task.</p>
+    </div>
+    <a href="#import-chart" class="btn">Import chart</a>
+  </div>
 
   {#if recommendedTracks.length > 0}
     <div class="recommended-strip">
@@ -502,131 +561,147 @@
     </div>
   {/if}
 
-  <div class="collection-toolbar">
-    <div class="collection-toolbar__controls">
-      <input
-        type="text"
-        bind:value={newCollectionName}
-        placeholder="New collection name"
-        class="collection-toolbar__input"
-      />
-      <button type="button" class="btn" onclick={createCollectionFromInput}>Create collection</button>
-      <select
-        value={activeCollectionId ?? ""}
-        onchange={(ev) => {
-          const value = (ev.currentTarget as HTMLSelectElement).value;
-          setActiveCollection(value === "" ? null : value);
-        }}
-        class="collection-toolbar__select"
-      >
-        <option value="">No collection selected</option>
-        {#each collections as collection (collection.id)}
-          <option value={collection.id}>{collection.name} ({collection.trackIds.length})</option>
+  <div class="library-toolbar-grid">
+    <section class="library-control-card">
+      <p class="library-section__eyebrow">Mode</p>
+      <h3>What are you trying to browse?</h3>
+      <div class="catalog-filters">
+        {#each FILTERS as f (f)}
+          <button
+            type="button"
+            class="btn"
+            class:btn-primary={filter === f}
+            onclick={() => setFilter(f)}
+            aria-pressed={filter === f}
+          >
+            {f === "all"
+              ? "All"
+              : f === "free"
+                ? "Free"
+                : f === "premium"
+                  ? "Premium"
+                  : f === "recent"
+                    ? `Recent (${recentRows.length})`
+                  : f === "favorites"
+                    ? `Favorites (${favoriteRows.length})`
+                    : f === "collections"
+                      ? `Collection (${collectionRows.length})`
+                      : `My Charts (${userCharts.length})`}
+          </button>
         {/each}
-      </select>
-      <button type="button" class="btn" onclick={removeActiveCollection} disabled={activeCollectionId == null}>
-        Delete active
-      </button>
-    </div>
-    {#if activeCollection}
-      <p class="muted collection-toolbar__summary">
-        Active collection: <strong>{activeCollection.name}</strong> · {activeCollection.trackIds.length} chart{activeCollection.trackIds.length === 1 ? "" : "s"}
+      </div>
+      <p class="muted library-control-card__summary">
+        Current mode: <strong>{filterLabel(filter)}</strong>
       </p>
-    {/if}
-  </div>
+    </section>
 
-  <div class="row catalog-filters" style="margin-bottom: 1rem">
-    {#each FILTERS as f (f)}
-      <button
-        type="button"
-        class="btn"
-        class:btn-primary={filter === f}
-        onclick={() => setFilter(f)}
-        aria-pressed={filter === f}
-      >
-        {f === "all"
-          ? "All"
-          : f === "free"
-            ? "Free"
-            : f === "premium"
-              ? "Premium"
-              : f === "recent"
-                ? `Recent (${recentRows.length})`
-              : f === "favorites"
-                ? `Favorites (${favoriteRows.length})`
-              : f === "collections"
-                ? `Collection (${collectionRows.length})`
-                : `My Charts (${userCharts.length})`}
-      </button>
-    {/each}
-  </div>
-
-  <div class="path-toolbar">
-    <div class="path-toolbar__group">
-      <span class="muted path-toolbar__label">Learning paths</span>
-      <button
-        type="button"
-        class="btn"
-        class:btn-primary={activePathId === "all"}
-        onclick={() => setActivePath("all")}
-      >
-        All paths
-      </button>
-      {#each LEARNING_PATHS as path (path.id)}
-        <button
-          type="button"
-          class="btn"
-          class:btn-primary={activePathId === path.id}
-          onclick={() => setActivePath(path.id)}
+    <section class="library-control-card">
+      <p class="library-section__eyebrow">Collections</p>
+      <h3>Keep one active set list.</h3>
+      <div class="collection-toolbar__controls">
+        <input
+          type="text"
+          bind:value={newCollectionName}
+          placeholder="New collection name"
+          class="collection-toolbar__input"
+        />
+        <button type="button" class="btn" onclick={createCollectionFromInput}>Create collection</button>
+      </div>
+      <div class="collection-toolbar__controls">
+        <select
+          value={activeCollectionId ?? ""}
+          onchange={(ev) => {
+            const value = (ev.currentTarget as HTMLSelectElement).value;
+            setActiveCollection(value === "" ? null : value);
+          }}
+          class="collection-toolbar__select"
         >
-          {path.title}
+          <option value="">No collection selected</option>
+          {#each collections as collection (collection.id)}
+            <option value={collection.id}>{collection.name} ({collection.trackIds.length})</option>
+          {/each}
+        </select>
+        <button type="button" class="btn" onclick={removeActiveCollection} disabled={activeCollectionId == null}>
+          Delete active
         </button>
-      {/each}
-    </div>
+      </div>
+      {#if activeCollection}
+        <p class="muted collection-toolbar__summary">
+          Active collection: <strong>{activeCollection.name}</strong> · {activeCollection.trackIds.length} chart{activeCollection.trackIds.length === 1 ? "" : "s"}
+        </p>
+      {:else}
+        <p class="muted collection-toolbar__summary">Select a collection to make row-level add/remove actions predictable.</p>
+      {/if}
+    </section>
 
-    <div class="path-toolbar__group">
-      <span class="muted path-toolbar__label">Skills</span>
-      <select
-        class="collection-toolbar__select"
-        value={activeSkillTag ?? ""}
-        onchange={(ev) => {
-          const value = (ev.currentTarget as HTMLSelectElement).value;
-          setActiveSkillTag(value === "" ? null : (value as CatalogSkillTag));
-        }}
-      >
-        <option value="">All skills</option>
-        {#each skillTags as skill (skill)}
-          <option value={skill}>{formatTagLabel(skill)}</option>
-        {/each}
-      </select>
-      <select
-        class="collection-toolbar__select"
-        value={activeTechniqueTag ?? ""}
-        onchange={(ev) => {
-          const value = (ev.currentTarget as HTMLSelectElement).value;
-          setActiveTechniqueTag(value === "" ? null : (value as CatalogTechniqueTag));
-        }}
-      >
-        <option value="">All techniques</option>
-        {#each techniqueTags as technique (technique)}
-          <option value={technique}>{formatTagLabel(technique)}</option>
-        {/each}
-      </select>
-    </div>
+    {#if isBrowseFilter(filter)}
+      <section class="library-control-card">
+        <p class="library-section__eyebrow">Curriculum filters</p>
+        <h3>Narrow the bundled catalog only when you need guidance.</h3>
+        <div class="path-toolbar__group">
+          <button
+            type="button"
+            class="btn"
+            class:btn-primary={activePathId === "all"}
+            onclick={() => setActivePath("all")}
+          >
+            All paths
+          </button>
+          {#each LEARNING_PATHS as path (path.id)}
+            <button
+              type="button"
+              class="btn"
+              class:btn-primary={activePathId === path.id}
+              onclick={() => setActivePath(path.id)}
+            >
+              {path.title}
+            </button>
+          {/each}
+        </div>
+        <div class="path-toolbar__selectors">
+          <select
+            class="collection-toolbar__select"
+            value={activeSkillTag ?? ""}
+            onchange={(ev) => {
+              const value = (ev.currentTarget as HTMLSelectElement).value;
+              setActiveSkillTag(value === "" ? null : (value as CatalogSkillTag));
+            }}
+          >
+            <option value="">All skills</option>
+            {#each skillTags as skill (skill)}
+              <option value={skill}>{formatTagLabel(skill)}</option>
+            {/each}
+          </select>
+          <select
+            class="collection-toolbar__select"
+            value={activeTechniqueTag ?? ""}
+            onchange={(ev) => {
+              const value = (ev.currentTarget as HTMLSelectElement).value;
+              setActiveTechniqueTag(value === "" ? null : (value as CatalogTechniqueTag));
+            }}
+          >
+            <option value="">All techniques</option>
+            {#each techniqueTags as technique (technique)}
+              <option value={technique}>{formatTagLabel(technique)}</option>
+            {/each}
+          </select>
+        </div>
 
-    {#if activePathId !== "all" || activeSkillTag != null || activeTechniqueTag != null}
-      <p class="muted path-toolbar__summary">
-        {#if activePathId !== "all"}
-          Path: <strong>{getLearningPathById(activePathId)?.title}</strong>
+        {#if activePathId !== "all" || activeSkillTag != null || activeTechniqueTag != null}
+          <p class="muted path-toolbar__summary">
+            {#if activePathId !== "all"}
+              Path: <strong>{getLearningPathById(activePathId)?.title}</strong>
+            {/if}
+            {#if activeSkillTag}
+              {activePathId !== "all" ? " · " : ""}Skill: <strong>{formatTagLabel(activeSkillTag)}</strong>
+            {/if}
+            {#if activeTechniqueTag}
+              {(activePathId !== "all" || activeSkillTag) ? " · " : ""}Technique:
+              <strong>{formatTagLabel(activeTechniqueTag)}</strong>
+            {/if}
+          </p>
         {/if}
-        {#if activeSkillTag}
-          {activePathId !== "all" ? " · " : ""}Skill: <strong>{formatTagLabel(activeSkillTag)}</strong>
-        {/if}
-        {#if activeTechniqueTag}
-          {(activePathId !== "all" || activeSkillTag) ? " · " : ""}Technique:
-          <strong>{formatTagLabel(activeTechniqueTag)}</strong>
-        {/if}
-      </p>
+      </section>
     {/if}
   </div>
 
@@ -1009,7 +1084,7 @@
   {/if}
 </div>
 
-<div class="panel">
+<div class="panel" id="import-chart">
   <h2>Import chart</h2>
   <p class="muted" style="margin: 0 0 0.75rem">
     Add a <strong>.json</strong> (Fretflow chart v1) or <strong>.mid</strong> (Standard MIDI) file.
@@ -1034,22 +1109,107 @@
 </div>
 
 <style>
+  .library-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(18rem, 1fr);
+    gap: 1rem;
+    background:
+      radial-gradient(circle at top right, rgba(63, 208, 195, 0.16), transparent 32%),
+      radial-gradient(circle at left center, rgba(213, 138, 84, 0.18), transparent 28%),
+      linear-gradient(145deg, rgba(33, 24, 29, 0.96), rgba(18, 15, 19, 0.96));
+  }
+  .library-hero__eyebrow,
+  .library-section__eyebrow {
+    margin: 0 0 0.35rem;
+    color: var(--ff-highlight-strong);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  .library-hero h1 {
+    margin: 0 0 0.6rem;
+    max-width: 12ch;
+    font-size: clamp(2rem, 3vw, 3rem);
+    line-height: 0.98;
+  }
+  .library-hero p {
+    max-width: 46rem;
+  }
+  .library-hero__stats {
+    display: grid;
+    gap: 0.8rem;
+    align-content: start;
+  }
+  .library-hero__stat {
+    display: grid;
+    gap: 0.28rem;
+    padding: 1rem;
+    border-radius: 18px;
+    border: 1px solid var(--ff-border);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 36%),
+      rgba(9, 8, 10, 0.25);
+  }
+  .library-hero__stat-label {
+    color: var(--ff-highlight-strong);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  .library-hero__stat strong {
+    font-size: 1.02rem;
+  }
+  .library-panel__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.75rem 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+  }
+  .library-toolbar-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+    margin-bottom: 1rem;
+  }
+  .library-control-card {
+    display: grid;
+    gap: 0.8rem;
+    padding: 1rem;
+    border-radius: 18px;
+    border: 1px solid var(--ff-border);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 36%),
+      rgba(9, 8, 10, 0.24);
+  }
+  .library-control-card h3 {
+    margin: 0;
+    font-size: 1rem;
+  }
+  .library-control-card__summary {
+    margin: 0;
+    line-height: 1.55;
+  }
   .recommended-strip {
     margin-bottom: 1rem;
-    padding: 0.85rem 0.95rem;
+    padding: 1rem;
     border: 1px solid var(--ff-border);
-    border-radius: 10px;
+    border-radius: 18px;
     background:
-      radial-gradient(circle at top right, color-mix(in srgb, var(--ff-accent) 10%, transparent), transparent 36%),
-      color-mix(in srgb, var(--ff-bg) 72%, transparent);
+      radial-gradient(circle at top right, rgba(63, 208, 195, 0.1), transparent 36%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 30%),
+      rgba(9, 8, 10, 0.22);
   }
   .recommended-strip__header h3 {
     margin: 0 0 0.2rem;
-    font-size: 0.98rem;
+    font-size: 1rem;
   }
   .recommended-strip__header p {
     margin: 0 0 0.75rem;
-    font-size: 0.82rem;
+    font-size: 0.84rem;
   }
   .recommended-strip__grid {
     display: grid;
@@ -1060,16 +1220,20 @@
     display: grid;
     gap: 0.28rem;
     text-align: left;
-    padding: 0.8rem 0.85rem;
-    border-radius: 10px;
+    padding: 0.9rem 0.95rem;
+    border-radius: 16px;
     border: 1px solid var(--ff-border);
-    background: color-mix(in srgb, var(--ff-bg) 82%, transparent);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 30%),
+      rgba(9, 8, 10, 0.26);
     color: var(--ff-text);
     cursor: pointer;
   }
   .recommended-card:hover {
     border-color: color-mix(in srgb, var(--ff-accent) 55%, var(--ff-border));
-    background: color-mix(in srgb, var(--ff-accent) 10%, var(--ff-bg));
+    background:
+      linear-gradient(180deg, rgba(63, 208, 195, 0.08), transparent 30%),
+      rgba(9, 8, 10, 0.3);
   }
   .recommended-card__title {
     font-size: 0.92rem;
@@ -1083,59 +1247,42 @@
     font-size: 0.82rem;
     line-height: 1.45;
   }
-  .collection-toolbar {
-    margin-bottom: 1rem;
-    padding: 0.85rem 0.95rem;
-    border: 1px solid var(--ff-border);
-    border-radius: 10px;
-    background: color-mix(in srgb, var(--ff-bg) 72%, transparent);
-  }
   .collection-toolbar__controls {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
+    gap: 0.6rem;
     align-items: center;
   }
   .collection-toolbar__input,
   .collection-toolbar__select {
-    padding: 0.4rem 0.55rem;
-    border-radius: 8px;
-    border: 1px solid var(--ff-border);
-    background: var(--ff-bg);
-    color: var(--ff-text);
-    font: inherit;
+    min-height: 44px;
   }
   .collection-toolbar__input {
     min-width: 12rem;
     flex: 1 1 12rem;
   }
   .collection-toolbar__summary {
-    margin: 0.55rem 0 0;
-    font-size: 0.82rem;
-  }
-  .path-toolbar {
-    margin-bottom: 1rem;
-    display: grid;
-    gap: 0.65rem;
+    margin: 0;
+    font-size: 0.84rem;
   }
   .path-toolbar__group {
     display: flex;
-    gap: 0.5rem;
-    align-items: center;
+    gap: 0.55rem;
     flex-wrap: wrap;
   }
-  .path-toolbar__label {
-    font-size: 0.8rem;
-    min-width: 5.5rem;
+  .path-toolbar__selectors {
+    display: grid;
+    gap: 0.6rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .path-toolbar__summary {
     margin: 0;
-    font-size: 0.82rem;
+    font-size: 0.84rem;
   }
-  .catalog-filters .btn.btn-primary {
-    border-color: var(--ff-accent);
-    background: var(--ff-accent-dim);
-    color: #fff;
+  .catalog-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
   }
   .catalog-list {
     list-style: none;
@@ -1362,5 +1509,13 @@
     padding-left: 1.2rem;
     font-size: 0.85rem;
     color: #fbbf24;
+  }
+  @media (max-width: 720px) {
+    .library-hero {
+      grid-template-columns: 1fr;
+    }
+    .path-toolbar__selectors {
+      grid-template-columns: 1fr;
+    }
   }
 </style>
