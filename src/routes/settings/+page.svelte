@@ -663,7 +663,7 @@
           <div class="tuner-panel" aria-live="polite">
             <h3 class="tuner-panel__title">Chromatic tuner</h3>
             <p class="muted tuner-panel__hint">
-              Uses the same YIN pitch path as Practice mic scoring. Start monitoring, then play a single note.
+              Start monitoring, then play a single clean note. This tuner follows the same pitch listening path used by mic-based Practice scoring.
               Reference A4 = 440 Hz.
             </p>
             {#if !monitoring}
@@ -703,11 +703,11 @@
           {/if}
 
           <details class="settings-advanced ff-disclosure">
-            <summary>Advanced stream settings</summary>
+            <summary>Advanced audio tuning</summary>
             <div class="settings-advanced__body ff-disclosure__body">
               <p class="muted settings-helper-copy">
-                Applies to the <strong>input monitor</strong> only. Lower buffer frames can reduce latency but may glitch on slow machines.
-                Invalid sample rates fall back to the device default.
+                These settings only affect the live monitor. Smaller buffers can feel tighter, but they can also crackle on slower machines.
+                Unsupported sample rates fall back to the device default.
               </p>
               {#if streamInfoError}
                 <p style="color: #f87171; font-size: 0.9rem; margin: 0 0 0.5rem">{streamInfoError}</p>
@@ -788,8 +788,7 @@
           <h3 class="settings-subsection__title">Tap calibration</h3>
           <p class="muted settings-helper-copy">
             {TAP_CALIBRATION_BEATS} beeps at {TAP_CALIBRATION_BPM} BPM. After the 1 s count-in, tap <kbd class="settings-kbd">Space</kbd>
-            on each beep. Median (tap − beep) is a <strong>heuristic</strong> offset hint — not a lab impulse
-            measurement.
+            on each beep. Fretflow uses the middle of those taps to suggest a timing offset. Treat it as a practical starting point, not a lab-grade measurement.
           </p>
           <div class="settings-card__actions" style="margin-bottom: 0.5rem">
             <button
@@ -875,18 +874,18 @@
             <button type="button" class="btn" onclick={refreshMidiPorts}>Refresh MIDI ports</button>
           </div>
           <p class="muted settings-helper-copy">
-            Port names are saved so connections survive id changes after unplug/replug. Refocusing this window or using Refresh remaps and reopens.
+            Port names are saved so reconnecting a controller stays predictable after unplugging and replugging. Refocusing this window or using Refresh remaps the active port.
           </p>
 
           {#if recentMidiNotes.length > 0}
             <details class="settings-advanced ff-disclosure">
-              <summary>Recent MIDI events</summary>
+              <summary>Recent controller activity</summary>
               <div class="settings-advanced__body ff-disclosure__body">
                 <ul class="settings-midi-log">
                   {#each recentMidiNotes as n}
                     <li>
                       {#if n.kind === "pitch_bend"}
-                        {n.source} · pitch bend ch{n.channel} raw14 {inputEventMidiPitchBendRaw14(n) ?? "?"}
+                        {n.source} · pitch bend ch{n.channel} value {inputEventMidiPitchBendRaw14(n) ?? "?"}
                         <span class="muted">(center 8192)</span>
                         <span class="muted">({n.timestampUs} µs)</span>
                       {:else}

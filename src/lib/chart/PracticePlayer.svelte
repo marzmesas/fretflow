@@ -1185,7 +1185,7 @@
     </label>
     <div class="density-block">
       <p class="muted" style="margin: 0 0 0.35rem; font-size: 0.82rem">
-        <strong>Adaptive density</strong> — fewer notes in the same timeline (backing unchanged). Use 50% / 75% while learning, then full chart.
+        <strong>Adaptive density</strong> — hear the same groove with fewer notes while you learn the shape, then step back up to the full chart.
       </p>
       <div class="row" style="flex-wrap: wrap; gap: 0.35rem 1.1rem; align-items: center">
         {#each (["full", "three_quarters", "half"] as const) as tier (tier)}
@@ -1202,7 +1202,7 @@
       </div>
       <label class="row" style="gap: 0.5rem; margin-top: 0.45rem; cursor: pointer">
         <input type="checkbox" bind:checked={autoDensityBump} disabled={densityTier === "full"} />
-        <span class="muted" style="font-size: 0.8rem">After each full run at ≥85%, step up one level (toward 100%)</span>
+        <span class="muted" style="font-size: 0.8rem">After a strong full run at ≥85%, step up one level automatically</span>
       </label>
     </div>
     {#if waitFrozen && waitGroupIndices.length > 0}
@@ -1214,10 +1214,9 @@
     {/if}
     <p class="muted" style="margin: 0; font-size: 0.85rem">
       {#if isTauri()}
-        MIDI: <strong>Settings → MIDI → Start listening</strong>. Mic: <strong>Settings → Start monitoring</strong>
-        (rhythm and/or pitch betas).
+        MIDI: <strong>Settings → MIDI → Start listening</strong>. Mic: <strong>Settings → Audio input → Start monitoring</strong>.
       {:else}
-        Scoring needs the desktop app (MIDI and mic use Tauri events).
+        Scoring is available in the desktop app only.
       {/if}
     </p>
     </div>
@@ -1475,7 +1474,7 @@
     </p>
 
     <div class="row practice-preset-row">
-      <span class="muted" style="font-size: 0.82rem">This chart remembers your speed, scroll, loop, density, metronome, and backing settings.</span>
+      <span class="muted" style="font-size: 0.82rem">This chart remembers your speed, scroll, loop, density, metronome, and backing choices.</span>
       <button type="button" class="btn" style="font-size: 0.78rem; padding: 0.25rem 0.55rem" onclick={resetSavedPracticePreset}>
         Reset saved preset
       </button>

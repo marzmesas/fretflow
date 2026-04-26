@@ -713,9 +713,9 @@
 
   {#if filter === "premium"}
     <div class="premium-note">
-      <strong>Premium catalog is preview-only in this build.</strong>
+      <strong>Premium songs are still a preview in this version.</strong>
       <span class="muted">
-        Subscription sync and entitlement state live in Account, but premium chart delivery is not wired yet.
+        Account shows your plan status, but premium chart access is not live yet.
       </span>
       <button type="button" class="btn" onclick={openAccount}>Open Account</button>
     </div>

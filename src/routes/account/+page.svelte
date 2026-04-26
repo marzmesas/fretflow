@@ -521,24 +521,24 @@
               <strong>{formatTimestamp(subscription.validUntilUnixMs)}</strong>
             </div>
             <div class="subscription-stat">
-              <span class="muted">Last successful sync</span>
+              <span class="muted">Last plan check</span>
               <strong>{formatTimestamp(subscription.lastSyncOkUnixMs)}</strong>
             </div>
           </div>
 
           <p class="muted account-footnote">
             {#if subscription.lastSyncSucceeded}
-              Last sync succeeded.
+              Last plan check succeeded.
             {:else if subscription.lastSyncError}
-              Last sync failed: {subscription.lastSyncError}
+              Last plan check failed: {subscription.lastSyncError}
             {:else}
-              No subscription sync has been run yet.
+              No plan check has been run yet.
             {/if}
             Offline grace window: {subscription.graceDays} day{subscription.graceDays === 1 ? "" : "s"}.
           </p>
 
           <label class="account-field">
-            <span class="muted">Subscription API base</span>
+            <span class="muted">Service URL</span>
             <input
               type="url"
               bind:value={subscriptionApiBase}
@@ -555,7 +555,7 @@
               onclick={saveSubscriptionApiBase}
               disabled={savingApiBase || syncingSubscription}
             >
-              {savingApiBase ? "Saving…" : "Save API base"}
+              {savingApiBase ? "Saving…" : "Save service URL"}
             </button>
             <button
               type="button"
@@ -563,7 +563,7 @@
               onclick={syncSubscription}
               disabled={syncingSubscription || savingApiBase}
             >
-              {syncingSubscription ? "Syncing…" : "Sync now"}
+              {syncingSubscription ? "Checking…" : "Check plan now"}
             </button>
           </div>
 
@@ -643,11 +643,9 @@
             {/each}
 
             <div class="policy-group">
-              <h3>First remote catalog cut</h3>
+              <h3>First online catalog slice</h3>
               <p class="muted ff-section-intro account-panel__intro">
-                {catalogMigrationTarget.label} is the first API target. It keeps the initial remote
-                migration metadata-only so the app can adopt server catalog delivery before asset
-                streaming, entitlements, or user uploads.
+                {catalogMigrationTarget.label} is the first online catalog target. It keeps the first step focused on chart listings before asset delivery, premium unlocks, or user uploads.
               </p>
               <ul class="policy-list">
                 {#each migrationTargetChecklist(catalogMigrationTarget) as item (item.label)}
@@ -666,8 +664,7 @@
             <div class="policy-group">
               <h3>Catalog source preview</h3>
               <p class="muted ff-section-intro account-panel__intro">
-                Remote catalog consumption stays behind a local flag so the library can opt into
-                `/api/v1/catalog` without changing the default product path.
+                The online catalog stays behind a local preview switch so Library can test it without replacing the built-in catalog for everyone.
               </p>
               <div class="account-actions">
                 <button
@@ -676,7 +673,7 @@
                   class:btn-primary={catalogSourceMode === "local_seed"}
                   onclick={() => saveCatalogSourceMode("local_seed")}
                 >
-                  Local seed
+                  Built-in catalog
                 </button>
                 <button
                   type="button"
@@ -684,11 +681,11 @@
                   class:btn-primary={catalogSourceMode === "remote_api"}
                   onclick={() => saveCatalogSourceMode("remote_api")}
                 >
-                  Remote API
+                  Online preview
                 </button>
               </div>
               <p class="muted account-footnote">
-                Current mode: <strong>{catalogSourceMode === "remote_api" ? "Remote API" : "Local seed"}</strong>.
+                Current mode: <strong>{catalogSourceMode === "remote_api" ? "Online preview" : "Built-in catalog"}</strong>.
               </p>
             </div>
           </div>
@@ -700,9 +697,9 @@
             <summary>Profile rollout preview</summary>
             <div class="account-disclosure__body ff-disclosure__body">
               <div class="policy-group">
-                <h3>First remote profile scope</h3>
+                <h3>First online profile fields</h3>
                 <p class="muted ff-section-intro account-panel__intro">
-                  These are the first non-billing profile fields that should move server-side once auth exists.
+                  These are the first non-billing profile fields that should move online once real auth exists.
                 </p>
                 <ul class="policy-list">
                   <li class="policy-item policy-item--compact">
@@ -743,7 +740,7 @@
               <div class="policy-group">
                 <div class="policy-item">
                   <div class="policy-item__header">
-                    <strong>Remote profile preview</strong>
+                    <strong>Online profile preview</strong>
                     <button type="button" class="btn" onclick={refreshRemoteProfile} disabled={loadingRemoteProfile}>
                       {loadingRemoteProfile ? "Loading…" : "Refresh"}
                     </button>
@@ -756,13 +753,13 @@
                     <p class="account-error">{remoteProfileError}</p>
                   {:else if remoteProfile}
                     <p class="muted">
-                      Remote display name: <strong>{remoteProfile.fields.displayName ?? "Not set"}</strong><br />
-                      Remote practice goal: <strong>{remoteProfile.fields.practiceGoal ?? "Not set"}</strong><br />
-                      Remote seeded path: <strong>{remoteProfile.fields.recommendedPathId ?? "Not set"}</strong><br />
-                      Remote daily goal target: <strong>{remoteProfile.fields.dailyGoalSessions}</strong>
+                      Online display name: <strong>{remoteProfile.fields.displayName ?? "Not set"}</strong><br />
+                      Online practice goal: <strong>{remoteProfile.fields.practiceGoal ?? "Not set"}</strong><br />
+                      Online seeded path: <strong>{remoteProfile.fields.recommendedPathId ?? "Not set"}</strong><br />
+                      Online daily goal target: <strong>{remoteProfile.fields.dailyGoalSessions}</strong>
                     </p>
                   {:else}
-                    <p class="muted">No remote profile loaded yet. Set an API base and refresh to preview `/api/v1/profile`.</p>
+                    <p class="muted">No online profile loaded yet. Set the service URL and refresh to preview `/api/v1/profile`.</p>
                   {/if}
                 </div>
               </div>
