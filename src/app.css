@@ -7,8 +7,8 @@
   --ff-border: rgba(234, 222, 210, 0.12);
   --ff-border-strong: rgba(234, 222, 210, 0.24);
   --ff-text: #f6ede5;
-  --ff-muted: #c1b3a7;
-  --ff-muted-strong: #dfd4ca;
+  --ff-muted: #cabdb2;
+  --ff-muted-strong: #e7dcd2;
   --ff-accent: #3fd0c3;
   --ff-accent-strong: #19acbe;
   --ff-highlight: #d58a54;
@@ -595,6 +595,106 @@ a.session-account-pill.connection-pill--on {
   gap: 0.65rem;
 }
 
+.ff-page-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(18rem, 1fr);
+  gap: 1rem;
+}
+
+.ff-page-hero__eyebrow,
+.ff-section-eyebrow {
+  margin: 0 0 0.35rem;
+  color: var(--ff-highlight-strong);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.ff-page-hero__title {
+  margin: 0 0 0.6rem;
+  max-width: 14ch;
+  font-family: var(--ff-font-display);
+  font-size: clamp(2rem, 3vw, 3rem);
+  line-height: 0.98;
+  letter-spacing: -0.05em;
+}
+
+.ff-page-hero__body {
+  max-width: 46rem;
+  color: var(--ff-muted-strong);
+  line-height: 1.65;
+}
+
+.ff-page-hero__stats {
+  display: grid;
+  gap: 0.8rem;
+  align-content: start;
+}
+
+.ff-page-hero__stat {
+  display: grid;
+  gap: 0.3rem;
+  padding: 1rem;
+  border-radius: 18px;
+  border: 1px solid var(--ff-border);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 36%),
+    rgba(9, 8, 10, 0.25);
+}
+
+.ff-page-hero__stat-label {
+  color: var(--ff-highlight-strong);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.ff-page-hero__stat strong {
+  font-size: 1.04rem;
+}
+
+.ff-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem 1rem;
+  flex-wrap: wrap;
+}
+
+.ff-section-intro {
+  margin: 0.25rem 0 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.ff-disclosure {
+  border: 1px solid var(--ff-border);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 34%),
+    rgba(9, 8, 10, 0.16);
+  overflow: hidden;
+}
+
+.ff-disclosure summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 0.95rem 1rem;
+  font-weight: 600;
+}
+
+.ff-disclosure summary::-webkit-details-marker {
+  display: none;
+}
+
+.ff-disclosure__body {
+  display: grid;
+  gap: 0.8rem;
+  padding: 0 1rem 1rem;
+}
+
 @media (max-width: 1080px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -644,6 +744,10 @@ a.session-account-pill.connection-pill--on {
 
   .app-brand__name {
     font-size: 1.6rem;
+  }
+
+  .ff-page-hero {
+    grid-template-columns: 1fr;
   }
 }
 

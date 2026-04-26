@@ -204,11 +204,11 @@
 </script>
 
 <div class="home">
-  <section class="panel home-hero">
+  <section class="panel home-hero ff-page-hero">
     <div class="home-hero__copy">
-      <p class="home-hero__eyebrow">Stage-ready practice flow</p>
-      <h2 class="home-title">Train with the feel of a rehearsal room, not a spreadsheet dashboard.</h2>
-      <p class="home-subtitle">
+      <p class="ff-page-hero__eyebrow">Stage-ready practice flow</p>
+      <h2 class="home-title ff-page-hero__title">Train with the feel of a rehearsal room, not a spreadsheet dashboard.</h2>
+      <p class="home-subtitle ff-page-hero__body">
         Play-along practice with scrolling tab, real-time scoring, loopable repetition, and mic or MIDI input that feels guided instead of clinical.
       </p>
       <div class="home-actions">
@@ -217,23 +217,23 @@
       </div>
     </div>
 
-    <div class="home-hero__stats" aria-label="Practice overview">
-      <div class="home-hero__stat">
-        <span class="home-hero__stat-label">Momentum</span>
+    <div class="ff-page-hero__stats" aria-label="Practice overview">
+      <div class="ff-page-hero__stat">
+        <span class="ff-page-hero__stat-label">Momentum</span>
         <strong>{practiceGoals.streakDays > 0 ? `${practiceGoals.streakDays}-day streak` : "Start your streak"}</strong>
         <span class="home-hero__stat-detail">
           {practiceGoals.goalMetToday ? "Today's target is already cleared." : "Today's goal is still in reach."}
         </span>
       </div>
-      <div class="home-hero__stat">
-        <span class="home-hero__stat-label">Recent runs</span>
+      <div class="ff-page-hero__stat">
+        <span class="ff-page-hero__stat-label">Recent runs</span>
         <strong>{recentSessions.length > 0 ? `${recentSessions.length} charts tracked` : "No sessions yet"}</strong>
         <span class="home-hero__stat-detail">
           {recentSessions.length > 0 ? "Resume from the queue or pivot into a recommendation." : "Complete one full run to seed your queue."}
         </span>
       </div>
-      <div class="home-hero__stat">
-        <span class="home-hero__stat-label">Seeded path</span>
+      <div class="ff-page-hero__stat">
+        <span class="ff-page-hero__stat-label">Seeded path</span>
         <strong>{heroPath?.title ?? "Assessment not set"}</strong>
         <span class="home-hero__stat-detail">
           {heroPath ? "Your onboarding recommendation can drive the next chart automatically." : "Answer the two onboarding questions to seed the right first path."}
@@ -252,12 +252,12 @@
     {@const nextStep = nextOnboardingStep()}
     {@const seededTrack = recommendedAssessmentTrack()}
     {@const seededPath = recommendedAssessmentPath()}
-    {@const setupAction = recommendedSetupAction()}
+      {@const setupAction = recommendedSetupAction()}
     <section class="home-activation">
       <div class="panel onboarding-panel">
-        <div class="onboarding-panel__header">
+        <div class="ff-section-header onboarding-panel__header">
           <div>
-            <p class="onboarding-panel__eyebrow">First run</p>
+            <p class="ff-section-eyebrow onboarding-panel__eyebrow">First run</p>
             <h2>Setup guide</h2>
           </div>
           <button type="button" class="btn" onclick={dismissSetupGuide}>Dismiss</button>
@@ -397,9 +397,9 @@
         {/if}
 
         <div class="panel goal-panel home-dashboard__goal-card">
-          <div class="recent-panel__header">
+          <div class="ff-section-header recent-panel__header">
             <div>
-              <p class="home-note-card__eyebrow">Daily rhythm</p>
+              <p class="ff-section-eyebrow home-note-card__eyebrow">Daily rhythm</p>
               <h2>Daily goal &amp; streak</h2>
               <p class="muted">Consistency is stored locally and updates after each completed chart run.</p>
             </div>
@@ -436,9 +436,9 @@
       <div class="home-dashboard__grid">
         {#if recentSessions.length > 1}
           <div class="panel recent-panel">
-            <div class="recent-panel__header">
+            <div class="ff-section-header recent-panel__header">
               <div>
-                <p class="home-note-card__eyebrow">Quick return</p>
+                <p class="ff-section-eyebrow home-note-card__eyebrow">Quick return</p>
                 <h2>Recent practice queue</h2>
                 <p class="muted">Jump back into charts you have touched recently without digging through Library.</p>
               </div>
@@ -460,9 +460,9 @@
 
         {#if recommendedTracks.length > 0}
           <div class="panel recent-panel">
-            <div class="recent-panel__header">
+            <div class="ff-section-header recent-panel__header">
               <div>
-                <p class="home-note-card__eyebrow">Momentum picks</p>
+                <p class="ff-section-eyebrow home-note-card__eyebrow">Momentum picks</p>
                 <h2>Suggested next charts</h2>
                 <p class="muted">Recommendations are based on your recent bundled-chart runs and current accuracy.</p>
               </div>
@@ -491,9 +491,9 @@
 
       {#if learningPaths.length > 0}
         <div class="panel path-panel">
-          <div class="recent-panel__header">
+          <div class="ff-section-header recent-panel__header">
             <div>
-              <p class="home-note-card__eyebrow">Structured progression</p>
+              <p class="ff-section-eyebrow home-note-card__eyebrow">Structured progression</p>
               <h2>Learning paths</h2>
               <p class="muted">Structured bundled-chart sequences that give the app a clearer progression than free browsing alone.</p>
             </div>
@@ -584,29 +584,14 @@
     display: grid;
     align-content: start;
   }
-  .home-hero__eyebrow {
-    margin: 0 0 0.5rem;
-    color: var(--ff-highlight-strong);
-    font-size: 0.74rem;
-    font-weight: 700;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-  }
   .home-title {
-    margin: 0 0 0.55rem;
     max-width: 14ch;
-    font-family: var(--ff-font-display);
     font-size: clamp(2rem, 3vw, 3.2rem);
-    line-height: 0.98;
-    letter-spacing: -0.05em;
-    font-weight: 700;
   }
   .home-subtitle {
-    margin: 0 0 1.4rem;
+    margin-bottom: 1.4rem;
     max-width: 42rem;
     font-size: 1.02rem;
-    color: var(--ff-muted-strong);
-    line-height: 1.65;
   }
   .home-actions {
     display: flex;
@@ -617,33 +602,6 @@
     min-height: 48px;
     padding: 0.78rem 1.4rem;
     font-size: 0.96rem;
-  }
-  .home-hero__stats {
-    display: grid;
-    gap: 0.85rem;
-    align-content: start;
-  }
-  .home-hero__stat {
-    display: grid;
-    gap: 0.35rem;
-    padding: 1rem;
-    border-radius: 18px;
-    border: 1px solid color-mix(in srgb, var(--ff-border) 90%, transparent);
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 35%),
-      rgba(9, 8, 10, 0.28);
-  }
-  .home-hero__stat-label {
-    color: var(--ff-highlight-strong);
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-  }
-  .home-hero__stat strong {
-    font-size: 1.05rem;
-    font-weight: 700;
-    letter-spacing: -0.02em;
   }
   .home-hero__stat-detail {
     color: var(--ff-muted);
@@ -728,7 +686,6 @@
       radial-gradient(circle at top right, rgba(63, 208, 195, 0.16), transparent 32%),
       linear-gradient(180deg, rgba(34, 25, 30, 0.96), rgba(18, 15, 19, 0.96));
   }
-  .onboarding-panel__header,
   .continue-panel {
     display: flex;
     gap: 1rem;
@@ -736,12 +693,8 @@
     justify-content: space-between;
     flex-wrap: wrap;
   }
-  .recent-panel__header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 0.75rem 1rem;
-    flex-wrap: wrap;
+  .recent-panel__header,
+  .onboarding-panel__header {
     margin-bottom: 0.85rem;
   }
   .recent-grid {
@@ -912,11 +865,7 @@
     line-height: 1.5;
   }
   .onboarding-panel__eyebrow {
-    margin: 0 0 0.2rem;
     color: var(--ff-accent);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-size: 0.74rem;
   }
   .onboarding-panel__body {
     max-width: 42rem;

@@ -515,27 +515,27 @@
 </script>
 
 <div class="settings-page">
-  <section class="panel settings-hero">
+  <section class="panel settings-hero ff-page-hero">
     <div class="settings-hero__copy">
-      <p class="settings-hero__eyebrow">Studio setup</p>
-      <h1>Turn setup into a soundcheck, not a debugging session.</h1>
-      <p class="muted">
+      <p class="ff-page-hero__eyebrow">Studio setup</p>
+      <h1 class="ff-page-hero__title">Turn setup into a soundcheck, not a debugging session.</h1>
+      <p class="muted ff-page-hero__body">
         Configure audio input, MIDI, and latency for Practice scoring. The goal is simple: get one reliable signal path working quickly, then hide the lower-level details unless you need them.
       </p>
     </div>
-    <div class="settings-hero__stats">
-      <div class="settings-hero__stat">
-        <span class="settings-hero__stat-label">Monitor</span>
+    <div class="ff-page-hero__stats">
+      <div class="ff-page-hero__stat">
+        <span class="ff-page-hero__stat-label">Monitor</span>
         <strong>{monitoring ? "Live" : "Off"}</strong>
         <span class="muted">{monitoring ? "Mic input is flowing into the app." : "Start monitoring to unlock tuner and mic scoring."}</span>
       </div>
-      <div class="settings-hero__stat">
-        <span class="settings-hero__stat-label">Tuner</span>
+      <div class="ff-page-hero__stat">
+        <span class="ff-page-hero__stat-label">Tuner</span>
         <strong>{tunerReading?.label ?? "Waiting"}</strong>
         <span class="muted">{tunerReading ? `${tunerReading.cents >= 0 ? "+" : ""}${tunerReading.cents.toFixed(1)} cents` : "Play one clean note after monitoring starts."}</span>
       </div>
-      <div class="settings-hero__stat">
-        <span class="settings-hero__stat-label">MIDI</span>
+      <div class="ff-page-hero__stat">
+        <span class="ff-page-hero__stat-label">MIDI</span>
         <strong>{midiListening ? "Ready" : "Idle"}</strong>
         <span class="muted">{midiListening ? "A controller is actively feeding note input." : selectedMidiPortId ? "A port is selected but not listening yet." : "Choose a port if you prefer direct note scoring."}</span>
       </div>
@@ -544,9 +544,9 @@
 
   {#if !browserOnly && !setupGuideHidden}
     <div class="panel setup-guide-panel">
-      <div class="setup-guide-panel__header">
+      <div class="ff-section-header setup-guide-panel__header">
         <div>
-          <p class="setup-guide-panel__eyebrow">Setup wizard</p>
+          <p class="ff-section-eyebrow setup-guide-panel__eyebrow">Setup wizard</p>
           <h2>Get ready for your first scored session</h2>
         </div>
         <button type="button" class="btn" onclick={() => (setupGuideDismissed = true)}>Dismiss</button>
@@ -581,11 +581,11 @@
   <div class="settings-layout">
     <div class="settings-layout__main">
       <div class="panel settings-card" id="audio-input-section">
-        <div class="settings-card__header">
+        <div class="ff-section-header settings-card__header">
           <div>
-            <p class="settings-card__eyebrow">Signal path</p>
+            <p class="ff-section-eyebrow">Signal path</p>
             <h2>Audio input</h2>
-            <p class="muted settings-card__intro">
+            <p class="muted ff-section-intro settings-card__intro">
               Pick one reliable input, start monitoring, and confirm the tuner can see a clean note before using mic scoring.
             </p>
           </div>
@@ -702,9 +702,9 @@
             <p style="color: #f87171; margin-top: 0.75rem; margin-bottom: 0">{error}</p>
           {/if}
 
-          <details class="settings-advanced">
+          <details class="settings-advanced ff-disclosure">
             <summary>Advanced stream settings</summary>
-            <div class="settings-advanced__body">
+            <div class="settings-advanced__body ff-disclosure__body">
               <p class="muted settings-helper-copy">
                 Applies to the <strong>input monitor</strong> only. Lower buffer frames can reduce latency but may glitch on slow machines.
                 Invalid sample rates fall back to the device default.
@@ -769,11 +769,11 @@
       </div>
 
       <div class="panel settings-card" id="latency-section">
-        <div class="settings-card__header">
+        <div class="ff-section-header settings-card__header">
           <div>
-            <p class="settings-card__eyebrow">Timing alignment</p>
+            <p class="ff-section-eyebrow">Timing alignment</p>
             <h2>Latency</h2>
-            <p class="muted settings-card__intro">
+            <p class="muted ff-section-intro settings-card__intro">
               Shift Practice hit and miss timing for MIDI and mic input. Positive values delay the expected hit if you consistently register early.
             </p>
           </div>
@@ -826,11 +826,11 @@
 
     <div class="settings-layout__side">
       <div class="panel settings-card" id="midi-input-section">
-        <div class="settings-card__header">
+        <div class="ff-section-header settings-card__header">
           <div>
-            <p class="settings-card__eyebrow">Direct note input</p>
+            <p class="ff-section-eyebrow">Direct note input</p>
             <h2>MIDI input</h2>
-            <p class="muted settings-card__intro">
+            <p class="muted ff-section-intro settings-card__intro">
               Choose a controller if you want direct note scoring instead of relying on the mic path.
             </p>
           </div>
@@ -879,9 +879,9 @@
           </p>
 
           {#if recentMidiNotes.length > 0}
-            <details class="settings-advanced">
+            <details class="settings-advanced ff-disclosure">
               <summary>Recent MIDI events</summary>
-              <div class="settings-advanced__body">
+              <div class="settings-advanced__body ff-disclosure__body">
                 <ul class="settings-midi-log">
                   {#each recentMidiNotes as n}
                     <li>
@@ -918,50 +918,13 @@
     gap: 1rem;
   }
   .settings-hero {
-    display: grid;
-    grid-template-columns: minmax(0, 1.35fr) minmax(18rem, 1fr);
-    gap: 1rem;
     background:
       radial-gradient(circle at top right, rgba(63, 208, 195, 0.14), transparent 28%),
       radial-gradient(circle at left center, rgba(213, 138, 84, 0.18), transparent 24%),
       linear-gradient(145deg, rgba(33, 24, 29, 0.96), rgba(18, 15, 19, 0.96));
   }
-  .settings-hero__eyebrow,
-  .settings-card__eyebrow {
-    margin: 0 0 0.35rem;
-    color: var(--ff-highlight-strong);
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-  }
-  .settings-hero h1 {
-    margin: 0 0 0.6rem;
+  .settings-hero .ff-page-hero__title {
     max-width: 14ch;
-    font-size: clamp(2rem, 3vw, 3rem);
-    line-height: 0.98;
-  }
-  .settings-hero__stats {
-    display: grid;
-    gap: 0.8rem;
-    align-content: start;
-  }
-  .settings-hero__stat {
-    display: grid;
-    gap: 0.28rem;
-    padding: 1rem;
-    border-radius: 18px;
-    border: 1px solid var(--ff-border);
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 36%),
-      rgba(9, 8, 10, 0.25);
-  }
-  .settings-hero__stat-label {
-    color: var(--ff-highlight-strong);
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
   }
   .settings-layout {
     display: grid;
@@ -978,17 +941,8 @@
     display: grid;
     gap: 1rem;
   }
-  .settings-card__header {
-    display: flex;
-    justify-content: space-between;
-    align-items: start;
-    gap: 0.85rem 1rem;
-    flex-wrap: wrap;
-  }
   .settings-card__intro {
     max-width: 44rem;
-    margin: 0.25rem 0 0;
-    line-height: 1.6;
   }
   .settings-card__actions {
     display: flex;
@@ -1055,27 +1009,8 @@
     font-size: 0.88rem;
     color: var(--ff-text);
   }
-  .settings-advanced {
-    border: 1px solid var(--ff-border);
-    border-radius: 18px;
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 34%),
-      rgba(9, 8, 10, 0.16);
-    overflow: hidden;
-  }
-  .settings-advanced summary {
-    cursor: pointer;
-    list-style: none;
-    padding: 0.9rem 1rem;
-    font-weight: 600;
-  }
-  .settings-advanced summary::-webkit-details-marker {
-    display: none;
-  }
   .settings-advanced__body {
-    display: grid;
     gap: 0.8rem;
-    padding: 0 1rem 1rem;
   }
   .settings-inline-fields {
     display: grid;
@@ -1118,20 +1053,8 @@
       radial-gradient(circle at top right, color-mix(in srgb, var(--ff-success) 12%, transparent), transparent 36%),
       linear-gradient(180deg, rgba(31, 24, 29, 0.96), rgba(18, 15, 19, 0.96));
   }
-  .setup-guide-panel__header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 0.75rem 1rem;
-    flex-wrap: wrap;
-  }
   .setup-guide-panel__eyebrow {
-    margin: 0 0 0.2rem;
     color: var(--ff-success);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-size: 0.74rem;
-    font-weight: 700;
   }
   .setup-guide-steps {
     display: grid;

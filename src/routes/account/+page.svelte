@@ -349,29 +349,29 @@
     void refreshRemoteProfile();
   });
 </script>
-<section class="panel account-hero">
+<section class="panel account-hero ff-page-hero">
   <div class="account-hero__copy">
-    <p class="account-hero__eyebrow">Identity and access</p>
-    <h1>Keep the account surface about the player, not the plumbing.</h1>
-    <p class="muted">
-      This page should read as profile, subscription, and continuity first. Rollout flags, sync ownership, and backend scaffolding still exist, but they belong in a secondary diagnostics layer.
+    <p class="ff-page-hero__eyebrow">Your account</p>
+    <h1 class="ff-page-hero__title">See your profile, plan, and continuity without digging through diagnostics.</h1>
+    <p class="muted ff-page-hero__body">
+      Account should feel like a player summary first: who is signed in, which plan is active, what should happen next, and which device-side activity is still waiting to sync.
     </p>
   </div>
-  <div class="account-hero__stats">
-    <div class="account-hero__stat">
-      <span class="account-hero__stat-label">Identity</span>
+  <div class="ff-page-hero__stats">
+    <div class="ff-page-hero__stat">
+      <span class="ff-page-hero__stat-label">Identity</span>
       <strong>{profile?.auth.accountLabel ?? "Loading"}</strong>
-      <span class="muted">{profile?.auth.signedIn ? "Current shell identity is active." : "No active signed-in identity yet."}</span>
+      <span class="muted">{profile?.auth.signedIn ? "This device is currently signed in." : "No signed-in identity is active yet."}</span>
     </div>
-    <div class="account-hero__stat">
-      <span class="account-hero__stat-label">Plan</span>
+    <div class="ff-page-hero__stat">
+      <span class="ff-page-hero__stat-label">Plan</span>
       <strong>{profile?.subscription.tier ?? subscription?.tier ?? "Unknown"}</strong>
       <span class="muted">{subscription?.entitled ? "Entitlements are currently active." : "No active premium entitlement."}</span>
     </div>
-    <div class="account-hero__stat">
-      <span class="account-hero__stat-label">Analytics backlog</span>
+    <div class="ff-page-hero__stat">
+      <span class="ff-page-hero__stat-label">Queued activity</span>
       <strong>{profile?.analytics.pendingEvents ?? pendingAnalyticsEvents}</strong>
-      <span class="muted">Pending local events waiting for delivery.</span>
+      <span class="muted">Local activity still waiting for delivery.</span>
     </div>
   </div>
 </section>
@@ -386,11 +386,11 @@
   <div class="account-layout">
     <div class="account-layout__main">
       <div class="panel account-panel">
-        <div class="account-panel__header">
+        <div class="ff-section-header account-panel__header">
           <div>
-            <p class="account-panel__eyebrow">Player profile</p>
+            <p class="ff-section-eyebrow">Player profile</p>
             <h2>Profile</h2>
-            <p class="muted account-panel__intro">
+            <p class="muted ff-section-intro account-panel__intro">
               The stable user-facing summary: identity, recommended path, and current daily-goal context.
             </p>
           </div>
@@ -430,12 +430,12 @@
       </div>
 
       <div class="panel account-panel">
-        <div class="account-panel__header">
+        <div class="ff-section-header account-panel__header">
           <div>
-            <p class="account-panel__eyebrow">Shell identity</p>
+            <p class="ff-section-eyebrow">Sign-in</p>
             <h2>Session</h2>
-            <p class="muted account-panel__intro">
-              Sign in, sign out, and understand which local identity is currently driving the desktop shell.
+            <p class="muted ff-section-intro account-panel__intro">
+              Sign in, sign out, and confirm which identity is currently active on this device.
             </p>
           </div>
         </div>
@@ -483,12 +483,12 @@
       </div>
 
       <div class="panel account-panel">
-        <div class="account-panel__header">
+        <div class="ff-section-header account-panel__header">
           <div>
-            <p class="account-panel__eyebrow">Subscription and sync</p>
+            <p class="ff-section-eyebrow">Plan and delivery</p>
             <h2>Subscription</h2>
-            <p class="muted account-panel__intro">
-              Current plan state, API base, sync status, and analytics delivery all stay here because they affect the real user-facing account experience.
+            <p class="muted ff-section-intro account-panel__intro">
+              Plan status, billing connectivity, and pending activity delivery all live here because they affect the real account experience.
             </p>
           </div>
           <span class={`status-pill status-pill--${subscriptionTone(subscription)}`}>
@@ -571,8 +571,8 @@
 
           <div class="policy-group">
             <h3>Analytics delivery</h3>
-            <p class="muted account-panel__intro">
-              Uses the same API base and posts the first local analytics batch envelope to the server.
+            <p class="muted ff-section-intro account-panel__intro">
+              Uses the same API base and sends the current batch of local activity to the server.
             </p>
             <div class="subscription-grid">
               <div class="subscription-stat">
@@ -610,19 +610,19 @@
 
     <aside class="account-layout__side">
       <div class="panel account-panel account-panel--diagnostics">
-        <div class="account-panel__header">
+        <div class="ff-section-header account-panel__header">
           <div>
-            <p class="account-panel__eyebrow">Diagnostics</p>
-            <h2>Sync and rollout internals</h2>
-            <p class="muted account-panel__intro">
-              These sections are still useful while the product is evolving, but they are no longer the primary story of the page.
+            <p class="ff-section-eyebrow">Diagnostics</p>
+            <h2>Rollout preview</h2>
+            <p class="muted ff-section-intro account-panel__intro">
+              These controls still matter while the product is taking shape, but they are intentionally kept behind a secondary layer now.
             </p>
           </div>
         </div>
 
-        <details class="account-disclosure">
-          <summary>Catalog ownership and rollout</summary>
-          <div class="account-disclosure__body">
+        <details class="account-disclosure ff-disclosure">
+          <summary>Catalog rollout</summary>
+          <div class="account-disclosure__body ff-disclosure__body">
             {#each policyGroups() as group (group.title)}
               <div class="policy-group">
                 <h3>{group.title}</h3>
@@ -644,7 +644,7 @@
 
             <div class="policy-group">
               <h3>First remote catalog cut</h3>
-              <p class="muted account-panel__intro">
+              <p class="muted ff-section-intro account-panel__intro">
                 {catalogMigrationTarget.label} is the first API target. It keeps the initial remote
                 migration metadata-only so the app can adopt server catalog delivery before asset
                 streaming, entitlements, or user uploads.
@@ -664,8 +664,8 @@
             </div>
 
             <div class="policy-group">
-              <h3>Catalog source rollout</h3>
-              <p class="muted account-panel__intro">
+              <h3>Catalog source preview</h3>
+              <p class="muted ff-section-intro account-panel__intro">
                 Remote catalog consumption stays behind a local flag so the library can opt into
                 `/api/v1/catalog` without changing the default product path.
               </p>
@@ -696,12 +696,12 @@
 
         {#if profile}
           {@const remoteProfileSeed = buildRemoteUserProfileSeed(profile)}
-          <details class="account-disclosure">
-            <summary>Remote profile transition</summary>
-            <div class="account-disclosure__body">
+          <details class="account-disclosure ff-disclosure">
+            <summary>Profile rollout preview</summary>
+            <div class="account-disclosure__body ff-disclosure__body">
               <div class="policy-group">
                 <h3>First remote profile scope</h3>
-                <p class="muted account-panel__intro">
+                <p class="muted ff-section-intro account-panel__intro">
                   These are the first non-billing profile fields that should move server-side once auth exists.
                 </p>
                 <ul class="policy-list">
@@ -795,50 +795,10 @@
 
 <style>
   .account-hero {
-    display: grid;
-    grid-template-columns: minmax(0, 1.35fr) minmax(18rem, 1fr);
-    gap: 1rem;
     background:
       radial-gradient(circle at top right, rgba(63, 208, 195, 0.14), transparent 28%),
       radial-gradient(circle at left center, rgba(213, 138, 84, 0.18), transparent 24%),
       linear-gradient(145deg, rgba(33, 24, 29, 0.96), rgba(18, 15, 19, 0.96));
-  }
-  .account-hero__eyebrow,
-  .account-panel__eyebrow {
-    margin: 0 0 0.35rem;
-    color: var(--ff-highlight-strong);
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-  }
-  .account-hero h1 {
-    margin: 0 0 0.6rem;
-    max-width: 14ch;
-    font-size: clamp(2rem, 3vw, 3rem);
-    line-height: 0.98;
-  }
-  .account-hero__stats {
-    display: grid;
-    gap: 0.8rem;
-    align-content: start;
-  }
-  .account-hero__stat {
-    display: grid;
-    gap: 0.28rem;
-    padding: 1rem;
-    border-radius: 18px;
-    border: 1px solid var(--ff-border);
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 36%),
-      rgba(9, 8, 10, 0.25);
-  }
-  .account-hero__stat-label {
-    color: var(--ff-highlight-strong);
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
   }
   .account-layout {
     display: grid;
@@ -866,17 +826,8 @@
     margin: 0;
     font-size: 0.95rem;
   }
-  .account-panel__header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-  }
   .account-panel__intro {
-    margin: 0.25rem 0 0;
-    font-size: 0.88rem;
-    line-height: 1.55;
+    max-width: 44rem;
   }
   .account-list {
     margin: 0 0 1rem;
@@ -979,27 +930,8 @@
   .status-pill--unknown {
     color: var(--ff-muted);
   }
-  .account-disclosure {
-    border: 1px solid var(--ff-border);
-    border-radius: 18px;
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 34%),
-      rgba(9, 8, 10, 0.16);
-    overflow: hidden;
-  }
-  .account-disclosure summary {
-    cursor: pointer;
-    list-style: none;
-    padding: 0.95rem 1rem;
-    font-weight: 600;
-  }
-  .account-disclosure summary::-webkit-details-marker {
-    display: none;
-  }
   .account-disclosure__body {
-    display: grid;
     gap: 1rem;
-    padding: 0 1rem 1rem;
   }
   .account-error {
     margin: 0;

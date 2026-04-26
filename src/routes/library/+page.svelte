@@ -493,27 +493,27 @@
   });
 </script>
 
-<section class="panel library-hero">
+<section class="panel library-hero ff-page-hero">
   <div class="library-hero__copy">
-    <p class="library-hero__eyebrow">Browse without clutter</p>
-    <h1>Pick a mode first, then choose the right chart.</h1>
-    <p class="muted">
+    <p class="ff-page-hero__eyebrow">Browse without clutter</p>
+    <h1 class="ff-page-hero__title">Pick a mode first, then choose the right chart.</h1>
+    <p class="muted ff-page-hero__body">
       Bundled drills, recommended next steps, collections, and imported charts all stay here, but the screen should stop asking you to manage every dimension at once.
     </p>
   </div>
-  <div class="library-hero__stats">
-    <div class="library-hero__stat">
-      <span class="library-hero__stat-label">Bundled</span>
+  <div class="ff-page-hero__stats">
+    <div class="ff-page-hero__stat">
+      <span class="ff-page-hero__stat-label">Bundled</span>
       <strong>{catalogTracks.length}</strong>
       <span class="muted">charts in the local catalog</span>
     </div>
-    <div class="library-hero__stat">
-      <span class="library-hero__stat-label">Imported</span>
+    <div class="ff-page-hero__stat">
+      <span class="ff-page-hero__stat-label">Imported</span>
       <strong>{userCharts.length}</strong>
       <span class="muted">personal charts on this device</span>
     </div>
-    <div class="library-hero__stat">
-      <span class="library-hero__stat-label">Current view</span>
+    <div class="ff-page-hero__stat">
+      <span class="ff-page-hero__stat-label">Current view</span>
       <strong>{filterLabel(filter)}</strong>
       <span class="muted">
         {#if activePathId !== "all"}
@@ -531,9 +531,9 @@
 </section>
 
 <div class="panel">
-  <div class="library-panel__header">
+  <div class="ff-section-header library-panel__header">
     <div>
-      <p class="library-section__eyebrow">Library modes</p>
+      <p class="ff-section-eyebrow">Library modes</p>
       <h2>Catalog</h2>
       <p class="muted">Choose a browsing mode first. Secondary controls appear only when they help the current task.</p>
     </div>
@@ -569,7 +569,7 @@
 
   <div class="library-toolbar-grid">
     <section class="library-control-card">
-      <p class="library-section__eyebrow">Mode</p>
+      <p class="ff-section-eyebrow">Mode</p>
       <h3>What are you trying to browse?</h3>
       <div class="catalog-filters">
         {#each FILTERS as f (f)}
@@ -602,7 +602,7 @@
     </section>
 
     <section class="library-control-card">
-      <p class="library-section__eyebrow">Collections</p>
+      <p class="ff-section-eyebrow">Collections</p>
       <h3>Keep one active set list.</h3>
       <div class="collection-toolbar__controls">
         <input
@@ -642,7 +642,7 @@
 
     {#if isBrowseFilter(filter)}
       <section class="library-control-card">
-        <p class="library-section__eyebrow">Curriculum filters</p>
+        <p class="ff-section-eyebrow">Curriculum filters</p>
         <h3>Narrow the bundled catalog only when you need guidance.</h3>
         <div class="path-toolbar__group">
           <button
@@ -1125,7 +1125,7 @@
   <h2>Import chart</h2>
   <p class="muted" style="margin: 0 0 0.75rem">
     Add a <strong>.json</strong> (Fretflow chart v1) or <strong>.mid</strong> (Standard MIDI) file.
-    MIDI files are converted to chart format automatically using the same voicing engine as the CLI importer.
+    MIDI imports are converted automatically into a playable Fretflow chart.
   </p>
   <input
     type="file"
@@ -1147,63 +1147,15 @@
 
 <style>
   .library-hero {
-    display: grid;
-    grid-template-columns: minmax(0, 1.4fr) minmax(18rem, 1fr);
-    gap: 1rem;
     background:
       radial-gradient(circle at top right, rgba(63, 208, 195, 0.16), transparent 32%),
       radial-gradient(circle at left center, rgba(213, 138, 84, 0.18), transparent 28%),
       linear-gradient(145deg, rgba(33, 24, 29, 0.96), rgba(18, 15, 19, 0.96));
   }
-  .library-hero__eyebrow,
-  .library-section__eyebrow {
-    margin: 0 0 0.35rem;
-    color: var(--ff-highlight-strong);
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-  }
-  .library-hero h1 {
-    margin: 0 0 0.6rem;
+  .library-hero .ff-page-hero__title {
     max-width: 12ch;
-    font-size: clamp(2rem, 3vw, 3rem);
-    line-height: 0.98;
-  }
-  .library-hero p {
-    max-width: 46rem;
-  }
-  .library-hero__stats {
-    display: grid;
-    gap: 0.8rem;
-    align-content: start;
-  }
-  .library-hero__stat {
-    display: grid;
-    gap: 0.28rem;
-    padding: 1rem;
-    border-radius: 18px;
-    border: 1px solid var(--ff-border);
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 36%),
-      rgba(9, 8, 10, 0.25);
-  }
-  .library-hero__stat-label {
-    color: var(--ff-highlight-strong);
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-  }
-  .library-hero__stat strong {
-    font-size: 1.02rem;
   }
   .library-panel__header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 0.75rem 1rem;
-    flex-wrap: wrap;
     margin-bottom: 1rem;
   }
   .library-toolbar-grid {
