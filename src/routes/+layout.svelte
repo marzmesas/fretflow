@@ -11,17 +11,78 @@
   import type { AppSession, InputConnectionStatus } from "$lib/ipc";
   import { isTauri } from "$lib/tauri-env";
 
+  let { children } = $props();
+
   const nav = [
-    { href: "/", label: "Home" },
-    { href: "/library", label: "Library" },
-    { href: "/practice", label: "Practice" },
-    { href: "/settings", label: "Settings" },
+    { href: "/", label: "Home", eyebrow: "Overview" },
+    { href: "/library", label: "Library", eyebrow: "Browse" },
+    { href: "/practice", label: "Practice", eyebrow: "Play" },
+    { href: "/settings", label: "Settings", eyebrow: "Setup" },
   ];
+
+  type ShellMeta = {
+    kicker: string;
+    title: string;
+    subtitle: string;
+    wide: boolean;
+  };
 
   let connectionStatus = $state<InputConnectionStatus | null>(null);
   let session = $state<AppSession | null>(null);
   let profile = $state<FrontendUserProfile | null>(null);
   let pollId: ReturnType<typeof setInterval> | null = null;
+  let pathname = $derived($page.url.pathname);
+  let shell = $derived(getShellMeta(pathname));
+
+  function isActivePath(pathname: string, href: string): boolean {
+    return href === "/" ? pathname === "/" : pathname.startsWith(href);
+  }
+
+  function getShellMeta(pathname: string): ShellMeta {
+    if (pathname.startsWith("/library")) {
+      return {
+        kicker: "Catalog and routing",
+        title: "Shape your next set list",
+        subtitle:
+          "Browse bundled drills, collections, imports, and recommendations without losing the thread of what to practice next.",
+        wide: true,
+      };
+    }
+    if (pathname.startsWith("/practice")) {
+      return {
+        kicker: "Deliberate repetition",
+        title: "Keep the chart in the spotlight",
+        subtitle:
+          "Use looping, scoring, coaching, and saved presets as support systems around the playing surface, not distractions from it.",
+        wide: true,
+      };
+    }
+    if (pathname.startsWith("/settings")) {
+      return {
+        kicker: "Studio setup",
+        title: "Tune the room before the run",
+        subtitle:
+          "Input monitoring, tuning, and calibration should feel like a guided soundcheck instead of a diagnostic console.",
+        wide: true,
+      };
+    }
+    if (pathname.startsWith("/account")) {
+      return {
+        kicker: "Profile and access",
+        title: "Keep identity separate from plumbing",
+        subtitle:
+          "Subscription, profile, and continuity should read like product value, while rollout diagnostics stay secondary.",
+        wide: true,
+      };
+    }
+    return {
+      kicker: "Desktop practice studio",
+      title: "Build momentum, not menu fatigue",
+      subtitle:
+        "Fretflow should feel like a rehearsal environment with clear next actions, expressive visual rhythm, and a stronger sense of flow.",
+      wide: false,
+    };
+  }
 
   function refreshProfile(nextSession: AppSession | null): void {
     if (!isTauri()) {
@@ -74,58 +135,101 @@
   });
 </script>
 
-<div class="app-root">
-  <header class="app-header">
-    <a class="app-brand" href="/">Fretflow</a>
-    <div class="app-header-right">
-      {#if isTauri()}
-        <a
-          href="/account"
-          class="connection-pill session-account-pill"
-          class:connection-pill--on={profile?.auth.signedIn ?? false}
-          aria-current={$page.url.pathname === "/account" ? "page" : undefined}
-          title="Account"
-        >
-          {#if profile?.auth.signedIn}
-            {profile.auth.accountLabel}
-          {:else}
-            Sign in
-          {/if}
+<div class="app-shell">
+  <aside class="app-sidebar">
+    <div class="app-sidebar__inner">
+      <div class="app-sidebar__content">
+        <a class="app-brand" href="/">
+          <span class="app-brand__mark" aria-hidden="true">FF</span>
+          <span>
+            <span class="app-brand__eyebrow">Practice Studio</span>
+            <span class="app-brand__name">Fretflow</span>
+          </span>
         </a>
-      {/if}
-      {#if isTauri() && connectionStatus}
-        <div class="connection-status" role="status" aria-label="Input connections">
-          <span
-            class="connection-pill"
-            class:connection-pill--on={connectionStatus.inputMonitorActive}
-            title="Input monitor (Settings → Start monitoring)"
-          >
-            <span class="connection-dot" aria-hidden="true"></span>
-            Mic
-          </span>
-          <span
-            class="connection-pill"
-            class:connection-pill--on={connectionStatus.midiListenActive}
-            title="MIDI listener (Settings → Start listening)"
-          >
-            <span class="connection-dot" aria-hidden="true"></span>
-            MIDI
-          </span>
-        </div>
-      {/if}
-      <nav class="app-nav" aria-label="Main">
-        {#each nav as item}
-          <a
-            href={item.href}
-            aria-current={$page.url.pathname === item.href ? "page" : undefined}
-          >
-            {item.label}
-          </a>
-        {/each}
-      </nav>
+
+        <p class="app-sidebar__tagline">
+          A desktop-first rehearsal space for guitar players who want stronger timing, repeatable loops, and guided momentum.
+        </p>
+
+        <nav class="app-nav" aria-label="Main">
+          {#each nav as item}
+            <a
+              class="app-nav__link"
+              href={item.href}
+              aria-current={isActivePath(pathname, item.href) ? "page" : undefined}
+            >
+              <span class="app-nav__eyebrow">{item.eyebrow}</span>
+              <span class="app-nav__label">{item.label}</span>
+            </a>
+          {/each}
+        </nav>
+      </div>
+
+      <div class="app-sidebar__footer">
+        <span class="app-sidebar__footer-label">Design direction</span>
+        <p class="app-sidebar__footer-copy">
+          The shell now prioritizes musical atmosphere, clearer hierarchy, and stronger separation between primary workflow and supporting diagnostics.
+        </p>
+      </div>
     </div>
-  </header>
-  <main class="app-main" class:app-main--wide={$page.url.pathname.startsWith("/practice")}>
-    <slot />
-  </main>
+  </aside>
+
+  <div class="app-frame">
+    <header class="app-masthead">
+      <div>
+        <p class="app-kicker">{shell.kicker}</p>
+        <h1>{shell.title}</h1>
+        <p>{shell.subtitle}</p>
+      </div>
+
+      <div class="app-masthead__utilities">
+        {#if isTauri()}
+          <div class="app-utility-card">
+            <span class="app-utility-card__label">Account</span>
+            <a
+              href="/account"
+              class="session-account-pill"
+              class:connection-pill--on={profile?.auth.signedIn ?? false}
+              aria-current={pathname === "/account" ? "page" : undefined}
+              title="Account"
+            >
+              {#if profile?.auth.signedIn}
+                {profile.auth.accountLabel}
+              {:else}
+                Sign in to sync later
+              {/if}
+            </a>
+          </div>
+        {/if}
+
+        {#if isTauri() && connectionStatus}
+          <div class="app-utility-card" role="status" aria-label="Input connections">
+            <span class="app-utility-card__label">Studio status</span>
+            <div class="app-connection-status">
+              <span
+                class="connection-pill"
+                class:connection-pill--on={connectionStatus.inputMonitorActive}
+                title="Input monitor (Settings → Start monitoring)"
+              >
+                <span class="connection-dot" aria-hidden="true"></span>
+                Mic
+              </span>
+              <span
+                class="connection-pill"
+                class:connection-pill--on={connectionStatus.midiListenActive}
+                title="MIDI listener (Settings → Start listening)"
+              >
+                <span class="connection-dot" aria-hidden="true"></span>
+                MIDI
+              </span>
+            </div>
+          </div>
+        {/if}
+      </div>
+    </header>
+
+    <main class="app-main" class:app-main--wide={shell.wide}>
+      {@render children?.()}
+    </main>
+  </div>
 </div>

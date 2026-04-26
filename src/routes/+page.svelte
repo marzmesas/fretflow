@@ -39,6 +39,7 @@
   let practiceGoals = $state<PracticeGoalsSnapshot>(toPracticeGoalsSnapshot(loadPracticeGoals()));
   let assessmentExperience = $state<OnboardingExperienceLevel>("brand_new");
   let assessmentGoal = $state<OnboardingPracticeGoal>("fundamentals");
+  let heroPath = $derived(recommendedAssessmentPath());
 
   const STEP_COPY: Record<OnboardingStepId, { title: string; detail: string; href: string }> = {
     settings: {
@@ -192,16 +193,43 @@
 </script>
 
 <div class="home">
-  <div class="home-hero">
-    <h1 class="home-title">Fretflow</h1>
-    <p class="home-subtitle">
-      Play-along practice with scrolling tab, real-time scoring, and mic or MIDI input.
-    </p>
-    <div class="home-actions">
-      <a href="/library" class="btn btn-primary btn-lg">Browse Library</a>
-      <a href="/practice" class="btn btn-lg">Open Practice</a>
+  <section class="panel home-hero">
+    <div class="home-hero__copy">
+      <p class="home-hero__eyebrow">Stage-ready practice flow</p>
+      <h2 class="home-title">Train with the feel of a rehearsal room, not a spreadsheet dashboard.</h2>
+      <p class="home-subtitle">
+        Play-along practice with scrolling tab, real-time scoring, loopable repetition, and mic or MIDI input that feels guided instead of clinical.
+      </p>
+      <div class="home-actions">
+        <a href="/library" class="btn btn-primary btn-lg">Browse Library</a>
+        <a href="/practice" class="btn btn-lg">Open Practice</a>
+      </div>
     </div>
-  </div>
+
+    <div class="home-hero__stats" aria-label="Practice overview">
+      <div class="home-hero__stat">
+        <span class="home-hero__stat-label">Momentum</span>
+        <strong>{practiceGoals.streakDays > 0 ? `${practiceGoals.streakDays}-day streak` : "Start your streak"}</strong>
+        <span class="home-hero__stat-detail">
+          {practiceGoals.goalMetToday ? "Today's target is already cleared." : "Today's goal is still in reach."}
+        </span>
+      </div>
+      <div class="home-hero__stat">
+        <span class="home-hero__stat-label">Recent runs</span>
+        <strong>{recentSessions.length > 0 ? `${recentSessions.length} charts tracked` : "No sessions yet"}</strong>
+        <span class="home-hero__stat-detail">
+          {recentSessions.length > 0 ? "Resume from the queue or pivot into a recommendation." : "Complete one full run to seed your queue."}
+        </span>
+      </div>
+      <div class="home-hero__stat">
+        <span class="home-hero__stat-label">Seeded path</span>
+        <strong>{heroPath?.title ?? "Assessment not set"}</strong>
+        <span class="home-hero__stat-detail">
+          {heroPath ? "Your onboarding recommendation can drive the next chart automatically." : "Answer the two onboarding questions to seed the right first path."}
+        </span>
+      </div>
+    </div>
+  </section>
 
   {#if loadError}
     <div class="panel">
@@ -491,31 +519,90 @@
 
 <style>
   .home {
-    max-width: 44rem;
+    max-width: none;
+    display: grid;
+    gap: 1rem;
   }
   .home-hero {
-    margin-bottom: 1.5rem;
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(18rem, 1fr);
+    gap: 1.25rem;
+    margin-bottom: 0;
+    padding: 1.4rem;
+    background:
+      radial-gradient(circle at top right, rgba(63, 208, 195, 0.18), transparent 30%),
+      radial-gradient(circle at left center, rgba(213, 138, 84, 0.2), transparent 30%),
+      linear-gradient(145deg, rgba(33, 24, 29, 0.96), rgba(18, 15, 19, 0.96));
+  }
+  .home-hero__copy {
+    display: grid;
+    align-content: start;
+  }
+  .home-hero__eyebrow {
+    margin: 0 0 0.5rem;
+    color: var(--ff-highlight-strong);
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
   }
   .home-title {
-    margin: 0 0 0.35rem;
-    font-size: 2rem;
-    letter-spacing: -0.03em;
-    font-weight: 800;
+    margin: 0 0 0.55rem;
+    max-width: 14ch;
+    font-family: var(--ff-font-display);
+    font-size: clamp(2rem, 3vw, 3.2rem);
+    line-height: 0.98;
+    letter-spacing: -0.05em;
+    font-weight: 700;
   }
   .home-subtitle {
-    margin: 0 0 1.25rem;
-    font-size: 1.05rem;
-    color: var(--ff-muted);
-    line-height: 1.5;
+    margin: 0 0 1.4rem;
+    max-width: 42rem;
+    font-size: 1.02rem;
+    color: var(--ff-muted-strong);
+    line-height: 1.65;
   }
   .home-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.65rem;
+    gap: 0.75rem;
   }
   .btn-lg {
-    padding: 0.6rem 1.3rem;
-    font-size: 0.95rem;
+    min-height: 48px;
+    padding: 0.78rem 1.4rem;
+    font-size: 0.96rem;
+  }
+  .home-hero__stats {
+    display: grid;
+    gap: 0.85rem;
+    align-content: start;
+  }
+  .home-hero__stat {
+    display: grid;
+    gap: 0.35rem;
+    padding: 1rem;
+    border-radius: 18px;
+    border: 1px solid color-mix(in srgb, var(--ff-border) 90%, transparent);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 35%),
+      rgba(9, 8, 10, 0.28);
+  }
+  .home-hero__stat-label {
+    color: var(--ff-highlight-strong);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  .home-hero__stat strong {
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .home-hero__stat-detail {
+    color: var(--ff-muted);
+    font-size: 0.84rem;
+    line-height: 1.55;
   }
   .home-cards {
     display: grid;
@@ -542,12 +629,12 @@
   }
   .home-version {
     font-size: 0.8rem;
-    margin-top: 0.5rem;
+    margin: 0.2rem 0 0;
   }
   .onboarding-panel {
     background:
-      radial-gradient(circle at top right, color-mix(in srgb, var(--ff-accent) 18%, transparent), transparent 35%),
-      linear-gradient(180deg, color-mix(in srgb, var(--ff-surface) 92%, #09101d), var(--ff-surface));
+      radial-gradient(circle at top right, rgba(63, 208, 195, 0.16), transparent 32%),
+      linear-gradient(180deg, rgba(34, 25, 30, 0.96), rgba(18, 15, 19, 0.96));
   }
   .onboarding-panel__header,
   .continue-panel {
@@ -574,16 +661,21 @@
     display: grid;
     gap: 0.3rem;
     text-align: left;
-    padding: 0.85rem 0.9rem;
-    border-radius: 10px;
+    padding: 0.95rem 1rem;
+    border-radius: 18px;
     border: 1px solid var(--ff-border);
-    background: color-mix(in srgb, var(--ff-bg) 78%, transparent);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 36%),
+      rgba(9, 8, 10, 0.26);
     color: var(--ff-text);
     cursor: pointer;
   }
   .recent-card:hover {
-    border-color: color-mix(in srgb, var(--ff-accent) 55%, var(--ff-border));
-    background: color-mix(in srgb, var(--ff-accent) 10%, var(--ff-bg));
+    border-color: color-mix(in srgb, var(--ff-accent) 52%, var(--ff-border));
+    background:
+      linear-gradient(180deg, rgba(63, 208, 195, 0.08), transparent 36%),
+      rgba(9, 8, 10, 0.3);
+    transform: translateY(-1px);
   }
   .recent-card__title {
     font-size: 0.94rem;
@@ -618,12 +710,13 @@
   .path-card {
     display: grid;
     gap: 0.75rem;
-    padding: 0.95rem;
-    border-radius: 12px;
+    padding: 1rem;
+    border-radius: 18px;
     border: 1px solid var(--ff-border);
     background:
-      radial-gradient(circle at top right, color-mix(in srgb, var(--ff-accent) 8%, transparent), transparent 38%),
-      color-mix(in srgb, var(--ff-bg) 82%, transparent);
+      radial-gradient(circle at top right, rgba(63, 208, 195, 0.1), transparent 38%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 30%),
+      rgba(9, 8, 10, 0.24);
   }
   .path-card h3 {
     margin: 0 0 0.25rem;
@@ -705,10 +798,12 @@
   .goal-panel__stat {
     display: grid;
     gap: 0.15rem;
-    padding: 0.85rem 0.9rem;
-    border-radius: 10px;
+    padding: 0.95rem 1rem;
+    border-radius: 18px;
     border: 1px solid var(--ff-border);
-    background: color-mix(in srgb, var(--ff-bg) 78%, transparent);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 36%),
+      rgba(9, 8, 10, 0.24);
   }
   .goal-panel__label {
     font-size: 0.76rem;
@@ -738,10 +833,12 @@
     display: grid;
     gap: 0.8rem;
     margin-top: 1rem;
-    padding: 0.85rem 0.95rem;
-    border-radius: 10px;
+    padding: 0.95rem 1rem;
+    border-radius: 18px;
     border: 1px solid var(--ff-border);
-    background: color-mix(in srgb, var(--ff-bg) 76%, transparent);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 36%),
+      rgba(9, 8, 10, 0.24);
   }
   .assessment-panel__copy p,
   .assessment-panel__result {
@@ -797,10 +894,12 @@
     grid-template-columns: 3.25rem 1fr;
     gap: 0.75rem;
     align-items: start;
-    padding: 0.75rem 0.85rem;
+    padding: 0.85rem 0.95rem;
     border: 1px solid var(--ff-border);
-    border-radius: 10px;
-    background: color-mix(in srgb, var(--ff-bg) 72%, transparent);
+    border-radius: 18px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 34%),
+      rgba(9, 8, 10, 0.22);
   }
   .onboarding-step span {
     display: inline-flex;
@@ -826,6 +925,9 @@
     margin-top: 1rem;
   }
   @media (max-width: 640px) {
+    .home-hero {
+      grid-template-columns: 1fr;
+    }
     .onboarding-step {
       grid-template-columns: 1fr;
     }
