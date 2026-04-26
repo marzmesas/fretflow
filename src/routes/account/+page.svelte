@@ -349,12 +349,32 @@
     void refreshRemoteProfile();
   });
 </script>
-
-<h1 style="margin: 0 0 0.5rem; font-size: 1.5rem">Account</h1>
-<p class="muted" style="margin: 0 0 1rem">
-  Local session and subscription cache are stored in the app config directory. This is still a
-  desktop-local account surface, but it now exposes the current entitlement state and sync status.
-</p>
+<section class="panel account-hero">
+  <div class="account-hero__copy">
+    <p class="account-hero__eyebrow">Identity and access</p>
+    <h1>Keep the account surface about the player, not the plumbing.</h1>
+    <p class="muted">
+      This page should read as profile, subscription, and continuity first. Rollout flags, sync ownership, and backend scaffolding still exist, but they belong in a secondary diagnostics layer.
+    </p>
+  </div>
+  <div class="account-hero__stats">
+    <div class="account-hero__stat">
+      <span class="account-hero__stat-label">Identity</span>
+      <strong>{profile?.auth.accountLabel ?? "Loading"}</strong>
+      <span class="muted">{profile?.auth.signedIn ? "Current shell identity is active." : "No active signed-in identity yet."}</span>
+    </div>
+    <div class="account-hero__stat">
+      <span class="account-hero__stat-label">Plan</span>
+      <strong>{profile?.subscription.tier ?? subscription?.tier ?? "Unknown"}</strong>
+      <span class="muted">{subscription?.entitled ? "Entitlements are currently active." : "No active premium entitlement."}</span>
+    </div>
+    <div class="account-hero__stat">
+      <span class="account-hero__stat-label">Analytics backlog</span>
+      <strong>{profile?.analytics.pendingEvents ?? pendingAnalyticsEvents}</strong>
+      <span class="muted">Pending local events waiting for delivery.</span>
+    </div>
+  </div>
+</section>
 
 {#if !isTauri()}
   <p class="muted">Open the desktop app to use account features.</p>
@@ -363,419 +383,489 @@
     <p style="color: #f87171; margin: 0 0 1rem">{error}</p>
   {/if}
 
-  <div class="account-grid">
-    <div class="panel account-panel">
-      <div class="account-panel__header">
-        <div>
-          <h2>Profile</h2>
-          <p class="muted" style="margin: 0.25rem 0 0; font-size: 0.88rem">
-            This is the frontend boundary that should survive the move from local dev auth to real
-            accounts.
-          </p>
+  <div class="account-layout">
+    <div class="account-layout__main">
+      <div class="panel account-panel">
+        <div class="account-panel__header">
+          <div>
+            <p class="account-panel__eyebrow">Player profile</p>
+            <h2>Profile</h2>
+            <p class="muted account-panel__intro">
+              The stable user-facing summary: identity, recommended path, and current daily-goal context.
+            </p>
+          </div>
         </div>
+
+        {#if profile}
+          <div class="subscription-grid">
+            <div class="subscription-stat">
+              <span class="muted">Identity</span>
+              <strong>{profile.auth.accountLabel}</strong>
+            </div>
+            <div class="subscription-stat">
+              <span class="muted">Auth state</span>
+              <strong>{profile.auth.state === "local_dev" ? "Local dev" : "Guest"}</strong>
+            </div>
+            <div class="subscription-stat">
+              <span class="muted">Recommended path</span>
+              <strong>{profile.learning.recommendedPathTitle ?? "Not set"}</strong>
+            </div>
+            <div class="subscription-stat">
+              <span class="muted">Daily goal</span>
+              <strong>{profile.practice.goalProgress}</strong>
+            </div>
+          </div>
+
+          <p class="muted account-footnote">
+            {#if profile.learning.recommendedTrackTitle}
+              Next seeded chart: {profile.learning.recommendedTrackTitle}.
+            {:else}
+              No onboarding seed saved yet.
+            {/if}
+            Pending analytics events: {profile.analytics.pendingEvents}.
+          </p>
+        {:else}
+          <p class="muted" style="margin: 0">Loading profile…</p>
+        {/if}
       </div>
 
-      {#if profile}
-        <div class="subscription-grid">
-          <div class="subscription-stat">
-            <span class="muted">Identity</span>
-            <strong>{profile.auth.accountLabel}</strong>
-          </div>
-          <div class="subscription-stat">
-            <span class="muted">Auth state</span>
-            <strong>{profile.auth.state === "local_dev" ? "Local dev" : "Guest"}</strong>
-          </div>
-          <div class="subscription-stat">
-            <span class="muted">Recommended path</span>
-            <strong>{profile.learning.recommendedPathTitle ?? "Not set"}</strong>
-          </div>
-          <div class="subscription-stat">
-            <span class="muted">Daily goal</span>
-            <strong>{profile.practice.goalProgress}</strong>
+      <div class="panel account-panel">
+        <div class="account-panel__header">
+          <div>
+            <p class="account-panel__eyebrow">Shell identity</p>
+            <h2>Session</h2>
+            <p class="muted account-panel__intro">
+              Sign in, sign out, and understand which local identity is currently driving the desktop shell.
+            </p>
           </div>
         </div>
 
-        <p class="muted account-footnote">
-          {#if profile.learning.recommendedTrackTitle}
-            Next seeded chart: {profile.learning.recommendedTrackTitle}.
-          {:else}
-            No onboarding seed saved yet.
-          {/if}
-          Pending analytics events: {profile.analytics.pendingEvents}.
-        </p>
-      {:else}
-        <p class="muted" style="margin: 0">Loading profile…</p>
-      {/if}
-    </div>
-
-    <div class="panel account-panel">
-      <h2>Session</h2>
-      {#if session && profile}
-        {#if profile.auth.signedIn}
-          <p style="margin: 0 0 0.5rem">
-            Signed in as <strong>{profile.auth.authKind ?? "?"}</strong>
-            {#if profile.auth.displayName}
-              · {profile.auth.displayName}
-            {/if}
-          </p>
-          {#if profile.auth.signedInAtUnixMs != null}
-            <p class="muted" style="margin: 0 0 0.75rem; font-size: 0.88rem">
-              Since {new Date(profile.auth.signedInAtUnixMs).toLocaleString()}
+        {#if session && profile}
+          {#if profile.auth.signedIn}
+            <p style="margin: 0 0 0.5rem">
+              Signed in as <strong>{profile.auth.authKind ?? "?"}</strong>
+              {#if profile.auth.displayName}
+                · {profile.auth.displayName}
+              {/if}
             </p>
+            {#if profile.auth.signedInAtUnixMs != null}
+              <p class="muted" style="margin: 0 0 0.75rem; font-size: 0.88rem">
+                Since {new Date(profile.auth.signedInAtUnixMs).toLocaleString()}
+              </p>
+            {/if}
+            {#if profile.auth.entitlements.length > 0}
+              <p class="muted" style="margin: 0 0 0.5rem; font-size: 0.85rem">Capabilities</p>
+              <ul class="account-list">
+                {#each profile.auth.entitlements as e (e)}
+                  <li><code>{e}</code></li>
+                {/each}
+              </ul>
+            {/if}
+            <button type="button" class="btn" onclick={signOut} disabled={busy}>Sign out</button>
+          {:else}
+            <label class="account-field">
+              <span class="muted">Display name (optional)</span>
+              <input
+                type="text"
+                bind:value={displayName}
+                placeholder="e.g. Local dev"
+                disabled={busy}
+                class="account-input"
+              />
+            </label>
+            <button type="button" class="btn btn-primary" onclick={devSignIn} disabled={busy}>
+              {busy ? "…" : "Sign in as dev"}
+            </button>
           {/if}
-          {#if profile.auth.entitlements.length > 0}
-            <p class="muted" style="margin: 0 0 0.5rem; font-size: 0.85rem">Capabilities</p>
-            <ul class="account-list">
-              {#each profile.auth.entitlements as e (e)}
-                <li><code>{e}</code></li>
-              {/each}
-            </ul>
-          {/if}
-          <button type="button" class="btn" onclick={signOut} disabled={busy}>Sign out</button>
         {:else}
-          <label style="display: block; margin-bottom: 0.5rem">
-            <span class="muted" style="display: block; margin-bottom: 0.25rem; font-size: 0.88rem"
-              >Display name (optional)</span
-            >
+          <p class="muted" style="margin: 0">Loading session…</p>
+        {/if}
+      </div>
+
+      <div class="panel account-panel">
+        <div class="account-panel__header">
+          <div>
+            <p class="account-panel__eyebrow">Subscription and sync</p>
+            <h2>Subscription</h2>
+            <p class="muted account-panel__intro">
+              Current plan state, API base, sync status, and analytics delivery all stay here because they affect the real user-facing account experience.
+            </p>
+          </div>
+          <span class={`status-pill status-pill--${subscriptionTone(subscription)}`}>
+            {#if subscription?.entitled}
+              {subscription.offlineGraceActive ? "Offline grace" : "Entitled"}
+            {:else if subscription}
+              {subscription.subscriptionStatus}
+            {:else}
+              Unknown
+            {/if}
+          </span>
+        </div>
+
+        {#if subscriptionError}
+          <p class="account-error">{subscriptionError}</p>
+        {/if}
+
+        {#if subscription}
+          <div class="subscription-grid">
+            <div class="subscription-stat">
+              <span class="muted">Plan</span>
+              <strong>{profile?.subscription.tier ?? subscription.tier ?? "None"}</strong>
+            </div>
+            <div class="subscription-stat">
+              <span class="muted">Status</span>
+              <strong>{profile?.subscription.status ?? subscription.subscriptionStatus}</strong>
+            </div>
+            <div class="subscription-stat">
+              <span class="muted">Valid until</span>
+              <strong>{formatTimestamp(subscription.validUntilUnixMs)}</strong>
+            </div>
+            <div class="subscription-stat">
+              <span class="muted">Last successful sync</span>
+              <strong>{formatTimestamp(subscription.lastSyncOkUnixMs)}</strong>
+            </div>
+          </div>
+
+          <p class="muted account-footnote">
+            {#if subscription.lastSyncSucceeded}
+              Last sync succeeded.
+            {:else if subscription.lastSyncError}
+              Last sync failed: {subscription.lastSyncError}
+            {:else}
+              No subscription sync has been run yet.
+            {/if}
+            Offline grace window: {subscription.graceDays} day{subscription.graceDays === 1 ? "" : "s"}.
+          </p>
+
+          <label class="account-field">
+            <span class="muted">Subscription API base</span>
             <input
-              type="text"
-              bind:value={displayName}
-              placeholder="e.g. Local dev"
-              disabled={busy}
+              type="url"
+              bind:value={subscriptionApiBase}
+              placeholder="http://127.0.0.1:8787"
+              disabled={savingApiBase || syncingSubscription}
               class="account-input"
             />
           </label>
-          <button type="button" class="btn btn-primary" onclick={devSignIn} disabled={busy}>
-            {busy ? "…" : "Sign in as dev"}
-          </button>
-        {/if}
-      {:else}
-        <p class="muted" style="margin: 0">Loading session…</p>
-      {/if}
-    </div>
 
-    <div class="panel account-panel">
-      <div class="account-panel__header">
-        <div>
-          <h2>Subscription</h2>
-          <p class="muted" style="margin: 0.25rem 0 0; font-size: 0.88rem">
-            Reads the local subscription cache and syncs against the configured API when requested.
-          </p>
-        </div>
-        <span class={`status-pill status-pill--${subscriptionTone(subscription)}`}>
-          {#if subscription?.entitled}
-            {subscription.offlineGraceActive ? "Offline grace" : "Entitled"}
-          {:else if subscription}
-            {subscription.subscriptionStatus}
-          {:else}
-            Unknown
-          {/if}
-        </span>
-      </div>
-
-      {#if subscriptionError}
-        <p class="account-error">{subscriptionError}</p>
-      {/if}
-
-      {#if subscription}
-        <div class="subscription-grid">
-          <div class="subscription-stat">
-            <span class="muted">Plan</span>
-            <strong>{profile?.subscription.tier ?? subscription.tier ?? "None"}</strong>
-          </div>
-          <div class="subscription-stat">
-            <span class="muted">Status</span>
-            <strong>{profile?.subscription.status ?? subscription.subscriptionStatus}</strong>
-          </div>
-          <div class="subscription-stat">
-            <span class="muted">Valid until</span>
-            <strong>{formatTimestamp(subscription.validUntilUnixMs)}</strong>
-          </div>
-          <div class="subscription-stat">
-            <span class="muted">Last successful sync</span>
-            <strong>{formatTimestamp(subscription.lastSyncOkUnixMs)}</strong>
-          </div>
-        </div>
-
-        <p class="muted account-footnote">
-          {#if subscription.lastSyncSucceeded}
-            Last sync succeeded.
-          {:else if subscription.lastSyncError}
-            Last sync failed: {subscription.lastSyncError}
-          {:else}
-            No subscription sync has been run yet.
-          {/if}
-          Offline grace window: {subscription.graceDays} day{subscription.graceDays === 1 ? "" : "s"}.
-        </p>
-
-        <label class="account-field">
-          <span class="muted">Subscription API base</span>
-          <input
-            type="url"
-            bind:value={subscriptionApiBase}
-            placeholder="http://127.0.0.1:8787"
-            disabled={savingApiBase || syncingSubscription}
-            class="account-input"
-          />
-        </label>
-
-        <div class="account-actions">
-          <button
-            type="button"
-            class="btn"
-            onclick={saveSubscriptionApiBase}
-            disabled={savingApiBase || syncingSubscription}
-          >
-            {savingApiBase ? "Saving…" : "Save API base"}
-          </button>
-          <button
-            type="button"
-            class="btn btn-primary"
-            onclick={syncSubscription}
-            disabled={syncingSubscription || savingApiBase}
-          >
-            {syncingSubscription ? "Syncing…" : "Sync now"}
-          </button>
-        </div>
-
-        <div class="account-divider"></div>
-
-        <div class="policy-group">
-          <h3>Analytics delivery</h3>
-          <p class="muted" style="margin: 0; font-size: 0.88rem">
-            Uses the same API base and posts the first local analytics batch envelope to the
-            server.
-          </p>
-          <div class="subscription-grid">
-            <div class="subscription-stat">
-              <span class="muted">Pending events</span>
-              <strong>{profile?.analytics.pendingEvents ?? pendingAnalyticsEvents}</strong>
-            </div>
-          </div>
-          {#if analyticsError}
-            <p class="account-error">{analyticsError}</p>
-          {/if}
-          {#if analyticsStatus}
-            <p class="muted account-footnote">{analyticsStatus}</p>
-          {/if}
-          {#if analyticsRetryAt}
-            <p class="muted account-footnote">
-              Next retry window: {new Date(analyticsRetryAt).toLocaleString()}
-            </p>
-          {/if}
           <div class="account-actions">
             <button
               type="button"
               class="btn"
-              onclick={sendAnalyticsBatchNow}
-              disabled={sendingAnalytics || savingApiBase || syncingSubscription}
+              onclick={saveSubscriptionApiBase}
+              disabled={savingApiBase || syncingSubscription}
             >
-              {sendingAnalytics ? "Sending…" : "Send analytics batch"}
+              {savingApiBase ? "Saving…" : "Save API base"}
+            </button>
+            <button
+              type="button"
+              class="btn btn-primary"
+              onclick={syncSubscription}
+              disabled={syncingSubscription || savingApiBase}
+            >
+              {syncingSubscription ? "Syncing…" : "Sync now"}
             </button>
           </div>
-        </div>
-      {:else}
-        <p class="muted" style="margin: 0">Loading subscription state…</p>
-      {/if}
-    </div>
 
-    <div class="panel account-panel">
-      <div class="account-panel__header">
-        <div>
-          <h2>Sync roadmap</h2>
-          <p class="muted" style="margin: 0.25rem 0 0; font-size: 0.88rem">
-            The catalog layer now distinguishes device-local practice state from library state that
-            should sync once real accounts land.
-          </p>
-        </div>
-      </div>
+          <div class="account-divider"></div>
 
-      {#each policyGroups() as group (group.title)}
-        <div class="policy-group">
-          <h3>{group.title}</h3>
-          <ul class="policy-list">
-            {#each group.policies as policy (policy.key)}
-              <li class="policy-item">
-                <div class="policy-item__header">
-                  <strong>{policy.label}</strong>
-                  <span class={`status-pill status-pill--${ownershipTone(policy.ownership)}`}>
-                    {ownershipLabel(policy.ownership)}
-                  </span>
-                </div>
-                <p class="muted">{policy.rationale}</p>
-              </li>
-            {/each}
-          </ul>
-        </div>
-      {/each}
-
-      <div class="policy-group">
-        <h3>First remote catalog cut</h3>
-        <p class="muted" style="margin: 0; font-size: 0.88rem">
-          {catalogMigrationTarget.label} is the first API target. It keeps the initial remote
-          migration metadata-only so the app can adopt server catalog delivery before asset
-          streaming, entitlements, or user uploads.
-        </p>
-        <ul class="policy-list">
-          {#each migrationTargetChecklist(catalogMigrationTarget) as item (item.label)}
-            <li class="policy-item policy-item--compact">
-              <div class="policy-item__header">
-                <strong>{item.label}</strong>
-                <span class={`status-pill status-pill--${item.included ? "active" : "inactive"}`}>
-                  {item.included ? "Included" : "Later"}
-                </span>
+          <div class="policy-group">
+            <h3>Analytics delivery</h3>
+            <p class="muted account-panel__intro">
+              Uses the same API base and posts the first local analytics batch envelope to the server.
+            </p>
+            <div class="subscription-grid">
+              <div class="subscription-stat">
+                <span class="muted">Pending events</span>
+                <strong>{profile?.analytics.pendingEvents ?? pendingAnalyticsEvents}</strong>
               </div>
-            </li>
-          {/each}
-        </ul>
-      </div>
-
-      <div class="policy-group">
-        <h3>Catalog source rollout</h3>
-        <p class="muted" style="margin: 0; font-size: 0.88rem">
-          Remote catalog consumption stays behind a local flag for now so the library can opt into
-          `/api/v1/catalog` without changing the default product path.
-        </p>
-        <div class="account-actions">
-          <button
-            type="button"
-            class="btn"
-            class:btn-primary={catalogSourceMode === "local_seed"}
-            onclick={() => saveCatalogSourceMode("local_seed")}
-          >
-            Local seed
-          </button>
-          <button
-            type="button"
-            class="btn"
-            class:btn-primary={catalogSourceMode === "remote_api"}
-            onclick={() => saveCatalogSourceMode("remote_api")}
-          >
-            Remote API
-          </button>
-        </div>
-        <p class="muted account-footnote">
-          Current mode: <strong>{catalogSourceMode === "remote_api" ? "Remote API" : "Local seed"}</strong>.
-        </p>
-      </div>
-
-      {#if profile}
-        {@const remoteProfileSeed = buildRemoteUserProfileSeed(profile)}
-        <div class="policy-group">
-          <h3>First remote profile scope</h3>
-          <p class="muted" style="margin: 0; font-size: 0.88rem">
-            These are the first non-billing profile fields that should move server-side once auth
-            exists.
-          </p>
-          <ul class="policy-list">
-            <li class="policy-item policy-item--compact">
-              <div class="policy-item__header">
-                <strong>Display name</strong>
-                <span class="status-pill status-pill--active">
-                  {remoteProfileSeed.fields.displayName ?? "Not set"}
-                </span>
-              </div>
-            </li>
-            <li class="policy-item policy-item--compact">
-              <div class="policy-item__header">
-                <strong>Practice goal</strong>
-                <span class="status-pill status-pill--active">
-                  {remoteProfileSeed.fields.practiceGoal ?? "Not set"}
-                </span>
-              </div>
-            </li>
-            <li class="policy-item policy-item--compact">
-              <div class="policy-item__header">
-                <strong>Seeded path / chart</strong>
-                <span class="status-pill status-pill--active">
-                  {remoteProfileSeed.fields.recommendedPathId ?? "Not set"} / {remoteProfileSeed.fields.recommendedTrackId ?? "Not set"}
-                </span>
-              </div>
-            </li>
-            <li class="policy-item policy-item--compact">
-              <div class="policy-item__header">
-                <strong>Daily goal target</strong>
-                <span class="status-pill status-pill--active">
-                  {remoteProfileSeed.fields.dailyGoalSessions}
-                </span>
-              </div>
-            </li>
-          </ul>
-        </div>
-
-        <div class="policy-group">
-          <div class="policy-item">
-            <div class="policy-item__header">
-              <strong>Remote profile preview</strong>
-              <button type="button" class="btn" onclick={refreshRemoteProfile} disabled={loadingRemoteProfile}>
-                {loadingRemoteProfile ? "Loading…" : "Refresh"}
+            </div>
+            {#if analyticsError}
+              <p class="account-error">{analyticsError}</p>
+            {/if}
+            {#if analyticsStatus}
+              <p class="muted account-footnote">{analyticsStatus}</p>
+            {/if}
+            {#if analyticsRetryAt}
+              <p class="muted account-footnote">
+                Next retry window: {new Date(analyticsRetryAt).toLocaleString()}
+              </p>
+            {/if}
+            <div class="account-actions">
+              <button
+                type="button"
+                class="btn"
+                onclick={sendAnalyticsBatchNow}
+                disabled={sendingAnalytics || savingApiBase || syncingSubscription}
+              >
+                {sendingAnalytics ? "Sending…" : "Send analytics batch"}
               </button>
             </div>
-            <p class="muted">
-              Current role:
-              <strong>{getRemoteProfileRole(session) === "preview_only" ? "Preview only" : "Primary source"}</strong>
+          </div>
+        {:else}
+          <p class="muted" style="margin: 0">Loading subscription state…</p>
+        {/if}
+      </div>
+    </div>
+
+    <aside class="account-layout__side">
+      <div class="panel account-panel account-panel--diagnostics">
+        <div class="account-panel__header">
+          <div>
+            <p class="account-panel__eyebrow">Diagnostics</p>
+            <h2>Sync and rollout internals</h2>
+            <p class="muted account-panel__intro">
+              These sections are still useful while the product is evolving, but they are no longer the primary story of the page.
             </p>
-            {#if remoteProfileError}
-              <p class="account-error">{remoteProfileError}</p>
-            {:else if remoteProfile}
-              <p class="muted">
-                Remote display name: <strong>{remoteProfile.fields.displayName ?? "Not set"}</strong><br />
-                Remote practice goal: <strong>{remoteProfile.fields.practiceGoal ?? "Not set"}</strong><br />
-                Remote seeded path: <strong>{remoteProfile.fields.recommendedPathId ?? "Not set"}</strong><br />
-                Remote daily goal target: <strong>{remoteProfile.fields.dailyGoalSessions}</strong>
-              </p>
-            {:else}
-              <p class="muted">No remote profile loaded yet. Set an API base and refresh to preview `/api/v1/profile`.</p>
-            {/if}
           </div>
         </div>
 
-        {#each profilePolicyGroups() as group (group.title)}
-          <div class="policy-group">
-            <h3>{group.title}</h3>
-            <ul class="policy-list">
-              {#each group.policies as policy (policy.key)}
-                <li class="policy-item">
-                  <div class="policy-item__header">
-                    <strong>{policy.label}</strong>
-                    <span class={`status-pill status-pill--${policy.ownership === "remote_first" ? "active" : "inactive"}`}>
-                      {profileOwnershipLabel(policy.ownership)}
-                    </span>
-                  </div>
-                  <p class="muted">{policy.rationale}</p>
-                </li>
-              {/each}
-            </ul>
+        <details class="account-disclosure">
+          <summary>Catalog ownership and rollout</summary>
+          <div class="account-disclosure__body">
+            {#each policyGroups() as group (group.title)}
+              <div class="policy-group">
+                <h3>{group.title}</h3>
+                <ul class="policy-list">
+                  {#each group.policies as policy (policy.key)}
+                    <li class="policy-item">
+                      <div class="policy-item__header">
+                        <strong>{policy.label}</strong>
+                        <span class={`status-pill status-pill--${ownershipTone(policy.ownership)}`}>
+                          {ownershipLabel(policy.ownership)}
+                        </span>
+                      </div>
+                      <p class="muted">{policy.rationale}</p>
+                    </li>
+                  {/each}
+                </ul>
+              </div>
+            {/each}
+
+            <div class="policy-group">
+              <h3>First remote catalog cut</h3>
+              <p class="muted account-panel__intro">
+                {catalogMigrationTarget.label} is the first API target. It keeps the initial remote
+                migration metadata-only so the app can adopt server catalog delivery before asset
+                streaming, entitlements, or user uploads.
+              </p>
+              <ul class="policy-list">
+                {#each migrationTargetChecklist(catalogMigrationTarget) as item (item.label)}
+                  <li class="policy-item policy-item--compact">
+                    <div class="policy-item__header">
+                      <strong>{item.label}</strong>
+                      <span class={`status-pill status-pill--${item.included ? "active" : "inactive"}`}>
+                        {item.included ? "Included" : "Later"}
+                      </span>
+                    </div>
+                  </li>
+                {/each}
+              </ul>
+            </div>
+
+            <div class="policy-group">
+              <h3>Catalog source rollout</h3>
+              <p class="muted account-panel__intro">
+                Remote catalog consumption stays behind a local flag so the library can opt into
+                `/api/v1/catalog` without changing the default product path.
+              </p>
+              <div class="account-actions">
+                <button
+                  type="button"
+                  class="btn"
+                  class:btn-primary={catalogSourceMode === "local_seed"}
+                  onclick={() => saveCatalogSourceMode("local_seed")}
+                >
+                  Local seed
+                </button>
+                <button
+                  type="button"
+                  class="btn"
+                  class:btn-primary={catalogSourceMode === "remote_api"}
+                  onclick={() => saveCatalogSourceMode("remote_api")}
+                >
+                  Remote API
+                </button>
+              </div>
+              <p class="muted account-footnote">
+                Current mode: <strong>{catalogSourceMode === "remote_api" ? "Remote API" : "Local seed"}</strong>.
+              </p>
+            </div>
           </div>
-        {/each}
-      {/if}
-    </div>
+        </details>
+
+        {#if profile}
+          {@const remoteProfileSeed = buildRemoteUserProfileSeed(profile)}
+          <details class="account-disclosure">
+            <summary>Remote profile transition</summary>
+            <div class="account-disclosure__body">
+              <div class="policy-group">
+                <h3>First remote profile scope</h3>
+                <p class="muted account-panel__intro">
+                  These are the first non-billing profile fields that should move server-side once auth exists.
+                </p>
+                <ul class="policy-list">
+                  <li class="policy-item policy-item--compact">
+                    <div class="policy-item__header">
+                      <strong>Display name</strong>
+                      <span class="status-pill status-pill--active">
+                        {remoteProfileSeed.fields.displayName ?? "Not set"}
+                      </span>
+                    </div>
+                  </li>
+                  <li class="policy-item policy-item--compact">
+                    <div class="policy-item__header">
+                      <strong>Practice goal</strong>
+                      <span class="status-pill status-pill--active">
+                        {remoteProfileSeed.fields.practiceGoal ?? "Not set"}
+                      </span>
+                    </div>
+                  </li>
+                  <li class="policy-item policy-item--compact">
+                    <div class="policy-item__header">
+                      <strong>Seeded path / chart</strong>
+                      <span class="status-pill status-pill--active">
+                        {remoteProfileSeed.fields.recommendedPathId ?? "Not set"} / {remoteProfileSeed.fields.recommendedTrackId ?? "Not set"}
+                      </span>
+                    </div>
+                  </li>
+                  <li class="policy-item policy-item--compact">
+                    <div class="policy-item__header">
+                      <strong>Daily goal target</strong>
+                      <span class="status-pill status-pill--active">
+                        {remoteProfileSeed.fields.dailyGoalSessions}
+                      </span>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+
+              <div class="policy-group">
+                <div class="policy-item">
+                  <div class="policy-item__header">
+                    <strong>Remote profile preview</strong>
+                    <button type="button" class="btn" onclick={refreshRemoteProfile} disabled={loadingRemoteProfile}>
+                      {loadingRemoteProfile ? "Loading…" : "Refresh"}
+                    </button>
+                  </div>
+                  <p class="muted">
+                    Current role:
+                    <strong>{getRemoteProfileRole(session) === "preview_only" ? "Preview only" : "Primary source"}</strong>
+                  </p>
+                  {#if remoteProfileError}
+                    <p class="account-error">{remoteProfileError}</p>
+                  {:else if remoteProfile}
+                    <p class="muted">
+                      Remote display name: <strong>{remoteProfile.fields.displayName ?? "Not set"}</strong><br />
+                      Remote practice goal: <strong>{remoteProfile.fields.practiceGoal ?? "Not set"}</strong><br />
+                      Remote seeded path: <strong>{remoteProfile.fields.recommendedPathId ?? "Not set"}</strong><br />
+                      Remote daily goal target: <strong>{remoteProfile.fields.dailyGoalSessions}</strong>
+                    </p>
+                  {:else}
+                    <p class="muted">No remote profile loaded yet. Set an API base and refresh to preview `/api/v1/profile`.</p>
+                  {/if}
+                </div>
+              </div>
+
+              {#each profilePolicyGroups() as group (group.title)}
+                <div class="policy-group">
+                  <h3>{group.title}</h3>
+                  <ul class="policy-list">
+                    {#each group.policies as policy (policy.key)}
+                      <li class="policy-item">
+                        <div class="policy-item__header">
+                          <strong>{policy.label}</strong>
+                          <span class={`status-pill status-pill--${policy.ownership === "remote_first" ? "active" : "inactive"}`}>
+                            {profileOwnershipLabel(policy.ownership)}
+                          </span>
+                        </div>
+                        <p class="muted">{policy.rationale}</p>
+                      </li>
+                    {/each}
+                  </ul>
+                </div>
+              {/each}
+            </div>
+          </details>
+        {/if}
+      </div>
+    </aside>
   </div>
 {/if}
 
 <style>
-  .account-grid {
+  .account-hero {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+    grid-template-columns: minmax(0, 1.35fr) minmax(18rem, 1fr);
     gap: 1rem;
-    max-width: 56rem;
+    background:
+      radial-gradient(circle at top right, rgba(63, 208, 195, 0.14), transparent 28%),
+      radial-gradient(circle at left center, rgba(213, 138, 84, 0.18), transparent 24%),
+      linear-gradient(145deg, rgba(33, 24, 29, 0.96), rgba(18, 15, 19, 0.96));
   }
-
+  .account-hero__eyebrow,
+  .account-panel__eyebrow {
+    margin: 0 0 0.35rem;
+    color: var(--ff-highlight-strong);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  .account-hero h1 {
+    margin: 0 0 0.6rem;
+    max-width: 14ch;
+    font-size: clamp(2rem, 3vw, 3rem);
+    line-height: 0.98;
+  }
+  .account-hero__stats {
+    display: grid;
+    gap: 0.8rem;
+    align-content: start;
+  }
+  .account-hero__stat {
+    display: grid;
+    gap: 0.28rem;
+    padding: 1rem;
+    border-radius: 18px;
+    border: 1px solid var(--ff-border);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 36%),
+      rgba(9, 8, 10, 0.25);
+  }
+  .account-hero__stat-label {
+    color: var(--ff-highlight-strong);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  .account-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(20rem, 0.85fr);
+    gap: 1rem;
+    align-items: start;
+  }
+  .account-layout__main,
+  .account-layout__side {
+    display: grid;
+    gap: 1rem;
+  }
   .account-panel {
     display: grid;
     gap: 0.9rem;
   }
-
+  .account-panel--diagnostics {
+    align-content: start;
+  }
   .account-panel h2 {
     margin: 0;
-    font-size: 1.05rem;
+    font-size: 1.1rem;
   }
-
   .account-panel h3 {
     margin: 0;
     font-size: 0.95rem;
   }
-
   .account-panel__header {
     display: flex;
     justify-content: space-between;
@@ -783,18 +873,20 @@
     gap: 0.75rem;
     flex-wrap: wrap;
   }
-
+  .account-panel__intro {
+    margin: 0.25rem 0 0;
+    font-size: 0.88rem;
+    line-height: 1.55;
+  }
   .account-list {
     margin: 0 0 1rem;
     padding-left: 1.25rem;
     font-size: 0.88rem;
   }
-
   .policy-group {
     display: grid;
     gap: 0.55rem;
   }
-
   .policy-list {
     list-style: none;
     display: grid;
@@ -802,26 +894,24 @@
     margin: 0;
     padding: 0;
   }
-
   .policy-item {
     display: grid;
     gap: 0.35rem;
-    padding: 0.8rem 0.9rem;
-    border-radius: 10px;
+    padding: 0.9rem 1rem;
+    border-radius: 16px;
     border: 1px solid var(--ff-border);
-    background: color-mix(in srgb, var(--ff-bg) 82%, transparent);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 34%),
+      rgba(9, 8, 10, 0.2);
   }
-
   .policy-item--compact {
-    padding-block: 0.7rem;
+    padding-block: 0.75rem;
   }
-
   .policy-item p {
     margin: 0;
     font-size: 0.86rem;
     line-height: 1.45;
   }
-
   .policy-item__header {
     display: flex;
     align-items: center;
@@ -829,52 +919,41 @@
     gap: 0.75rem;
     flex-wrap: wrap;
   }
-
   .account-field {
     display: grid;
     gap: 0.35rem;
   }
-
   .account-input {
     width: 100%;
     max-width: 24rem;
-    padding: 0.45rem 0.6rem;
-    border-radius: 6px;
-    border: 1px solid var(--ff-border);
-    background: var(--ff-bg);
-    color: var(--ff-text);
   }
-
   .account-actions {
     display: flex;
     gap: 0.65rem;
     flex-wrap: wrap;
   }
-
   .account-divider {
-    border-top: 1px solid var(--ff-border);
+    border-top: 1px solid color-mix(in srgb, var(--ff-border) 65%, transparent);
   }
-
   .subscription-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
     gap: 0.75rem;
   }
-
   .subscription-stat {
     display: grid;
     gap: 0.15rem;
-    padding: 0.8rem 0.9rem;
-    border-radius: 10px;
+    padding: 0.9rem 1rem;
+    border-radius: 16px;
     border: 1px solid var(--ff-border);
-    background: color-mix(in srgb, var(--ff-bg) 78%, transparent);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 34%),
+      rgba(9, 8, 10, 0.2);
   }
-
   .subscription-stat strong {
     font-size: 0.95rem;
     line-height: 1.45;
   }
-
   .status-pill {
     display: inline-flex;
     align-items: center;
@@ -887,31 +966,54 @@
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
-
   .status-pill--active {
     color: var(--ff-success);
     border-color: color-mix(in srgb, var(--ff-success) 45%, var(--ff-border));
   }
-
   .status-pill--grace,
   .status-pill--warning {
     color: var(--ff-accent);
     border-color: color-mix(in srgb, var(--ff-accent) 45%, var(--ff-border));
   }
-
   .status-pill--inactive,
   .status-pill--unknown {
     color: var(--ff-muted);
   }
-
+  .account-disclosure {
+    border: 1px solid var(--ff-border);
+    border-radius: 18px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 34%),
+      rgba(9, 8, 10, 0.16);
+    overflow: hidden;
+  }
+  .account-disclosure summary {
+    cursor: pointer;
+    list-style: none;
+    padding: 0.95rem 1rem;
+    font-weight: 600;
+  }
+  .account-disclosure summary::-webkit-details-marker {
+    display: none;
+  }
+  .account-disclosure__body {
+    display: grid;
+    gap: 1rem;
+    padding: 0 1rem 1rem;
+  }
   .account-error {
     margin: 0;
     color: #f87171;
   }
-
   .account-footnote {
     margin: 0;
     font-size: 0.88rem;
     line-height: 1.5;
+  }
+  @media (max-width: 900px) {
+    .account-hero,
+    .account-layout {
+      grid-template-columns: 1fr;
+    }
   }
 </style>

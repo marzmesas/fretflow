@@ -514,374 +514,609 @@
   }
 </script>
 
-<h1 style="margin: 0 0 0.5rem; font-size: 1.5rem">Settings</h1>
-<p class="muted">
-  Configure your audio input, MIDI controller, and latency offset for Practice scoring.
-  Monitoring and MIDI connections stay active when you navigate away — stop them here or close the app.
-</p>
-
-{#if !browserOnly && !setupGuideHidden}
-  <div class="panel setup-guide-panel">
-    <div class="setup-guide-panel__header">
-      <div>
-        <p class="setup-guide-panel__eyebrow">Setup wizard</p>
-        <h2>Get ready for your first scored session</h2>
-      </div>
-      <button type="button" class="btn" onclick={() => (setupGuideDismissed = true)}>Dismiss</button>
-    </div>
-    <p class="muted" style="margin: 0 0 0.85rem">
-      {setupCompletedCount} of {setupSteps.length} steps complete. Finish the basics here, then switch to Practice.
-    </p>
-    <div class="setup-guide-steps" role="list" aria-label="Settings setup steps">
-      {#each setupSteps as step (step.id)}
-        <div class="setup-step" role="listitem">
-          <div class="setup-step__status" class:setup-step__status--done={step.complete}>
-            {step.complete ? "Done" : "Next"}
-          </div>
-          <div class="setup-step__body">
-            <div class="setup-step__title">{step.title}</div>
-            <p class="setup-step__detail">{step.detail}</p>
-          </div>
-          <button
-            type="button"
-            class="btn"
-            class:btn-primary={!step.complete}
-            onclick={() => void runSetupStep(step.id)}
-          >
-            {step.ctaLabel}
-          </button>
-        </div>
-      {/each}
-    </div>
-  </div>
-{/if}
-
-<div class="panel" id="audio-input-section">
-  <h2>Audio input</h2>
-  {#if browserOnly}
-    <p>Open the app with <code>npm run tauri dev</code> to use these controls.</p>
-  {:else if error && !devices.length}
-    <p style="color: #f87171">{error}</p>
-  {:else}
-    {#if defaultDevice}
-      <p style="margin-bottom: 0.75rem">
-        <span class="muted">OS default:</span>
-        {defaultDevice.label}
+<div class="settings-page">
+  <section class="panel settings-hero">
+    <div class="settings-hero__copy">
+      <p class="settings-hero__eyebrow">Studio setup</p>
+      <h1>Turn setup into a soundcheck, not a debugging session.</h1>
+      <p class="muted">
+        Configure audio input, MIDI, and latency for Practice scoring. The goal is simple: get one reliable signal path working quickly, then hide the lower-level details unless you need them.
       </p>
-    {/if}
-    {#if devices.length === 0}
-      <p class="muted">No input devices reported by the OS.</p>
-    {:else}
-      <fieldset style="border: none; margin: 0 0 1rem; padding: 0">
-        <legend class="muted" style="margin-bottom: 0.5rem">Input for monitoring</legend>
-        <label class="row" style="margin-bottom: 0.35rem; cursor: pointer">
-          <input type="radio" name="in" checked={selectedId === null} onchange={() => (selectedId = null)} />
-          <span>System default</span>
-        </label>
-        {#each devices as d}
-          <label class="row" style="margin-bottom: 0.35rem; cursor: pointer">
-            <input
-              type="radio"
-              name="in"
-              checked={selectedId === d.id}
-              onchange={() => (selectedId = d.id)}
-            />
-            <span>{d.label}</span>
-          </label>
+    </div>
+    <div class="settings-hero__stats">
+      <div class="settings-hero__stat">
+        <span class="settings-hero__stat-label">Monitor</span>
+        <strong>{monitoring ? "Live" : "Off"}</strong>
+        <span class="muted">{monitoring ? "Mic input is flowing into the app." : "Start monitoring to unlock tuner and mic scoring."}</span>
+      </div>
+      <div class="settings-hero__stat">
+        <span class="settings-hero__stat-label">Tuner</span>
+        <strong>{tunerReading?.label ?? "Waiting"}</strong>
+        <span class="muted">{tunerReading ? `${tunerReading.cents >= 0 ? "+" : ""}${tunerReading.cents.toFixed(1)} cents` : "Play one clean note after monitoring starts."}</span>
+      </div>
+      <div class="settings-hero__stat">
+        <span class="settings-hero__stat-label">MIDI</span>
+        <strong>{midiListening ? "Ready" : "Idle"}</strong>
+        <span class="muted">{midiListening ? "A controller is actively feeding note input." : selectedMidiPortId ? "A port is selected but not listening yet." : "Choose a port if you prefer direct note scoring."}</span>
+      </div>
+    </div>
+  </section>
+
+  {#if !browserOnly && !setupGuideHidden}
+    <div class="panel setup-guide-panel">
+      <div class="setup-guide-panel__header">
+        <div>
+          <p class="setup-guide-panel__eyebrow">Setup wizard</p>
+          <h2>Get ready for your first scored session</h2>
+        </div>
+        <button type="button" class="btn" onclick={() => (setupGuideDismissed = true)}>Dismiss</button>
+      </div>
+      <p class="muted" style="margin: 0 0 0.85rem">
+        {setupCompletedCount} of {setupSteps.length} steps complete. Finish the basics here, then switch to Practice.
+      </p>
+      <div class="setup-guide-steps" role="list" aria-label="Settings setup steps">
+        {#each setupSteps as step (step.id)}
+          <div class="setup-step" role="listitem">
+            <div class="setup-step__status" class:setup-step__status--done={step.complete}>
+              {step.complete ? "Done" : "Next"}
+            </div>
+            <div class="setup-step__body">
+              <div class="setup-step__title">{step.title}</div>
+              <p class="setup-step__detail">{step.detail}</p>
+            </div>
+            <button
+              type="button"
+              class="btn"
+              class:btn-primary={!step.complete}
+              onclick={() => void runSetupStep(step.id)}
+            >
+              {step.ctaLabel}
+            </button>
+          </div>
         {/each}
-      </fieldset>
-    {/if}
-
-    <div class="row" style="margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem">
-      <button type="button" class="btn" onclick={savePrefs}>Save preference</button>
-      <button type="button" class="btn" onclick={refreshDevices}>Refresh device list</button>
-    </div>
-    <p class="muted" style="margin: -0.5rem 0 1rem; font-size: 0.82rem">
-      After plugging or unplugging hardware, use Refresh or switch back to this window: lists update and active monitoring can reconnect when a saved device name still matches.
-    </p>
-
-    <div class="row" style="margin-bottom: 0.75rem">
-      <button type="button" class="btn btn-primary" onclick={startMonitor} disabled={monitoring}>
-        Start monitoring
-      </button>
-      <button type="button" class="btn" onclick={stopMonitor} disabled={!monitoring}>Stop</button>
-    </div>
-
-    {#if monitorStreamError}
-      <div
-        class="stream-error-banner"
-        role="alert"
-        style="margin-bottom: 1rem; padding: 0.65rem 0.85rem; border-radius: 8px; border: 1px solid color-mix(in srgb, #f87171 50%, var(--ff-border)); background: color-mix(in srgb, #f87171 10%, var(--ff-surface))"
-      >
-        <div class="row" style="flex-wrap: wrap; justify-content: space-between; gap: 0.5rem 1rem; align-items: flex-start">
-          <p style="margin: 0; flex: 1; min-width: 10rem; font-size: 0.88rem; color: var(--ff-text)">
-            <strong>Monitor error.</strong>
-            {monitorStreamError}
-          </p>
-          <button type="button" class="btn" onclick={() => (monitorStreamError = null)}>Dismiss</button>
-        </div>
-        <p class="muted" style="margin: 0.45rem 0 0; font-size: 0.8rem">
-          Try another device, sample rate, or buffer size below, then start again.
-        </p>
       </div>
-    {/if}
-
-    <p class="muted" style="margin-bottom: 0.35rem">Live level (~30/s)</p>
-    <div class="meter" aria-label="Input level">
-      <div class="meter-fill" style="width: {audioLevel * 100}%"></div>
     </div>
+  {/if}
 
-    <div class="tuner-panel" aria-live="polite">
-      <h3 class="tuner-panel__title">Chromatic tuner</h3>
-      <p class="muted tuner-panel__hint">
-        Uses the same YIN pitch path as Practice mic scoring. Start monitoring, then play a single note.
-        Reference A4 = 440 Hz.
-      </p>
-      {#if !monitoring}
-        <p class="muted tuner-panel__idle">Start monitoring to see pitch.</p>
-      {:else if tunerReading == null}
-        <p class="muted tuner-panel__idle">Listening… play a note.</p>
-      {:else}
-        {@const cents = tunerReading.cents}
-        {@const needlePct = Math.min(92, Math.max(8, 50 + (cents / 45) * 38))}
-        {@const inTune = Math.abs(cents) < 8}
-        <div class="tuner-note">{tunerReading.label}</div>
-        <div class="tuner-meta">
-          <span>{tunerReading.targetHz.toFixed(1)} Hz target</span>
-          <span class="muted">·</span>
-          <span>conf {tunerReading.confidence.toFixed(2)}</span>
-        </div>
-        <div class="tuner-track" aria-label="Cents deviation from equal temperament">
-          <div class="tuner-track__tick tuner-track__tick--center"></div>
-          <div class="tuner-track__labels">
-            <span>♭</span><span>0</span><span>♯</span>
+  <div class="settings-layout">
+    <div class="settings-layout__main">
+      <div class="panel settings-card" id="audio-input-section">
+        <div class="settings-card__header">
+          <div>
+            <p class="settings-card__eyebrow">Signal path</p>
+            <h2>Audio input</h2>
+            <p class="muted settings-card__intro">
+              Pick one reliable input, start monitoring, and confirm the tuner can see a clean note before using mic scoring.
+            </p>
           </div>
-          <div
-            class="tuner-needle"
-            class:tuner-needle--green={inTune}
-            style="left: {needlePct}%"
-          ></div>
+          <div class="settings-card__actions">
+            <button type="button" class="btn btn-primary" onclick={startMonitor} disabled={monitoring || browserOnly}>
+              Start monitoring
+            </button>
+            <button type="button" class="btn" onclick={stopMonitor} disabled={!monitoring || browserOnly}>Stop</button>
+          </div>
         </div>
-        <p class="tuner-cents" class:tuner-cents--green={inTune}>
-          {cents >= 0 ? "+" : ""}{cents.toFixed(1)} cents
-          {#if inTune}<span class="muted"> — in tune</span>{/if}
-        </p>
-      {/if}
-    </div>
-
-    {#if error}
-      <p style="color: #f87171; margin-top: 0.75rem; margin-bottom: 0">{error}</p>
-    {/if}
-
-    <div
-      style="margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--ff-border)"
-    >
-      <h3 style="margin: 0 0 0.35rem; font-size: 0.95rem">Advanced (cpal stream)</h3>
-      <p class="muted" style="margin: 0 0 0.65rem; font-size: 0.82rem">
-        Applies to the <strong>input monitor</strong> only. Lower buffer frames can reduce latency but may glitch on slow machines.
-        Invalid sample rates fall back to the device default.
-      </p>
-      {#if streamInfoError}
-        <p style="color: #f87171; font-size: 0.9rem; margin: 0 0 0.5rem">{streamInfoError}</p>
-      {:else if streamInfo}
-        <p class="muted" style="margin: 0 0 0.5rem; font-size: 0.82rem">
-          Device default: <strong>{streamInfo.defaultSampleRate} Hz</strong>, {streamInfo.defaultChannels}
-          ch, {streamInfo.sampleFormat}
-          {#if streamInfo.bufferFramesMin != null && streamInfo.bufferFramesMax != null}
-            · buffer range ~{streamInfo.bufferFramesMin}–{streamInfo.bufferFramesMax} frames
+        {#if browserOnly}
+          <p>Open the app with <code>npm run tauri dev</code> to use these controls.</p>
+        {:else if error && !devices.length}
+          <p style="color: #f87171">{error}</p>
+        {:else}
+          {#if defaultDevice}
+            <p class="settings-inline-note">
+              <span class="muted">OS default:</span>
+              {defaultDevice.label}
+            </p>
           {/if}
-        </p>
-      {/if}
-      <div class="row" style="flex-wrap: wrap; gap: 0.75rem; align-items: center; margin-bottom: 0.65rem">
-        <label class="row" style="gap: 0.5rem; align-items: center">
-          <span class="muted">Sample rate</span>
-          <select
-            bind:value={streamSampleRateChoice}
-            style="padding: 0.35rem 0.5rem; border-radius: 6px; border: 1px solid var(--ff-border); background: var(--ff-bg); color: var(--ff-text)"
-          >
-            <option value="">
-              Auto ({streamInfo?.defaultSampleRate ?? "…"} Hz)
-            </option>
-            {#if streamSampleRateChoice !== "" && streamInfo && !streamInfo.supportedSampleRates.includes(Number(streamSampleRateChoice))}
-              <option value={streamSampleRateChoice}>{streamSampleRateChoice} Hz (saved)</option>
-            {/if}
-            {#if streamInfo}
-              {#each streamInfo.supportedSampleRates as hz}
-                <option value={String(hz)}>{hz} Hz</option>
+          {#if devices.length === 0}
+            <p class="muted">No input devices reported by the OS.</p>
+          {:else}
+            <fieldset class="settings-choice-group">
+              <legend class="muted">Input for monitoring</legend>
+              <label class="row settings-choice-row">
+                <input type="radio" name="in" checked={selectedId === null} onchange={() => (selectedId = null)} />
+                <span>System default</span>
+              </label>
+              {#each devices as d}
+                <label class="row settings-choice-row">
+                  <input
+                    type="radio"
+                    name="in"
+                    checked={selectedId === d.id}
+                    onchange={() => (selectedId = d.id)}
+                  />
+                  <span>{d.label}</span>
+                </label>
               {/each}
-            {/if}
-          </select>
-        </label>
-        <label class="row" style="gap: 0.5rem; align-items: center">
-          <span class="muted">Buffer (frames)</span>
-          <input
-            type="text"
-            inputmode="numeric"
-            placeholder="Auto"
-            bind:value={streamBufferFramesStr}
-            style="width: 5.5rem; padding: 0.35rem 0.5rem; border-radius: 6px; border: 1px solid var(--ff-border); background: var(--ff-bg); color: var(--ff-text)"
-          />
-        </label>
-      </div>
-      <div class="row" style="flex-wrap: wrap; gap: 0.5rem">
-        <button type="button" class="btn" onclick={() => void refreshStreamInfo()} disabled={browserOnly}>
-          Refresh caps
-        </button>
-        <button type="button" class="btn" onclick={() => void savePrefs()} disabled={browserOnly}>
-          Save stream prefs
-        </button>
-        <button
-          type="button"
-          class="btn btn-primary"
-          onclick={() => void saveStreamPrefsAndRestartMonitor()}
-          disabled={browserOnly}
-        >
-          Save &amp; restart monitor
-        </button>
-      </div>
-    </div>
-  {/if}
-</div>
+            </fieldset>
+          {/if}
 
-<div class="panel" id="latency-section">
-  <h2>Latency</h2>
-  <p class="muted" style="margin: 0 0 0.65rem; font-size: 0.88rem">
-    Shifts Practice hit/miss timing for MIDI and mic. The chart highway stays unchanged.
-    Positive values delay the expected hit (use if you're consistently early).
-  </p>
-  <label class="row" style="gap: 0.75rem; align-items: center">
-    <span class="muted">Offset (ms)</span>
-    <input
-      type="number"
-      bind:value={latencyMs}
-      step="1"
-      style="width: 5rem; padding: 0.35rem 0.5rem; border-radius: 6px; border: 1px solid var(--ff-border); background: var(--ff-bg); color: var(--ff-text)"
-    />
-    <button type="button" class="btn" onclick={savePrefs}>Save</button>
-  </label>
+          <div class="settings-card__actions">
+            <button type="button" class="btn" onclick={savePrefs}>Save preference</button>
+            <button type="button" class="btn" onclick={refreshDevices}>Refresh device list</button>
+          </div>
+          <p class="muted settings-helper-copy">
+            After plugging or unplugging hardware, use Refresh or switch back to this window: lists update and active monitoring can reconnect when a saved device name still matches.
+          </p>
 
-  <div
-    style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--ff-border)"
-  >
-    <h3 style="margin: 0 0 0.35rem; font-size: 0.95rem">Tap calibration (rough)</h3>
-    <p class="muted" style="margin: 0 0 0.65rem; font-size: 0.82rem">
-      {TAP_CALIBRATION_BEATS} beeps at {TAP_CALIBRATION_BPM} BPM. After the 1 s count-in, tap <kbd
-        style="padding: 0.1rem 0.35rem; border-radius: 4px; border: 1px solid var(--ff-border)"
-        >Space</kbd
-      >
-      on each beep. Median (tap − beep) is a <strong>heuristic</strong> offset hint — not a lab impulse
-      measurement.
-    </p>
-    <div class="row" style="flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem">
-      <button
-        type="button"
-        class="btn btn-primary"
-        onclick={startTapCalibration}
-        disabled={tapCalRunning || browserOnly}
-      >
-        {tapCalRunning ? "Listening…" : "Start tap test"}
-      </button>
-      {#if tapCalRunning}
-        <button type="button" class="btn" onclick={stopTapCalibration}>Cancel</button>
-      {/if}
-    </div>
-    {#if tapCalSuggested != null}
-      <p style="margin: 0 0 0.5rem; font-size: 0.9rem">
-        Suggested offset: <strong>{tapCalSuggested} ms</strong>
-        <span class="muted" style="font-size: 0.82rem">
-          (positive ≈ taps after the beep on average)</span
-        >
-      </p>
-      <button
-        type="button"
-        class="btn"
-        onclick={() => void applyTapSuggestedOffset()}
-        disabled={browserOnly}
-      >
-        Set offset to suggested &amp; save
-      </button>
-    {/if}
-  </div>
-</div>
+          {#if monitorStreamError}
+            <div class="stream-error-banner" role="alert">
+              <div class="row settings-banner__row">
+                <p class="settings-banner__text">
+                  <strong>Monitor error.</strong>
+                  {monitorStreamError}
+                </p>
+                <button type="button" class="btn" onclick={() => (monitorStreamError = null)}>Dismiss</button>
+              </div>
+              <p class="muted settings-helper-copy">
+                Try another device, sample rate, or buffer size below, then start again.
+              </p>
+            </div>
+          {/if}
 
-<div class="panel" id="midi-input-section">
-  <h2>MIDI input</h2>
-  {#if browserOnly}
-    <p class="muted" style="margin-bottom: 0">Open the desktop app to use MIDI.</p>
-  {:else}
-    {#if midiPorts.length === 0}
-      <p class="muted">No MIDI input ports found. Connect a controller and use Refresh.</p>
-    {:else}
-      <fieldset style="border: none; margin: 0 0 1rem; padding: 0">
-        <legend class="muted" style="margin-bottom: 0.5rem">Input port</legend>
-        {#each midiPorts as p}
-          <label class="row" style="margin-bottom: 0.35rem; cursor: pointer">
-            <input
-              type="radio"
-              name="midi"
-              checked={selectedMidiPortId === p.id}
-              onchange={() => (selectedMidiPortId = p.id)}
-            />
-            <span>{p.name}</span>
-          </label>
-        {/each}
-      </fieldset>
-    {/if}
+          <div class="settings-live-card">
+            <p class="muted settings-live-card__label">Live level (~30/s)</p>
+            <div class="meter" aria-label="Input level">
+              <div class="meter-fill" style="width: {audioLevel * 100}%"></div>
+            </div>
+          </div>
 
-    <div class="row" style="margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem">
-      <button type="button" class="btn" onclick={savePrefs}>Save MIDI preference</button>
-      <button type="button" class="btn" onclick={refreshMidiPorts}>Refresh MIDI ports</button>
-    </div>
-    <p class="muted" style="margin: -0.5rem 0 1rem; font-size: 0.82rem">
-      Port names are saved so connections survive id changes after unplug/replug. Refocusing this window or using Refresh remaps and reopens.
-    </p>
-
-    <div class="row" style="margin-bottom: 0.75rem">
-      <button
-        type="button"
-        class="btn btn-primary"
-        onclick={startMidiListen}
-        disabled={midiListening || selectedMidiPortId == null || midiPorts.length === 0}
-      >
-        Start listening
-      </button>
-      <button type="button" class="btn" onclick={stopMidiListen} disabled={!midiListening}>
-        Stop
-      </button>
-    </div>
-
-    {#if recentMidiNotes.length > 0}
-      <p class="muted" style="margin-bottom: 0.35rem">Recent MIDI events (newest first)</p>
-      <ul style="margin: 0; padding-left: 1.25rem; font-size: 0.9rem">
-        {#each recentMidiNotes as n}
-          <li>
-            {#if n.kind === "pitch_bend"}
-              {n.source} · pitch bend ch{n.channel} raw14 {inputEventMidiPitchBendRaw14(n) ?? "?"}
-              <span class="muted">(center 8192)</span>
-              <span class="muted">({n.timestampUs} µs)</span>
+          <div class="tuner-panel" aria-live="polite">
+            <h3 class="tuner-panel__title">Chromatic tuner</h3>
+            <p class="muted tuner-panel__hint">
+              Uses the same YIN pitch path as Practice mic scoring. Start monitoring, then play a single note.
+              Reference A4 = 440 Hz.
+            </p>
+            {#if !monitoring}
+              <p class="muted tuner-panel__idle">Start monitoring to see pitch.</p>
+            {:else if tunerReading == null}
+              <p class="muted tuner-panel__idle">Listening… play a note.</p>
             {:else}
-              {n.source} · {n.kind} ch{n.channel} note {n.note} vel {n.velocity}
-              <span class="muted">({n.timestampUs} µs)</span>
+              {@const cents = tunerReading.cents}
+              {@const needlePct = Math.min(92, Math.max(8, 50 + (cents / 45) * 38))}
+              {@const inTune = Math.abs(cents) < 8}
+              <div class="tuner-note">{tunerReading.label}</div>
+              <div class="tuner-meta">
+                <span>{tunerReading.targetHz.toFixed(1)} Hz target</span>
+                <span class="muted">·</span>
+                <span>conf {tunerReading.confidence.toFixed(2)}</span>
+              </div>
+              <div class="tuner-track" aria-label="Cents deviation from equal temperament">
+                <div class="tuner-track__tick tuner-track__tick--center"></div>
+                <div class="tuner-track__labels">
+                  <span>♭</span><span>0</span><span>♯</span>
+                </div>
+                <div
+                  class="tuner-needle"
+                  class:tuner-needle--green={inTune}
+                  style="left: {needlePct}%"
+                ></div>
+              </div>
+              <p class="tuner-cents" class:tuner-cents--green={inTune}>
+                {cents >= 0 ? "+" : ""}{cents.toFixed(1)} cents
+                {#if inTune}<span class="muted"> — in tune</span>{/if}
+              </p>
             {/if}
-          </li>
-        {/each}
-      </ul>
-    {/if}
+          </div>
 
-    {#if midiError}
-      <div class="row" style="margin-top: 0.75rem; flex-wrap: wrap; gap: 0.5rem 1rem; align-items: flex-start">
-        <p style="color: #f87171; margin: 0; flex: 1">{midiError}</p>
-        <button type="button" class="btn" onclick={() => (midiError = null)}>Dismiss</button>
+          {#if error}
+            <p style="color: #f87171; margin-top: 0.75rem; margin-bottom: 0">{error}</p>
+          {/if}
+
+          <details class="settings-advanced">
+            <summary>Advanced stream settings</summary>
+            <div class="settings-advanced__body">
+              <p class="muted settings-helper-copy">
+                Applies to the <strong>input monitor</strong> only. Lower buffer frames can reduce latency but may glitch on slow machines.
+                Invalid sample rates fall back to the device default.
+              </p>
+              {#if streamInfoError}
+                <p style="color: #f87171; font-size: 0.9rem; margin: 0 0 0.5rem">{streamInfoError}</p>
+              {:else if streamInfo}
+                <p class="muted settings-helper-copy">
+                  Device default: <strong>{streamInfo.defaultSampleRate} Hz</strong>, {streamInfo.defaultChannels}
+                  ch, {streamInfo.sampleFormat}
+                  {#if streamInfo.bufferFramesMin != null && streamInfo.bufferFramesMax != null}
+                    · buffer range ~{streamInfo.bufferFramesMin}–{streamInfo.bufferFramesMax} frames
+                  {/if}
+                </p>
+              {/if}
+              <div class="settings-inline-fields">
+                <label class="row settings-inline-label">
+                  <span class="muted">Sample rate</span>
+                  <select bind:value={streamSampleRateChoice}>
+                    <option value="">
+                      Auto ({streamInfo?.defaultSampleRate ?? "…"} Hz)
+                    </option>
+                    {#if streamSampleRateChoice !== "" && streamInfo && !streamInfo.supportedSampleRates.includes(Number(streamSampleRateChoice))}
+                      <option value={streamSampleRateChoice}>{streamSampleRateChoice} Hz (saved)</option>
+                    {/if}
+                    {#if streamInfo}
+                      {#each streamInfo.supportedSampleRates as hz}
+                        <option value={String(hz)}>{hz} Hz</option>
+                      {/each}
+                    {/if}
+                  </select>
+                </label>
+                <label class="row settings-inline-label">
+                  <span class="muted">Buffer (frames)</span>
+                  <input
+                    type="text"
+                    inputmode="numeric"
+                    placeholder="Auto"
+                    bind:value={streamBufferFramesStr}
+                  />
+                </label>
+              </div>
+              <div class="settings-card__actions">
+                <button type="button" class="btn" onclick={() => void refreshStreamInfo()} disabled={browserOnly}>
+                  Refresh caps
+                </button>
+                <button type="button" class="btn" onclick={() => void savePrefs()} disabled={browserOnly}>
+                  Save stream prefs
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-primary"
+                  onclick={() => void saveStreamPrefsAndRestartMonitor()}
+                  disabled={browserOnly}
+                >
+                  Save &amp; restart monitor
+                </button>
+              </div>
+            </div>
+          </details>
+        {/if}
       </div>
-    {/if}
-  {/if}
+
+      <div class="panel settings-card" id="latency-section">
+        <div class="settings-card__header">
+          <div>
+            <p class="settings-card__eyebrow">Timing alignment</p>
+            <h2>Latency</h2>
+            <p class="muted settings-card__intro">
+              Shift Practice hit and miss timing for MIDI and mic input. Positive values delay the expected hit if you consistently register early.
+            </p>
+          </div>
+        </div>
+        <label class="row settings-inline-label settings-inline-label--wide">
+          <span class="muted">Offset (ms)</span>
+          <input type="number" bind:value={latencyMs} step="1" />
+          <button type="button" class="btn" onclick={savePrefs}>Save</button>
+        </label>
+
+        <div class="settings-subsection">
+          <h3 class="settings-subsection__title">Tap calibration</h3>
+          <p class="muted settings-helper-copy">
+            {TAP_CALIBRATION_BEATS} beeps at {TAP_CALIBRATION_BPM} BPM. After the 1 s count-in, tap <kbd class="settings-kbd">Space</kbd>
+            on each beep. Median (tap − beep) is a <strong>heuristic</strong> offset hint — not a lab impulse
+            measurement.
+          </p>
+          <div class="settings-card__actions" style="margin-bottom: 0.5rem">
+            <button
+              type="button"
+              class="btn btn-primary"
+              onclick={startTapCalibration}
+              disabled={tapCalRunning || browserOnly}
+            >
+              {tapCalRunning ? "Listening…" : "Start tap test"}
+            </button>
+            {#if tapCalRunning}
+              <button type="button" class="btn" onclick={stopTapCalibration}>Cancel</button>
+            {/if}
+          </div>
+          {#if tapCalSuggested != null}
+            <p style="margin: 0 0 0.5rem; font-size: 0.9rem">
+              Suggested offset: <strong>{tapCalSuggested} ms</strong>
+              <span class="muted" style="font-size: 0.82rem">
+                (positive ≈ taps after the beep on average)</span
+              >
+            </p>
+            <button
+              type="button"
+              class="btn"
+              onclick={() => void applyTapSuggestedOffset()}
+              disabled={browserOnly}
+            >
+              Set offset to suggested &amp; save
+            </button>
+          {/if}
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-layout__side">
+      <div class="panel settings-card" id="midi-input-section">
+        <div class="settings-card__header">
+          <div>
+            <p class="settings-card__eyebrow">Direct note input</p>
+            <h2>MIDI input</h2>
+            <p class="muted settings-card__intro">
+              Choose a controller if you want direct note scoring instead of relying on the mic path.
+            </p>
+          </div>
+          <div class="settings-card__actions">
+            <button
+              type="button"
+              class="btn btn-primary"
+              onclick={startMidiListen}
+              disabled={midiListening || selectedMidiPortId == null || midiPorts.length === 0 || browserOnly}
+            >
+              Start listening
+            </button>
+            <button type="button" class="btn" onclick={stopMidiListen} disabled={!midiListening || browserOnly}>
+              Stop
+            </button>
+          </div>
+        </div>
+        {#if browserOnly}
+          <p class="muted" style="margin-bottom: 0">Open the desktop app to use MIDI.</p>
+        {:else}
+          {#if midiPorts.length === 0}
+            <p class="muted">No MIDI input ports found. Connect a controller and use Refresh.</p>
+          {:else}
+            <fieldset class="settings-choice-group">
+              <legend class="muted">Input port</legend>
+              {#each midiPorts as p}
+                <label class="row settings-choice-row">
+                  <input
+                    type="radio"
+                    name="midi"
+                    checked={selectedMidiPortId === p.id}
+                    onchange={() => (selectedMidiPortId = p.id)}
+                  />
+                  <span>{p.name}</span>
+                </label>
+              {/each}
+            </fieldset>
+          {/if}
+
+          <div class="settings-card__actions">
+            <button type="button" class="btn" onclick={savePrefs}>Save MIDI preference</button>
+            <button type="button" class="btn" onclick={refreshMidiPorts}>Refresh MIDI ports</button>
+          </div>
+          <p class="muted settings-helper-copy">
+            Port names are saved so connections survive id changes after unplug/replug. Refocusing this window or using Refresh remaps and reopens.
+          </p>
+
+          {#if recentMidiNotes.length > 0}
+            <details class="settings-advanced">
+              <summary>Recent MIDI events</summary>
+              <div class="settings-advanced__body">
+                <ul class="settings-midi-log">
+                  {#each recentMidiNotes as n}
+                    <li>
+                      {#if n.kind === "pitch_bend"}
+                        {n.source} · pitch bend ch{n.channel} raw14 {inputEventMidiPitchBendRaw14(n) ?? "?"}
+                        <span class="muted">(center 8192)</span>
+                        <span class="muted">({n.timestampUs} µs)</span>
+                      {:else}
+                        {n.source} · {n.kind} ch{n.channel} note {n.note} vel {n.velocity}
+                        <span class="muted">({n.timestampUs} µs)</span>
+                      {/if}
+                    </li>
+                  {/each}
+                </ul>
+              </div>
+            </details>
+          {/if}
+
+          {#if midiError}
+            <div class="row settings-banner__row" style="margin-top: 0.75rem">
+              <p style="color: #f87171; margin: 0; flex: 1">{midiError}</p>
+              <button type="button" class="btn" onclick={() => (midiError = null)}>Dismiss</button>
+            </div>
+          {/if}
+        {/if}
+      </div>
+    </div>
+  </div>
 </div>
 
 <style>
+  .settings-page {
+    display: grid;
+    gap: 1rem;
+  }
+  .settings-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(18rem, 1fr);
+    gap: 1rem;
+    background:
+      radial-gradient(circle at top right, rgba(63, 208, 195, 0.14), transparent 28%),
+      radial-gradient(circle at left center, rgba(213, 138, 84, 0.18), transparent 24%),
+      linear-gradient(145deg, rgba(33, 24, 29, 0.96), rgba(18, 15, 19, 0.96));
+  }
+  .settings-hero__eyebrow,
+  .settings-card__eyebrow {
+    margin: 0 0 0.35rem;
+    color: var(--ff-highlight-strong);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  .settings-hero h1 {
+    margin: 0 0 0.6rem;
+    max-width: 14ch;
+    font-size: clamp(2rem, 3vw, 3rem);
+    line-height: 0.98;
+  }
+  .settings-hero__stats {
+    display: grid;
+    gap: 0.8rem;
+    align-content: start;
+  }
+  .settings-hero__stat {
+    display: grid;
+    gap: 0.28rem;
+    padding: 1rem;
+    border-radius: 18px;
+    border: 1px solid var(--ff-border);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 36%),
+      rgba(9, 8, 10, 0.25);
+  }
+  .settings-hero__stat-label {
+    color: var(--ff-highlight-strong);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  .settings-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(18rem, 0.9fr);
+    gap: 1rem;
+    align-items: start;
+  }
+  .settings-layout__main,
+  .settings-layout__side {
+    display: grid;
+    gap: 1rem;
+  }
+  .settings-card {
+    display: grid;
+    gap: 1rem;
+  }
+  .settings-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    gap: 0.85rem 1rem;
+    flex-wrap: wrap;
+  }
+  .settings-card__intro {
+    max-width: 44rem;
+    margin: 0.25rem 0 0;
+    line-height: 1.6;
+  }
+  .settings-card__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    align-items: center;
+  }
+  .settings-inline-note {
+    margin: 0;
+    padding: 0.85rem 0.95rem;
+    border-radius: 16px;
+    border: 1px solid var(--ff-border);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 34%),
+      rgba(9, 8, 10, 0.2);
+  }
+  .settings-choice-group {
+    border: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.55rem;
+  }
+  .settings-choice-group legend {
+    margin-bottom: 0.2rem;
+  }
+  .settings-choice-row {
+    cursor: pointer;
+    padding: 0.72rem 0.8rem;
+    border-radius: 14px;
+    border: 1px solid var(--ff-border);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 34%),
+      rgba(9, 8, 10, 0.18);
+  }
+  .settings-helper-copy {
+    margin: 0;
+    font-size: 0.82rem;
+    line-height: 1.55;
+  }
+  .settings-live-card {
+    display: grid;
+    gap: 0.45rem;
+    padding: 0.95rem 1rem;
+    border-radius: 16px;
+    border: 1px solid var(--ff-border);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 34%),
+      rgba(9, 8, 10, 0.22);
+  }
+  .settings-live-card__label {
+    margin: 0;
+  }
+  .settings-banner__row {
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+    align-items: flex-start;
+  }
+  .settings-banner__text {
+    margin: 0;
+    flex: 1;
+    min-width: 10rem;
+    font-size: 0.88rem;
+    color: var(--ff-text);
+  }
+  .settings-advanced {
+    border: 1px solid var(--ff-border);
+    border-radius: 18px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 34%),
+      rgba(9, 8, 10, 0.16);
+    overflow: hidden;
+  }
+  .settings-advanced summary {
+    cursor: pointer;
+    list-style: none;
+    padding: 0.9rem 1rem;
+    font-weight: 600;
+  }
+  .settings-advanced summary::-webkit-details-marker {
+    display: none;
+  }
+  .settings-advanced__body {
+    display: grid;
+    gap: 0.8rem;
+    padding: 0 1rem 1rem;
+  }
+  .settings-inline-fields {
+    display: grid;
+    gap: 0.8rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .settings-inline-label {
+    gap: 0.5rem;
+    align-items: center;
+  }
+  .settings-inline-label select,
+  .settings-inline-label input {
+    max-width: 100%;
+  }
+  .settings-inline-label--wide {
+    flex-wrap: wrap;
+  }
+  .settings-subsection {
+    padding-top: 1rem;
+    border-top: 1px solid color-mix(in srgb, var(--ff-border) 65%, transparent);
+  }
+  .settings-subsection__title {
+    margin: 0 0 0.35rem;
+    font-size: 0.98rem;
+  }
+  .settings-kbd {
+    padding: 0.1rem 0.35rem;
+    border-radius: 6px;
+    border: 1px solid var(--ff-border);
+    background: rgba(9, 8, 10, 0.28);
+  }
+  .settings-midi-log {
+    margin: 0;
+    padding-left: 1.2rem;
+    font-size: 0.88rem;
+    line-height: 1.55;
+  }
   .setup-guide-panel {
     background:
       radial-gradient(circle at top right, color-mix(in srgb, var(--ff-success) 12%, transparent), transparent 36%),
-      linear-gradient(180deg, color-mix(in srgb, var(--ff-surface) 94%, #101826), var(--ff-surface));
+      linear-gradient(180deg, rgba(31, 24, 29, 0.96), rgba(18, 15, 19, 0.96));
   }
   .setup-guide-panel__header {
     display: flex;
@@ -907,10 +1142,12 @@
     grid-template-columns: 3.25rem minmax(0, 1fr) auto;
     gap: 0.75rem;
     align-items: center;
-    padding: 0.8rem 0.85rem;
-    border-radius: 10px;
+    padding: 0.95rem 1rem;
+    border-radius: 18px;
     border: 1px solid var(--ff-border);
-    background: color-mix(in srgb, var(--ff-bg) 72%, transparent);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 34%),
+      rgba(9, 8, 10, 0.2);
   }
   .setup-step__status {
     display: inline-flex;
@@ -946,9 +1183,8 @@
     }
   }
   .tuner-panel {
-    margin-top: 1.25rem;
-    padding-top: 1.1rem;
-    border-top: 1px solid var(--ff-border);
+    padding-top: 1rem;
+    border-top: 1px solid color-mix(in srgb, var(--ff-border) 65%, transparent);
   }
   .tuner-panel__title {
     margin: 0 0 0.35rem;
@@ -1031,5 +1267,24 @@
   }
   .tuner-cents--green {
     color: #34d399;
+  }
+  .stream-error-banner {
+    padding: 0.75rem 0.9rem;
+    border-radius: 16px;
+    border: 1px solid color-mix(in srgb, #f87171 50%, var(--ff-border));
+    background: color-mix(in srgb, #f87171 10%, var(--ff-surface));
+  }
+  @media (max-width: 900px) {
+    .settings-hero,
+    .settings-layout {
+      grid-template-columns: 1fr;
+    }
+  }
+  @media (max-width: 720px) {
+    .setup-step,
+    .settings-inline-fields {
+      grid-template-columns: 1fr;
+      align-items: flex-start;
+    }
   }
 </style>
