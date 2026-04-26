@@ -8,13 +8,15 @@
     getCatalogSnapshot,
     loadCatalogSnapshot,
   } from "$lib/catalog/catalog-service";
-  import { getCatalogSourceMode } from "$lib/catalog/catalog-source";
+  import { getCatalogSourcePreference } from "$lib/catalog/catalog-source";
+  import { getCatalogSourceRollout, resolveCatalogSourceMode } from "$lib/catalog/catalog-rollout";
   import {
     LEARNING_PATHS,
     getLearningPathById,
     getLearningPathTrackIds,
     type LearningPathId,
   } from "$lib/catalog/learning-paths";
+  import { getRemoteProfileRole } from "$lib/account/remote-profile-gate";
   import { getCatalogTrackAccess } from "$lib/catalog/entitlement-overlay";
   import {
     createCollection,
@@ -34,7 +36,7 @@
   import { addUserChart, getUserCharts, removeUserChart, type UserChartEntry } from "$lib/catalog/user-charts";
   import { getLatestSessionsByTrackId, loadSessionHistory, type SessionSummaryV1 } from "$lib/chart/session-storage";
   import { markOnboardingStepCompleted } from "$lib/onboarding-storage";
-  import type { SubscriptionState } from "$lib/ipc";
+  import type { AppSession, SubscriptionState } from "$lib/ipc";
   import type { CatalogSkillTag, CatalogTechniqueTag, CatalogTrackStub } from "$lib/catalog/types";
   import { isTauri } from "$lib/tauri-env";
   import { validateChart } from "$lib/chart/validate";
@@ -361,14 +363,27 @@
       catalogTracks = snapshot.tracks;
       skillTags = snapshot.skillTags;
       techniqueTags = snapshot.techniqueTags;
+      let session: AppSession | null = null;
       if (isTauri()) {
         try {
           subscription = await invoke<SubscriptionState>("get_subscription_state");
         } catch {
           subscription = null;
         }
+        try {
+          session = await invoke<AppSession>("get_session");
+        } catch {
+          session = null;
+        }
       }
-      const sourceMode = getCatalogSourceMode();
+      const sourceMode = resolveCatalogSourceMode(
+        getCatalogSourcePreference(),
+        getCatalogSourceRollout({
+          session,
+          apiBaseUrl: subscription?.apiBaseUrl ?? "",
+          remoteProfileRole: getRemoteProfileRole(session),
+        }),
+      );
       const refreshedSnapshot = await loadCatalogSnapshot({
         sourceMode,
         apiBaseUrl: subscription?.apiBaseUrl ?? "",

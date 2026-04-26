@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { getCatalogSourceMode, setCatalogSourceMode } from "./catalog-source";
+import {
+  getCatalogSourceMode,
+  getCatalogSourcePreference,
+  setCatalogSourceMode,
+  setCatalogSourcePreference,
+} from "./catalog-source";
 
 describe("catalog source mode", () => {
   const store = new Map<string, string>();
@@ -23,12 +28,19 @@ describe("catalog source mode", () => {
     });
   });
 
-  it("defaults to the local seed", () => {
+  it("defaults to system preference while resolving local mode", () => {
+    expect(getCatalogSourcePreference()).toBe("system");
     expect(getCatalogSourceMode()).toBe("local_seed");
   });
 
   it("persists the remote mode", () => {
     expect(setCatalogSourceMode("remote_api")).toBe("remote_api");
     expect(getCatalogSourceMode()).toBe("remote_api");
+  });
+
+  it("persists system preference explicitly", () => {
+    expect(setCatalogSourcePreference("system")).toBe("system");
+    expect(getCatalogSourcePreference()).toBe("system");
+    expect(getCatalogSourceMode()).toBe("local_seed");
   });
 });

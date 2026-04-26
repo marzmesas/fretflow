@@ -23,10 +23,11 @@
   } from "$lib/catalog/mutation-policies";
   import { getCatalogMigrationTarget, invalidateCatalogSnapshot } from "$lib/catalog/catalog-service";
   import {
-    getCatalogSourceMode,
-    setCatalogSourceMode,
-    type CatalogSourceMode,
+    getCatalogSourcePreference,
+    setCatalogSourcePreference,
+    type CatalogSourcePreference,
   } from "$lib/catalog/catalog-source";
+  import { getCatalogSourceRollout, resolveCatalogSourceMode } from "$lib/catalog/catalog-rollout";
   import {
     getAnalyticsDeliveryStatus,
     getPendingAnalyticsEventCount,
@@ -42,7 +43,7 @@
   let profile = $state<FrontendUserProfile | null>(null);
   let displayName = $state("");
   let subscriptionApiBase = $state("");
-  let catalogSourceMode = $state<CatalogSourceMode>("local_seed");
+  let catalogSourcePreference = $state<CatalogSourcePreference>("system");
   let busy = $state(false);
   let syncingSubscription = $state(false);
   let savingApiBase = $state(false);
@@ -205,8 +206,20 @@
     }
   }
 
-  function saveCatalogSourceMode(mode: CatalogSourceMode): void {
-    catalogSourceMode = setCatalogSourceMode(mode);
+  function getCurrentCatalogRollout() {
+    return getCatalogSourceRollout({
+      session,
+      apiBaseUrl: subscriptionApiBase,
+      remoteProfileRole: getRemoteProfileRole(session),
+    });
+  }
+
+  function getCurrentCatalogSourceMode() {
+    return resolveCatalogSourceMode(catalogSourcePreference, getCurrentCatalogRollout());
+  }
+
+  function saveCatalogSourcePreference(preference: CatalogSourcePreference): void {
+    catalogSourcePreference = setCatalogSourcePreference(preference);
     invalidateCatalogSnapshot();
   }
 
@@ -341,7 +354,7 @@
   }
 
   onMount(() => {
-    catalogSourceMode = getCatalogSourceMode();
+    catalogSourcePreference = getCatalogSourcePreference();
     void refreshSession();
     void refreshSubscription();
     refreshAnalyticsState();
@@ -670,22 +683,38 @@
                 <button
                   type="button"
                   class="btn"
-                  class:btn-primary={catalogSourceMode === "local_seed"}
-                  onclick={() => saveCatalogSourceMode("local_seed")}
+                  class:btn-primary={catalogSourcePreference === "system"}
+                  onclick={() => saveCatalogSourcePreference("system")}
+                >
+                  System default
+                </button>
+                <button
+                  type="button"
+                  class="btn"
+                  class:btn-primary={catalogSourcePreference === "local_seed"}
+                  onclick={() => saveCatalogSourcePreference("local_seed")}
                 >
                   Built-in catalog
                 </button>
                 <button
                   type="button"
                   class="btn"
-                  class:btn-primary={catalogSourceMode === "remote_api"}
-                  onclick={() => saveCatalogSourceMode("remote_api")}
+                  class:btn-primary={catalogSourcePreference === "remote_api"}
+                  onclick={() => saveCatalogSourcePreference("remote_api")}
                 >
                   Online preview
                 </button>
               </div>
               <p class="muted account-footnote">
-                Current mode: <strong>{catalogSourceMode === "remote_api" ? "Online preview" : "Built-in catalog"}</strong>.
+                Preference: <strong>{catalogSourcePreference === "system"
+                  ? "System default"
+                  : catalogSourcePreference === "remote_api"
+                    ? "Online preview"
+                    : "Built-in catalog"}</strong>.
+                Current source: <strong>{getCurrentCatalogSourceMode() === "remote_api" ? "Online preview" : "Built-in catalog"}</strong>.
+              </p>
+              <p class="muted account-footnote">
+                {getCurrentCatalogRollout().summary} {getCurrentCatalogRollout().detail}
               </p>
             </div>
           </div>

@@ -1,27 +1,42 @@
 const STORAGE_KEY = "fretflow.catalogSourceMode.v1";
 
 export type CatalogSourceMode = "local_seed" | "remote_api";
+export type CatalogSourcePreference = "system" | CatalogSourceMode;
 
-export function getCatalogSourceMode(): CatalogSourceMode {
+export function getCatalogSourcePreference(): CatalogSourcePreference {
   if (typeof window === "undefined" || typeof localStorage === "undefined") {
-    return "local_seed";
+    return "system";
   }
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw === "remote_api" ? "remote_api" : "local_seed";
+    if (raw === "remote_api" || raw === "local_seed" || raw === "system") {
+      return raw;
+    }
+    return "system";
   } catch {
-    return "local_seed";
+    return "system";
   }
 }
 
-export function setCatalogSourceMode(mode: CatalogSourceMode): CatalogSourceMode {
+export function setCatalogSourcePreference(
+  preference: CatalogSourcePreference,
+): CatalogSourcePreference {
   if (typeof window === "undefined" || typeof localStorage === "undefined") {
-    return mode;
+    return preference;
   }
   try {
-    localStorage.setItem(STORAGE_KEY, mode);
+    localStorage.setItem(STORAGE_KEY, preference);
   } catch {
     /* private mode / quota */
   }
-  return mode;
+  return preference;
+}
+
+export function getCatalogSourceMode(): CatalogSourceMode {
+  const preference = getCatalogSourcePreference();
+  return preference === "remote_api" ? "remote_api" : "local_seed";
+}
+
+export function setCatalogSourceMode(mode: CatalogSourceMode): CatalogSourceMode {
+  return setCatalogSourcePreference(mode) === "remote_api" ? "remote_api" : "local_seed";
 }
