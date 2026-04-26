@@ -979,7 +979,7 @@
   }
   .settings-helper-copy {
     margin: 0;
-    font-size: 0.82rem;
+    font-size: 0.86rem;
     line-height: 1.55;
   }
   .settings-live-card {
@@ -1005,7 +1005,7 @@
     margin: 0;
     flex: 1;
     min-width: 10rem;
-    font-size: 0.88rem;
+    font-size: 0.92rem;
     color: var(--ff-text);
   }
   .settings-advanced__body {
@@ -1095,8 +1095,8 @@
   }
   .setup-step__detail {
     margin: 0.2rem 0 0;
-    font-size: 0.84rem;
-    color: var(--ff-muted);
+    font-size: 0.88rem;
+    color: var(--ff-muted-strong);
   }
   @media (max-width: 720px) {
     .setup-step {
@@ -1114,12 +1114,12 @@
   }
   .tuner-panel__hint {
     margin: 0 0 0.65rem;
-    font-size: 0.82rem;
-    line-height: 1.45;
+    font-size: 0.86rem;
+    line-height: 1.55;
   }
   .tuner-panel__idle {
     margin: 0;
-    font-size: 0.88rem;
+    font-size: 0.92rem;
   }
   .tuner-note {
     font-size: 1.65rem;
@@ -1163,8 +1163,8 @@
     justify-content: space-between;
     align-items: center;
     padding: 0 0.5rem;
-    font-size: 0.72rem;
-    color: var(--ff-muted);
+    font-size: 0.76rem;
+    color: var(--ff-muted-strong);
     pointer-events: none;
   }
   .tuner-needle {

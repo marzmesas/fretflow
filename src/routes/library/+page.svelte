@@ -1229,11 +1229,12 @@
     font-weight: 600;
   }
   .recommended-card__meta {
-    font-size: 0.8rem;
-    color: var(--ff-muted);
+    font-size: 0.84rem;
+    color: var(--ff-muted-strong);
   }
   .recommended-card__reason {
-    font-size: 0.82rem;
+    font-size: 0.86rem;
+    color: var(--ff-muted-strong);
     line-height: 1.45;
   }
   .collection-toolbar__controls {
@@ -1252,7 +1253,7 @@
   }
   .collection-toolbar__summary {
     margin: 0;
-    font-size: 0.84rem;
+    font-size: 0.88rem;
   }
   .path-toolbar__group {
     display: flex;
@@ -1266,7 +1267,7 @@
   }
   .path-toolbar__summary {
     margin: 0;
-    font-size: 0.84rem;
+    font-size: 0.88rem;
   }
   .catalog-filters {
     display: flex;
@@ -1338,7 +1339,7 @@
   .catalog-meta {
     display: grid;
     gap: 0.38rem;
-    font-size: 0.84rem;
+    font-size: 0.88rem;
   }
   .catalog-meta__primary,
   .catalog-meta__secondary {
@@ -1353,8 +1354,8 @@
   }
   .catalog-prereq {
     margin: 0.35rem 0 0;
-    font-size: 0.8rem;
-    color: var(--ff-muted);
+    font-size: 0.84rem;
+    color: var(--ff-muted-strong);
     line-height: 1.45;
   }
   .catalog-action {
@@ -1478,7 +1479,7 @@
     align-items: center;
     gap: 0.35rem;
     font-size: 0.88rem;
-    color: var(--ff-muted);
+    color: var(--ff-muted-strong);
   }
   .premium-link {
     color: var(--ff-accent);
@@ -1529,7 +1530,7 @@
   .import-warnings {
     margin: 0 0 0.5rem;
     padding-left: 1.2rem;
-    font-size: 0.85rem;
+    font-size: 0.88rem;
     color: #fbbf24;
   }
   @media (max-width: 720px) {

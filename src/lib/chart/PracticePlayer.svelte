@@ -1692,8 +1692,8 @@
   }
   .saved-loop-entry__meta,
   .saved-loops__empty {
-    font-size: 0.8rem;
-    color: var(--ff-muted);
+    font-size: 0.84rem;
+    color: var(--ff-muted-strong);
     margin: 0.2rem 0 0;
   }
   .saved-loop-entry__actions {
@@ -1768,7 +1768,7 @@
   }
   .practice-readiness__link {
     margin: 0;
-    font-size: 0.82rem;
+    font-size: 0.86rem;
   }
   .practice-audio-error {
     padding: 0.75rem 1rem;
@@ -1793,7 +1793,7 @@
   }
   .practice-audio-error__hint {
     margin: 0.5rem 0 0;
-    font-size: 0.82rem;
+    font-size: 0.86rem;
   }
   .scoring-stats {
     margin: 0 0 0.5rem;
@@ -1865,7 +1865,7 @@
   .chart-insight__delta,
   .chart-insight__note {
     margin: 0.45rem 0 0;
-    font-size: 0.84rem;
+    font-size: 0.88rem;
   }
   .chart-insight__note {
     color: var(--ff-text);
@@ -1916,8 +1916,8 @@
     display: flex;
     flex-wrap: wrap;
     gap: 0.25rem 1rem;
-    font-size: 0.85rem;
-    color: var(--ff-muted);
+    font-size: 0.88rem;
+    color: var(--ff-muted-strong);
     margin-bottom: 0.6rem;
   }
   .history-list {
@@ -1940,13 +1940,13 @@
     color: var(--ff-text);
   }
   .history-entry__meta {
-    font-size: 0.82rem;
-    color: var(--ff-muted);
+    font-size: 0.86rem;
+    color: var(--ff-muted-strong);
     margin-top: 0.1rem;
   }
   .history-entry__time {
-    font-size: 0.75rem;
-    color: var(--ff-muted);
+    font-size: 0.8rem;
+    color: var(--ff-muted-strong);
     opacity: 0.7;
     margin-top: 0.1rem;
   }
@@ -1962,7 +1962,7 @@
     font-size: 0.9rem;
   }
   .practice-goals__met {
-    font-size: 0.82rem;
+    font-size: 0.86rem;
     font-weight: 600;
     color: #34d399;
   }

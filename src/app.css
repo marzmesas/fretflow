@@ -4,8 +4,8 @@
   --ff-surface: rgba(31, 24, 29, 0.88);
   --ff-surface-strong: rgba(41, 31, 37, 0.94);
   --ff-surface-soft: rgba(255, 247, 239, 0.05);
-  --ff-border: rgba(234, 222, 210, 0.12);
-  --ff-border-strong: rgba(234, 222, 210, 0.24);
+  --ff-border: rgba(234, 222, 210, 0.16);
+  --ff-border-strong: rgba(234, 222, 210, 0.3);
   --ff-text: #f6ede5;
   --ff-muted: #cabdb2;
   --ff-muted-strong: #e7dcd2;
@@ -504,8 +504,8 @@ a.session-account-pill.connection-pill--on {
 
 .panel p {
   margin: 0 0 0.8rem;
-  color: var(--ff-muted);
-  font-size: 0.96rem;
+  color: var(--ff-muted-strong);
+  font-size: 0.98rem;
 }
 
 .btn {
@@ -522,7 +522,7 @@ a.session-account-pill.connection-pill--on {
     rgba(19, 15, 20, 0.88);
   color: var(--ff-text);
   cursor: pointer;
-  font-size: 0.92rem;
+  font-size: 0.94rem;
   font-weight: 600;
   letter-spacing: 0.01em;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
@@ -584,8 +584,8 @@ a.session-account-pill.connection-pill--on {
 }
 
 .muted {
-  color: var(--ff-muted);
-  font-size: 0.92rem;
+  color: color-mix(in srgb, var(--ff-muted-strong) 70%, var(--ff-muted));
+  font-size: 0.94rem;
 }
 
 .row {
@@ -605,7 +605,7 @@ a.session-account-pill.connection-pill--on {
 .ff-section-eyebrow {
   margin: 0 0 0.35rem;
   color: var(--ff-highlight-strong);
-  font-size: 0.72rem;
+  font-size: 0.74rem;
   font-weight: 700;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -645,14 +645,14 @@ a.session-account-pill.connection-pill--on {
 
 .ff-page-hero__stat-label {
   color: var(--ff-highlight-strong);
-  font-size: 0.7rem;
+  font-size: 0.74rem;
   font-weight: 700;
   letter-spacing: 0.18em;
   text-transform: uppercase;
 }
 
 .ff-page-hero__stat strong {
-  font-size: 1.04rem;
+  font-size: 1.08rem;
 }
 
 .ff-section-header {
@@ -665,7 +665,7 @@ a.session-account-pill.connection-pill--on {
 
 .ff-section-intro {
   margin: 0.25rem 0 0;
-  font-size: 0.9rem;
+  font-size: 0.94rem;
   line-height: 1.6;
 }
 

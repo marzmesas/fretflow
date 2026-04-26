@@ -857,7 +857,7 @@
   }
   .policy-item p {
     margin: 0;
-    font-size: 0.86rem;
+    font-size: 0.9rem;
     line-height: 1.45;
   }
   .policy-item__header {
@@ -936,7 +936,7 @@
   }
   .account-footnote {
     margin: 0;
-    font-size: 0.88rem;
+    font-size: 0.92rem;
     line-height: 1.5;
   }
   @media (max-width: 900px) {
