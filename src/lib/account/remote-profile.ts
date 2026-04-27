@@ -2,7 +2,7 @@ import type { FrontendUserProfile } from "./profile";
 
 export type RemoteUserProfileV1 = {
   schemaVersion: 1;
-  seedSource: "mock_seed" | "frontend_preview";
+  seedSource: "mock_seed" | "frontend_preview" | "backend_persisted";
   fields: {
     displayName: string | null;
     practiceGoal: string | null;
@@ -19,6 +19,10 @@ export type LoadRemoteUserProfileOptions = {
 
 export type PreviewRemoteUserProfileSeedOptions = LoadRemoteUserProfileOptions & {
   seed: RemoteUserProfileV1;
+};
+
+export type SaveRemoteUserProfileOptions = LoadRemoteUserProfileOptions & {
+  profile: RemoteUserProfileV1;
 };
 
 export function buildRemoteUserProfileSeed(
@@ -46,7 +50,9 @@ function isRemoteUserProfile(value: unknown): value is RemoteUserProfileV1 {
   const profile = value as Partial<RemoteUserProfileV1>;
   if (
     profile.schemaVersion !== 1 ||
-    (profile.seedSource !== "mock_seed" && profile.seedSource !== "frontend_preview") ||
+    (profile.seedSource !== "mock_seed" &&
+      profile.seedSource !== "frontend_preview" &&
+      profile.seedSource !== "backend_persisted") ||
     profile.fields == null ||
     typeof profile.fields !== "object"
   ) {
@@ -108,6 +114,31 @@ export async function previewRemoteUserProfileSeed(
   const payload = (await response.json()) as unknown;
   if (!isRemoteUserProfile(payload)) {
     throw new Error("profile preview returned an invalid response");
+  }
+  return payload;
+}
+
+export async function saveRemoteUserProfile(
+  options: SaveRemoteUserProfileOptions,
+): Promise<RemoteUserProfileV1> {
+  const apiBaseUrl = normalizeApiBaseUrl(options.apiBaseUrl);
+  if (apiBaseUrl === "") {
+    throw new Error("profile write requires an API base URL");
+  }
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const response = await fetchImpl(`${apiBaseUrl}/api/v1/profile`, {
+    method: "PUT",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(options.profile),
+  });
+  if (!response.ok) {
+    throw new Error(`profile write failed: ${response.status}`);
+  }
+  const payload = (await response.json()) as unknown;
+  if (!isRemoteUserProfile(payload)) {
+    throw new Error("profile write returned an invalid response");
   }
   return payload;
 }

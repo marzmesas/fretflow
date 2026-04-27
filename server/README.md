@@ -15,6 +15,7 @@ npm run dev
 - Catalog seed: `GET /api/v1/catalog`
 - Profile seed: `GET /api/v1/profile`
 - Profile seed preview: `POST /api/v1/profile/seed-preview`
+- Profile write scaffold: `PUT /api/v1/profile`
 - Analytics batch intake: `POST /api/v1/analytics/batch`
 - Subscription (for `sync_subscription_now` when you wire it; no checkout in the product UI yet): `GET /api/v1/subscription`
 - Stripe: `POST /api/stripe/webhook` (raw body). Set `STRIPE_WEBHOOK_SECRET` + `STRIPE_SECRET_KEY` to verify signatures; otherwise the handler logs and returns `{ received: true, verified: false }` for local testing.
@@ -46,5 +47,12 @@ npm run dev
 - validates the payload shape
 - echoes a normalized preview response marked as `frontend_preview`
 - keeps this as a non-persistent preview step, not a real profile write
+
+`PUT /api/v1/profile` is the first profile-write scaffold:
+
+- accepts the same first-wave remote profile fields
+- validates the payload shape
+- stores the payload in server memory for the current dev run
+- returns the normalized saved payload marked as `backend_persisted`
 
 Set `MOCK_SUBSCRIPTION_STATUS=active` to simulate a paid plan while the real billing integration is built.

@@ -1,6 +1,6 @@
 export type RemoteUserProfileV1 = {
   schemaVersion: 1;
-  seedSource: "mock_seed" | "frontend_preview";
+  seedSource: "mock_seed" | "frontend_preview" | "backend_persisted";
   fields: {
     displayName: string | null;
     practiceGoal: "fundamentals" | "rhythm" | "technique" | null;
@@ -29,7 +29,9 @@ export function isRemoteUserProfilePayload(value: unknown): value is RemoteUserP
   const payload = value as Partial<RemoteUserProfileV1>;
   if (
     payload.schemaVersion !== 1 ||
-    (payload.seedSource !== "mock_seed" && payload.seedSource !== "frontend_preview") ||
+    (payload.seedSource !== "mock_seed" &&
+      payload.seedSource !== "frontend_preview" &&
+      payload.seedSource !== "backend_persisted") ||
     payload.fields == null ||
     typeof payload.fields !== "object"
   ) {
@@ -66,4 +68,28 @@ export function buildPreviewUserProfilePayload(seed: unknown): RemoteUserProfile
       dailyGoalSessions: seed.fields.dailyGoalSessions,
     },
   };
+}
+
+let persistedProfilePayload: RemoteUserProfileV1 | null = null;
+
+export function getCurrentUserProfilePayload(): RemoteUserProfileV1 {
+  return persistedProfilePayload ?? buildMockUserProfilePayload();
+}
+
+export function saveUserProfilePayload(seed: unknown): RemoteUserProfileV1 | null {
+  if (!isRemoteUserProfilePayload(seed)) {
+    return null;
+  }
+  persistedProfilePayload = {
+    schemaVersion: 1,
+    seedSource: "backend_persisted",
+    fields: {
+      displayName: seed.fields.displayName,
+      practiceGoal: seed.fields.practiceGoal,
+      recommendedPathId: seed.fields.recommendedPathId,
+      recommendedTrackId: seed.fields.recommendedTrackId,
+      dailyGoalSessions: seed.fields.dailyGoalSessions,
+    },
+  };
+  return persistedProfilePayload;
 }

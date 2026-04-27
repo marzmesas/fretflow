@@ -3,6 +3,7 @@ import {
   buildRemoteUserProfileSeed,
   loadRemoteUserProfile,
   previewRemoteUserProfileSeed,
+  saveRemoteUserProfile,
 } from "./remote-profile";
 import type { FrontendUserProfile } from "./profile";
 
@@ -168,5 +169,36 @@ describe("remote profile seed", () => {
 
     expect(profile.seedSource).toBe("frontend_preview");
     expect(profile.fields.recommendedTrackId).toBe("bundled-palm-mute-drill");
+  });
+
+  it("writes the remote profile payload to the API", async () => {
+    const seed = buildRemoteUserProfileSeed(
+      makeProfile({
+        auth: {
+          state: "remote_auth",
+          signedIn: true,
+          displayName: "Mario",
+          accountLabel: "Mario",
+          authKind: "oauth",
+          signedInAtUnixMs: 1,
+          entitlements: [],
+        },
+      }),
+    );
+
+    const profile = await saveRemoteUserProfile({
+      apiBaseUrl: "http://127.0.0.1:8787",
+      profile: seed,
+      fetchImpl: (async () => ({
+        ok: true,
+        json: async () => ({
+          ...seed,
+          seedSource: "backend_persisted",
+        }),
+      })) as unknown as typeof fetch,
+    });
+
+    expect(profile.seedSource).toBe("backend_persisted");
+    expect(profile.fields.displayName).toBe("Mario");
   });
 });

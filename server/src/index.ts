@@ -7,7 +7,11 @@ import express from "express";
 import Stripe from "stripe";
 import { isAnalyticsBatchV1 } from "./analytics.js";
 import { buildMockCatalogPayload } from "./catalog.js";
-import { buildMockUserProfilePayload, buildPreviewUserProfilePayload } from "./profile.js";
+import {
+  buildPreviewUserProfilePayload,
+  getCurrentUserProfilePayload,
+  saveUserProfilePayload,
+} from "./profile.js";
 
 const PORT = Number(process.env.PORT) || 8787;
 const MOCK_SUBSCRIPTION_STATUS = (process.env.MOCK_SUBSCRIPTION_STATUS ?? "none").toLowerCase();
@@ -41,13 +45,21 @@ app.get("/api/v1/catalog", (_req, res) => {
 });
 
 app.get("/api/v1/profile", (_req, res) => {
-  res.json(buildMockUserProfilePayload());
+  res.json(getCurrentUserProfilePayload());
 });
 
 app.post("/api/v1/profile/seed-preview", express.json({ limit: "32kb" }), (req, res) => {
   const payload = buildPreviewUserProfilePayload(req.body);
   if (payload == null) {
     return res.status(400).json({ error: "Invalid remote profile seed payload" });
+  }
+  return res.json(payload);
+});
+
+app.put("/api/v1/profile", express.json({ limit: "32kb" }), (req, res) => {
+  const payload = saveUserProfilePayload(req.body);
+  if (payload == null) {
+    return res.status(400).json({ error: "Invalid remote profile payload" });
   }
   return res.json(payload);
 });

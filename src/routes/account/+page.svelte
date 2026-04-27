@@ -10,9 +10,11 @@
     buildRemoteUserProfileSeed,
     loadRemoteUserProfile,
     previewRemoteUserProfileSeed,
+    saveRemoteUserProfile,
     type RemoteUserProfileV1,
   } from "$lib/account/remote-profile";
   import { getRemoteProfileRole } from "$lib/account/remote-profile-gate";
+  import { getProfileWriteRollout } from "$lib/account/profile-write-rollout";
   import {
     listProfileFieldPoliciesByOwnership,
     type ProfileFieldPolicy,
@@ -59,6 +61,8 @@
   let remoteProfile = $state<RemoteUserProfileV1 | null>(null);
   let remoteProfileError = $state<string | null>(null);
   let loadingRemoteProfile = $state(false);
+  let savingRemoteProfile = $state(false);
+  let remoteProfileWriteStatus = $state<string | null>(null);
   const catalogMigrationTarget = getCatalogMigrationTarget();
 
   const syncCandidatePolicies = listMutationPoliciesByOwnership("sync_candidate");
@@ -216,6 +220,31 @@
       remoteProfileError = e instanceof Error ? e.message : String(e);
     } finally {
       loadingRemoteProfile = false;
+    }
+  }
+
+  async function saveRemoteProfileNow(seed: RemoteUserProfileV1) {
+    const writeRollout = getProfileWriteRollout({
+      apiBaseUrl: subscriptionApiBase,
+      remoteProfileRole: getRemoteProfileRole(session),
+    });
+    if (!writeRollout.ready) {
+      remoteProfileWriteStatus = writeRollout.summary;
+      return;
+    }
+    savingRemoteProfile = true;
+    remoteProfileError = null;
+    remoteProfileWriteStatus = null;
+    try {
+      remoteProfile = await saveRemoteUserProfile({
+        apiBaseUrl: subscriptionApiBase,
+        profile: seed,
+      });
+      remoteProfileWriteStatus = "Saved the current online profile fields to the server scaffold.";
+    } catch (e) {
+      remoteProfileError = e instanceof Error ? e.message : String(e);
+    } finally {
+      savingRemoteProfile = false;
     }
   }
 
@@ -820,14 +849,42 @@
                 <div class="policy-item">
                   <div class="policy-item__header">
                     <strong>Online profile preview</strong>
-                    <button type="button" class="btn" onclick={refreshRemoteProfile} disabled={loadingRemoteProfile}>
-                      {loadingRemoteProfile ? "Loading…" : "Refresh"}
-                    </button>
+                    <div class="account-actions">
+                      <button type="button" class="btn" onclick={refreshRemoteProfile} disabled={loadingRemoteProfile || savingRemoteProfile}>
+                        {loadingRemoteProfile ? "Loading…" : "Refresh"}
+                      </button>
+                      <button
+                        type="button"
+                        class="btn"
+                        onclick={() => void saveRemoteProfileNow(remoteProfileSeed)}
+                        disabled={!getProfileWriteRollout({
+                          apiBaseUrl: subscriptionApiBase,
+                          remoteProfileRole: getRemoteProfileRole(session),
+                        }).ready || savingRemoteProfile || loadingRemoteProfile}
+                      >
+                        {savingRemoteProfile ? "Saving…" : "Save online profile"}
+                      </button>
+                    </div>
                   </div>
                   <p class="muted">
                     Current role:
                     <strong>{getRemoteProfileRole(session) === "preview_only" ? "Preview only" : "Primary source"}</strong>
                   </p>
+                  <p class="muted account-panel__intro">
+                    {getProfileWriteRollout({
+                      apiBaseUrl: subscriptionApiBase,
+                      remoteProfileRole: getRemoteProfileRole(session),
+                    }).summary}
+                  </p>
+                  <p class="muted account-panel__intro">
+                    {getProfileWriteRollout({
+                      apiBaseUrl: subscriptionApiBase,
+                      remoteProfileRole: getRemoteProfileRole(session),
+                    }).detail}
+                  </p>
+                  {#if remoteProfileWriteStatus}
+                    <p class="muted account-footnote">{remoteProfileWriteStatus}</p>
+                  {/if}
                   {#if remoteProfileError}
                     <p class="account-error">{remoteProfileError}</p>
                   {:else if remoteProfile}
