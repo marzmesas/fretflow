@@ -28,6 +28,8 @@ type CatalogTechniqueTag =
   | "arpeggio_shapes"
   | "sustain_control";
 
+type CatalogPremiumAccessId = "pro" | "blues_pack" | "fingerstyle_pack";
+
 export type RemoteCatalogMigrationTarget = {
   schemaVersion: 1;
   key: "bundled_metadata_seed";
@@ -54,6 +56,7 @@ export type RemoteCatalogTrackV1 = {
   prerequisiteTrackIds?: string[];
   targetBpm?: number;
   masteryAccuracyThreshold?: number;
+  premiumAccessIds?: CatalogPremiumAccessId[];
 };
 
 export type RemoteCatalogPayloadV1 = {
@@ -63,95 +66,122 @@ export type RemoteCatalogPayloadV1 = {
   tracks: RemoteCatalogTrackV1[];
 };
 
-const REMOTE_CATALOG_MIGRATION_TARGET: RemoteCatalogMigrationTarget = {
-  schemaVersion: 1,
-  key: "bundled_metadata_seed",
-  label: "Bundled metadata seed",
-  includesPremiumPreviewRows: true,
-  includesPlayablePremiumTracks: false,
-  includesEntitlements: false,
-  includesImportedCharts: false,
-  includesPracticeAssets: false,
-};
+const MOCK_PREMIUM_PLAYABLE = process.env.MOCK_PREMIUM_PLAYABLE === "true";
 
-const MOCK_REMOTE_TRACKS: RemoteCatalogTrackV1[] = [
-  {
-    id: "warmup-alt-picking-1",
-    title: "Alt Picking Warmup",
-    artist: "Fretflow",
-    tier: "free",
-    practiceChartKey: "bundled",
-    bundledChartFile: "alt-picking-warmup.json",
-    difficulty: "beginner",
-    durationSec: 55,
-    skillTags: ["timing", "single_note", "endurance"],
-    techniqueTags: ["alternate_picking"],
-    targetBpm: 90,
-    masteryAccuracyThreshold: 85,
+function buildMigrationTarget(): RemoteCatalogMigrationTarget {
+  return {
+    schemaVersion: 1,
+    key: "bundled_metadata_seed",
+    label: MOCK_PREMIUM_PLAYABLE
+      ? "Bundled metadata seed with premium unlock previews"
+      : "Bundled metadata seed",
+    includesPremiumPreviewRows: true,
+    includesPlayablePremiumTracks: MOCK_PREMIUM_PLAYABLE,
+    includesEntitlements: MOCK_PREMIUM_PLAYABLE,
+    includesImportedCharts: false,
+    includesPracticeAssets: false,
+  };
+}
+
+function buildPremiumTrack(
+  track: Omit<RemoteCatalogTrackV1, "locked" | "practiceChartKey" | "bundledChartFile"> & {
+    bundledChartFile: string;
   },
-  {
-    id: "one-note-rhythm",
-    title: "One Note Rhythm Grid",
-    artist: "Fretflow",
-    tier: "free",
-    practiceChartKey: "bundled",
-    bundledChartFile: "one-note-rhythm.json",
-    difficulty: "beginner",
-    durationSec: 60,
-    skillTags: ["timing", "rhythm"],
-    techniqueTags: ["alternate_picking"],
-    targetBpm: 80,
-    masteryAccuracyThreshold: 85,
-  },
-  {
-    id: "demo-playalong",
-    title: "Demo Playalong",
-    artist: "Fretflow",
-    tier: "free",
-    practiceChartKey: "demo",
-    difficulty: "easy",
-    durationSec: 75,
-    skillTags: ["timing", "riffs"],
-    techniqueTags: ["position_shift"],
-    targetBpm: 96,
-    masteryAccuracyThreshold: 88,
-  },
-  {
-    id: "premium-tight-riffs",
-    title: "Tight Riff Builder",
-    artist: "Fretflow",
-    tier: "premium",
+): RemoteCatalogTrackV1 {
+  if (MOCK_PREMIUM_PLAYABLE) {
+    return {
+      ...track,
+      practiceChartKey: "bundled",
+      bundledChartFile: track.bundledChartFile,
+    };
+  }
+  return {
+    ...track,
     locked: true,
     practiceChartKey: "none",
-    difficulty: "intermediate",
-    durationSec: 95,
-    skillTags: ["riffs", "rhythm"],
-    techniqueTags: ["power_chords"],
-    prerequisiteTrackIds: ["demo-playalong"],
-    targetBpm: 120,
-    masteryAccuracyThreshold: 90,
-  },
-  {
-    id: "premium-legato-lab",
-    title: "Legato Lab",
-    artist: "Fretflow",
-    tier: "premium",
-    locked: true,
-    practiceChartKey: "none",
-    difficulty: "intermediate",
-    durationSec: 105,
-    skillTags: ["legato", "single_note"],
-    techniqueTags: ["hammer_on", "pull_off"],
-    targetBpm: 108,
-    masteryAccuracyThreshold: 90,
-  },
-];
+  };
+}
+
+function buildMockRemoteTracks(): RemoteCatalogTrackV1[] {
+  return [
+    {
+      id: "warmup-alt-picking-1",
+      title: "Alt Picking Warmup",
+      artist: "Fretflow",
+      tier: "free",
+      practiceChartKey: "bundled",
+      bundledChartFile: "single-string-eighths.json",
+      difficulty: "beginner",
+      durationSec: 55,
+      skillTags: ["timing", "single_note", "endurance"],
+      techniqueTags: ["alternate_picking"],
+      targetBpm: 90,
+      masteryAccuracyThreshold: 85,
+    },
+    {
+      id: "one-note-rhythm",
+      title: "One Note Rhythm Grid",
+      artist: "Fretflow",
+      tier: "free",
+      practiceChartKey: "bundled",
+      bundledChartFile: "one-note.json",
+      difficulty: "beginner",
+      durationSec: 60,
+      skillTags: ["timing", "rhythm"],
+      techniqueTags: ["alternate_picking"],
+      targetBpm: 80,
+      masteryAccuracyThreshold: 85,
+    },
+    {
+      id: "demo-playalong",
+      title: "Demo Playalong",
+      artist: "Fretflow",
+      tier: "free",
+      practiceChartKey: "demo",
+      difficulty: "easy",
+      durationSec: 75,
+      skillTags: ["timing", "riffs"],
+      techniqueTags: ["position_shift"],
+      targetBpm: 96,
+      masteryAccuracyThreshold: 88,
+    },
+    buildPremiumTrack({
+      id: "premium-tight-riffs",
+      title: "Tight Riff Builder",
+      artist: "Fretflow",
+      tier: "premium",
+      premiumAccessIds: ["pro", "blues_pack"],
+      difficulty: "intermediate",
+      durationSec: 95,
+      skillTags: ["riffs", "rhythm"],
+      techniqueTags: ["power_chords"],
+      prerequisiteTrackIds: ["demo-playalong"],
+      targetBpm: 120,
+      masteryAccuracyThreshold: 90,
+      bundledChartFile: "power-chords.json",
+    }),
+    buildPremiumTrack({
+      id: "premium-legato-lab",
+      title: "Legato Lab",
+      artist: "Fretflow",
+      tier: "premium",
+      premiumAccessIds: ["pro", "fingerstyle_pack"],
+      difficulty: "intermediate",
+      durationSec: 105,
+      skillTags: ["legato", "single_note"],
+      techniqueTags: ["hammer_on", "pull_off"],
+      targetBpm: 108,
+      masteryAccuracyThreshold: 90,
+      bundledChartFile: "hammer-pull-drill.json",
+    }),
+  ];
+}
 
 export function buildMockCatalogPayload(): RemoteCatalogPayloadV1 {
   return {
     schemaVersion: 1,
     generatedAt: new Date(0).toISOString(),
-    migrationTarget: REMOTE_CATALOG_MIGRATION_TARGET,
-    tracks: MOCK_REMOTE_TRACKS,
+    migrationTarget: buildMigrationTarget(),
+    tracks: buildMockRemoteTracks(),
   };
 }

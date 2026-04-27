@@ -75,6 +75,9 @@
   let importWarnings = $state<string[]>([]);
   let skillTags = $state<CatalogSkillTag[]>(initialCatalog.skillTags);
   let techniqueTags = $state<CatalogTechniqueTag[]>(initialCatalog.techniqueTags);
+  let catalogSourceMode = $state(initialCatalog.sourceMode);
+  let catalogMigrationLabel = $state(initialCatalog.migrationTarget.label);
+  let onlinePremiumPlayable = $state(initialCatalog.migrationTarget.includesPlayablePremiumTracks);
   const premiumPreviewTrackCount = initialCatalog.tracks.filter((track) => track.tier === "premium").length;
 
   function isFilter(value: string | null): value is Filter {
@@ -312,6 +315,12 @@
 
   function premiumPreviewSummary(): string {
     const lifecycle = getSubscriptionLifecycle(subscription);
+    if (catalogSourceMode === "remote_api" && onlinePremiumPlayable && subscription?.entitled) {
+      return `${lifecycle.badgeLabel}: the online catalog is active and entitled premium rows can open in Practice.`;
+    }
+    if (catalogSourceMode === "remote_api" && onlinePremiumPlayable) {
+      return `${lifecycle.badgeLabel}: the online catalog is serving playable premium rows, but this device still needs an active entitlement.`;
+    }
     if (lifecycle.status === "trialing" || lifecycle.status === "active") {
       return `${lifecycle.badgeLabel}: premium rows are still previews, but this account is already in the paid-state path.`;
     }
@@ -384,6 +393,9 @@
       catalogTracks = snapshot.tracks;
       skillTags = snapshot.skillTags;
       techniqueTags = snapshot.techniqueTags;
+      catalogSourceMode = snapshot.sourceMode;
+      catalogMigrationLabel = snapshot.migrationTarget.label;
+      onlinePremiumPlayable = snapshot.migrationTarget.includesPlayablePremiumTracks;
       let session: AppSession | null = null;
       if (isTauri()) {
         try {
@@ -412,6 +424,9 @@
       catalogTracks = refreshedSnapshot.tracks;
       skillTags = refreshedSnapshot.skillTags;
       techniqueTags = refreshedSnapshot.techniqueTags;
+      catalogSourceMode = refreshedSnapshot.sourceMode;
+      catalogMigrationLabel = refreshedSnapshot.migrationTarget.label;
+      onlinePremiumPlayable = refreshedSnapshot.migrationTarget.includesPlayablePremiumTracks;
     })();
   });
 
@@ -752,6 +767,7 @@
       <strong>Premium songs are still a preview in this version.</strong>
       <span class="muted">
         {premiumPreviewSummary()} {premiumPreviewTrackCount} preview row{premiumPreviewTrackCount === 1 ? "" : "s"} currently map to {CONTENT_PACK_OFFERS.length} optional pack{CONTENT_PACK_OFFERS.length === 1 ? "" : "s"} plus Pro.
+        Source: {catalogMigrationLabel}.
       </span>
       <button type="button" class="btn" onclick={openAccount}>View plans</button>
     </div>

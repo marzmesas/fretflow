@@ -71,4 +71,21 @@ describe("catalog entitlement overlay", () => {
       canPractice: false,
     });
   });
+
+  it("allows entitled premium tracks to open when the remote catalog provides assets", () => {
+    expect(
+      getCatalogTrackAccess(
+        makeTrack({
+          tier: "premium",
+          practiceChartKey: "bundled",
+          bundledChartFile: "premium-track.json",
+        }),
+        makeSubscription({ entitled: true, subscriptionStatus: "active" }),
+      ),
+    ).toMatchObject({
+      state: "available",
+      canPractice: true,
+      isPremiumLocked: false,
+    });
+  });
 });

@@ -60,10 +60,10 @@ describe("catalog-service", () => {
         migrationTarget: {
           schemaVersion: 1,
           key: "bundled_metadata_seed",
-          label: "Bundled metadata seed",
+          label: "Bundled metadata seed with premium unlock previews",
           includesPremiumPreviewRows: true,
-          includesPlayablePremiumTracks: false,
-          includesEntitlements: false,
+          includesPlayablePremiumTracks: true,
+          includesEntitlements: true,
           includesImportedCharts: false,
           includesPracticeAssets: false,
         },
@@ -75,6 +75,15 @@ describe("catalog-service", () => {
             tier: "free",
             practiceChartKey: "bundled",
             bundledChartFile: "remote-track.json",
+          },
+          {
+            id: "remote-premium-track",
+            title: "Remote Premium Track",
+            artist: "Fretflow",
+            tier: "premium",
+            practiceChartKey: "bundled",
+            bundledChartFile: "remote-premium-track.json",
+            premiumAccessIds: ["pro"],
           },
         ],
       }),
@@ -88,6 +97,8 @@ describe("catalog-service", () => {
 
     expect(snapshot.sourceMode).toBe("remote_api");
     expect(snapshot.tracks[0]?.id).toBe("remote-track");
+    expect(snapshot.migrationTarget.includesPlayablePremiumTracks).toBe(true);
+    expect(snapshot.tracks[1]?.premiumAccessIds).toEqual(["pro"]);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 });

@@ -57,3 +57,4 @@ npm run dev
 
 Set `MOCK_SUBSCRIPTION_STATUS=active` to simulate a paid plan while the real billing integration is built.
 Use `MOCK_VALID_UNTIL_DAYS=14` to preview trial ends, renewals, or cancellation windows in the desktop UI.
+Set `MOCK_PREMIUM_PLAYABLE=true` to let the remote catalog advertise playable premium rows for entitlement testing.
