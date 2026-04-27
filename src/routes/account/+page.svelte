@@ -5,8 +5,12 @@
     loadLocalFrontendUserProfile,
     type FrontendUserProfile,
   } from "$lib/account/profile";
-  import { PLAN_OFFERS } from "$lib/account/plan-offers";
+  import {
+    CONTENT_PACK_OFFERS,
+    PLAN_OFFERS,
+  } from "$lib/account/plan-offers";
   import { getShellIdentityRollout } from "$lib/account/shell-identity";
+  import { getSubscriptionLifecycle } from "$lib/account/subscription-lifecycle";
   import {
     buildRemoteUserProfileSeed,
     loadRemoteUserProfile,
@@ -26,7 +30,11 @@
     type CatalogMutationPolicy,
     type MutationOwnership,
   } from "$lib/catalog/mutation-policies";
-  import { getCatalogMigrationTarget, invalidateCatalogSnapshot } from "$lib/catalog/catalog-service";
+  import {
+    getCatalogMigrationTarget,
+    getCatalogSnapshot,
+    invalidateCatalogSnapshot,
+  } from "$lib/catalog/catalog-service";
   import {
     getCatalogSourcePreference,
     setCatalogSourcePreference,
@@ -66,6 +74,9 @@
   let savingRemoteProfile = $state(false);
   let remoteProfileWriteStatus = $state<string | null>(null);
   const catalogMigrationTarget = getCatalogMigrationTarget();
+  const catalogSnapshot = getCatalogSnapshot();
+  const premiumPreviewTrackCount = catalogSnapshot.tracks.filter((track) => track.tier === "premium").length;
+  const subscriptionLifecycle = $derived(getSubscriptionLifecycle(subscription));
 
   const syncCandidatePolicies = listMutationPoliciesByOwnership("sync_candidate");
   const localOnlyPolicies = listMutationPoliciesByOwnership("local_only");
@@ -329,13 +340,6 @@
     return new Date(unixMs).toLocaleString();
   }
 
-  function subscriptionTone(state: SubscriptionState | null): string {
-    if (state == null) return "unknown";
-    if (state.entitled) return state.offlineGraceActive ? "grace" : "active";
-    if (state.subscriptionStatus === "past_due") return "warning";
-    return "inactive";
-  }
-
   function ownershipLabel(ownership: MutationOwnership): string {
     switch (ownership) {
       case "local_only":
@@ -401,6 +405,15 @@
         : "Free remains the default local-first plan until checkout and entitlement delivery are live.";
   }
 
+  function previewPackIntent(packId: (typeof CONTENT_PACK_OFFERS)[number]["id"]): void {
+    const pack = CONTENT_PACK_OFFERS.find((offer) => offer.id === packId);
+    if (pack == null) {
+      planSelectionStatus = "Pack preview is unavailable.";
+      return;
+    }
+    planSelectionStatus = `${pack.name} is a packaging preview for one-off purchases. Checkout is not live yet, but the premium library can already explain how this pack differs from Pro.`;
+  }
+
   function profileAuthStateLabel(state: FrontendUserProfile["auth"]["state"]): string {
     switch (state) {
       case "guest":
@@ -449,7 +462,7 @@
     <div class="ff-page-hero__stat">
       <span class="ff-page-hero__stat-label">Plan</span>
       <strong>{profile?.subscription.tier ?? subscription?.tier ?? "Unknown"}</strong>
-      <span class="muted">{subscription?.entitled ? "Entitlements are currently active." : "No active premium entitlement."}</span>
+      <span class="muted">{subscriptionLifecycle.badgeLabel} · {subscriptionLifecycle.billingMomentValue}</span>
     </div>
     <div class="ff-page-hero__stat">
       <span class="ff-page-hero__stat-label">Queued activity</span>
@@ -574,14 +587,8 @@
               Plan status, billing connectivity, and pending activity delivery all live here because they affect the real account experience.
             </p>
           </div>
-          <span class={`status-pill status-pill--${subscriptionTone(subscription)}`}>
-            {#if subscription?.entitled}
-              {subscription.offlineGraceActive ? "Offline grace" : "Entitled"}
-            {:else if subscription}
-              {subscription.subscriptionStatus}
-            {:else}
-              Unknown
-            {/if}
+          <span class={`status-pill status-pill--${subscriptionLifecycle.tone}`}>
+            {subscriptionLifecycle.badgeLabel}
           </span>
         </div>
 
@@ -609,15 +616,35 @@
             </div>
           </div>
 
+          <div class="lifecycle-strip">
+            <div class={`lifecycle-card lifecycle-card--${subscriptionLifecycle.tone}`}>
+              <span class="lifecycle-card__label">Right now</span>
+              <strong>{subscriptionLifecycle.headline}</strong>
+              <p>{subscriptionLifecycle.summary}</p>
+            </div>
+            <div class="lifecycle-card">
+              <span class="lifecycle-card__label">{subscriptionLifecycle.billingMomentLabel}</span>
+              <strong>{subscriptionLifecycle.billingMomentValue}</strong>
+              <p>
+                {#if subscription.lastSyncSucceeded}
+                  Last plan check succeeded.
+                {:else if subscription.lastSyncError}
+                  Last plan check failed: {subscription.lastSyncError}
+                {:else}
+                  No plan check has been run yet.
+                {/if}
+              </p>
+            </div>
+            <div class="lifecycle-card">
+              <span class="lifecycle-card__label">Next UX move</span>
+              <strong>What the app should do next</strong>
+              <p>{subscriptionLifecycle.nextStep}</p>
+            </div>
+          </div>
+
           <p class="muted account-footnote">
-            {#if subscription.lastSyncSucceeded}
-              Last plan check succeeded.
-            {:else if subscription.lastSyncError}
-              Last plan check failed: {subscription.lastSyncError}
-            {:else}
-              No plan check has been run yet.
-            {/if}
             Offline grace window: {subscription.graceDays} day{subscription.graceDays === 1 ? "" : "s"}.
+            This account currently sees {premiumPreviewTrackCount} premium preview row{premiumPreviewTrackCount === 1 ? "" : "s"} across plans and packs.
           </p>
 
           <div class="plan-grid">
@@ -634,6 +661,7 @@
                   {/if}
                 </div>
                 <div class="plan-card__price">{offer.priceLabel}</div>
+                <p class="muted plan-card__summary">{offer.summary}</p>
                 <ul class="plan-card__features">
                   {#each offer.features as feature (feature)}
                     <li>{feature}</li>
@@ -650,6 +678,39 @@
                 </button>
               </div>
             {/each}
+          </div>
+
+          <div class="content-pack-section">
+            <div class="ff-section-header account-panel__header">
+              <div>
+                <p class="ff-section-eyebrow">Optional packaging</p>
+                <h3>Preview content packs</h3>
+                <p class="muted ff-section-intro account-panel__intro">
+                  These one-off packs keep premium from being a single all-or-nothing wall. Pro stays the broadest offer, while packs target focused techniques or styles.
+                </p>
+              </div>
+            </div>
+            <div class="pack-grid">
+              {#each CONTENT_PACK_OFFERS as pack (pack.id)}
+                <div class="plan-card plan-card--pack">
+                  <div class="plan-card__header">
+                    <div>
+                      <h3>{pack.name}</h3>
+                      <p class="muted plan-card__cadence">{pack.focus}</p>
+                    </div>
+                    <span class="status-pill status-pill--warning">Preview</span>
+                  </div>
+                  <div class="plan-card__price">{pack.priceLabel}</div>
+                  <p class="muted plan-card__summary">{pack.summary}</p>
+                  <p class="account-footnote">
+                    Includes {pack.includedTrackIds.length} premium preview track{pack.includedTrackIds.length === 1 ? "" : "s"} in the current scaffold.
+                  </p>
+                  <button type="button" class="btn" onclick={() => previewPackIntent(pack.id)}>
+                    Preview pack
+                  </button>
+                </div>
+              {/each}
+            </div>
           </div>
 
           {#if planSelectionStatus}
@@ -1088,7 +1149,51 @@
     font-size: 0.95rem;
     line-height: 1.45;
   }
+  .lifecycle-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    gap: 0.75rem;
+  }
+  .lifecycle-card {
+    display: grid;
+    gap: 0.35rem;
+    padding: 1rem;
+    border-radius: 18px;
+    border: 1px solid var(--ff-border);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 34%),
+      rgba(9, 8, 10, 0.2);
+  }
+  .lifecycle-card--active {
+    border-color: color-mix(in srgb, var(--ff-success) 42%, var(--ff-border));
+  }
+  .lifecycle-card--grace,
+  .lifecycle-card--warning {
+    border-color: color-mix(in srgb, var(--ff-accent) 42%, var(--ff-border));
+  }
+  .lifecycle-card__label {
+    font-size: 0.76rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ff-muted);
+  }
+  .lifecycle-card strong {
+    font-size: 1rem;
+    line-height: 1.4;
+  }
+  .lifecycle-card p {
+    margin: 0;
+    color: var(--ff-muted-strong);
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
   .plan-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: 0.85rem;
+  }
+  .pack-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
     gap: 0.85rem;
@@ -1110,6 +1215,13 @@
       rgba(9, 8, 10, 0.2);
     border-color: color-mix(in srgb, var(--ff-accent) 42%, var(--ff-border));
   }
+  .plan-card--pack {
+    background:
+      radial-gradient(circle at top right, rgba(213, 138, 84, 0.14), transparent 36%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 34%),
+      rgba(9, 8, 10, 0.2);
+    border-color: color-mix(in srgb, var(--ff-warm) 44%, var(--ff-border));
+  }
   .plan-card__header {
     display: flex;
     align-items: flex-start;
@@ -1122,6 +1234,10 @@
   }
   .plan-card__cadence {
     margin: 0.2rem 0 0;
+  }
+  .plan-card__summary {
+    margin: 0;
+    line-height: 1.5;
   }
   .plan-card__price {
     font-family: var(--ff-font-display);
@@ -1175,6 +1291,10 @@
     margin: 0;
     font-size: 0.92rem;
     line-height: 1.5;
+  }
+  .content-pack-section {
+    display: grid;
+    gap: 0.85rem;
   }
   @media (max-width: 900px) {
     .account-hero,

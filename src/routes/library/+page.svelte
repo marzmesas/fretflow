@@ -4,6 +4,11 @@
   import { page } from "$app/state";
   import { goto } from "$app/navigation";
   import {
+    CONTENT_PACK_OFFERS,
+    describeTrackPremiumAccess,
+  } from "$lib/account/plan-offers";
+  import { getSubscriptionLifecycle } from "$lib/account/subscription-lifecycle";
+  import {
     findCatalogTrackById,
     getCatalogSnapshot,
     loadCatalogSnapshot,
@@ -70,6 +75,7 @@
   let importWarnings = $state<string[]>([]);
   let skillTags = $state<CatalogSkillTag[]>(initialCatalog.skillTags);
   let techniqueTags = $state<CatalogTechniqueTag[]>(initialCatalog.techniqueTags);
+  const premiumPreviewTrackCount = initialCatalog.tracks.filter((track) => track.tier === "premium").length;
 
   function isFilter(value: string | null): value is Filter {
     return value != null && (FILTERS as readonly string[]).includes(value);
@@ -302,6 +308,21 @@
 
   function openAccount() {
     void goto("/account");
+  }
+
+  function premiumPreviewSummary(): string {
+    const lifecycle = getSubscriptionLifecycle(subscription);
+    if (lifecycle.status === "trialing" || lifecycle.status === "active") {
+      return `${lifecycle.badgeLabel}: premium rows are still previews, but this account is already in the paid-state path.`;
+    }
+    if (lifecycle.tone === "warning" || lifecycle.tone === "grace") {
+      return `${lifecycle.badgeLabel}: premium previews are visible, but access should stay conservative until billing stabilizes.`;
+    }
+    return "Premium songs are still a preview in this version. Plans and packs are visible, but playable unlocks are not live yet.";
+  }
+
+  function premiumTrackAccessLabel(track: CatalogTrackStub): string | null {
+    return describeTrackPremiumAccess(track);
   }
 
   function openUserChart(entry: UserChartEntry) {
@@ -730,7 +751,7 @@
     <div class="premium-note">
       <strong>Premium songs are still a preview in this version.</strong>
       <span class="muted">
-        Account shows your plan status, but premium chart access is not live yet.
+        {premiumPreviewSummary()} {premiumPreviewTrackCount} preview row{premiumPreviewTrackCount === 1 ? "" : "s"} currently map to {CONTENT_PACK_OFFERS.length} optional pack{CONTENT_PACK_OFFERS.length === 1 ? "" : "s"} plus Pro.
       </span>
       <button type="button" class="btn" onclick={openAccount}>View plans</button>
     </div>
@@ -769,6 +790,9 @@
                     {/if}
                     {#if trackFocusLabel(row.track)}
                       <span class="skill-pill">{trackFocusLabel(row.track)}</span>
+                    {/if}
+                    {#if premiumTrackAccessLabel(row.track)}
+                      <span class="premium-access-pill">{premiumTrackAccessLabel(row.track)}</span>
                     {/if}
                   </div>
                 {/if}
@@ -851,6 +875,9 @@
                     {#if row.track.durationSec != null}
                       <span class="muted">{formatDuration(row.track.durationSec)}</span>
                     {/if}
+                    {#if premiumTrackAccessLabel(row.track)}
+                      <span class="premium-access-pill">{premiumTrackAccessLabel(row.track)}</span>
+                    {/if}
                   </div>
                 {/if}
               </div>
@@ -923,6 +950,9 @@
                 {#if row.kind === "catalog" && trackFocusLabel(row.track)}
                   <div class="catalog-meta__secondary">
                     <span class="skill-pill">{trackFocusLabel(row.track)}</span>
+                    {#if premiumTrackAccessLabel(row.track)}
+                      <span class="premium-access-pill">{premiumTrackAccessLabel(row.track)}</span>
+                    {/if}
                   </div>
                 {/if}
               </div>
@@ -1042,11 +1072,11 @@
                 {/if}
               </div>
             </div>
-            <div class="catalog-meta">
-              <div class="catalog-meta__primary">
-                <span class="catalog-artist">{t.artist}</span>
-                {#if recent}
-                  <span class="resume-pill">
+              <div class="catalog-meta">
+                <div class="catalog-meta__primary">
+                  <span class="catalog-artist">{t.artist}</span>
+                  {#if recent}
+                    <span class="resume-pill">
                     {recent.accuracyPercent}% last run · {formatSessionRecency(recent.at)}
                   </span>
                 {/if}
@@ -1071,6 +1101,9 @@
                 >
                   {t.tier}
                 </span>
+                {#if premiumTrackAccessLabel(t)}
+                  <span class="premium-access-pill">{premiumTrackAccessLabel(t)}</span>
+                {/if}
               </div>
             </div>
             {#if prerequisites.length > 0}
@@ -1488,6 +1521,17 @@
     border: 1px solid color-mix(in srgb, var(--ff-accent) 32%, var(--ff-border));
     color: var(--ff-text);
     background: color-mix(in srgb, var(--ff-accent) 8%, var(--ff-bg));
+  }
+  .premium-access-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.12rem 0.45rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--ff-warm) 42%, var(--ff-border));
+    color: var(--ff-warm);
+    font-size: 0.72rem;
+    font-weight: 600;
+    background: color-mix(in srgb, var(--ff-warm) 8%, var(--ff-bg));
   }
   .locked-label {
     display: inline-flex;

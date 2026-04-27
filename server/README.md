@@ -56,3 +56,4 @@ npm run dev
 - returns the normalized saved payload marked as `backend_persisted`
 
 Set `MOCK_SUBSCRIPTION_STATUS=active` to simulate a paid plan while the real billing integration is built.
+Use `MOCK_VALID_UNTIL_DAYS=14` to preview trial ends, renewals, or cancellation windows in the desktop UI.

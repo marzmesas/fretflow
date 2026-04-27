@@ -1,6 +1,7 @@
 import { MOCK_CATALOG } from "./mock-catalog";
 import type {
   CatalogDifficulty,
+  CatalogPremiumAccessId,
   CatalogSkillTag,
   CatalogTechniqueTag,
   CatalogTierId,
@@ -33,6 +34,7 @@ export type RemoteCatalogTrackV1 = {
   prerequisiteTrackIds?: string[];
   targetBpm?: number;
   masteryAccuracyThreshold?: number;
+  premiumAccessIds?: CatalogPremiumAccessId[];
 };
 
 export type RemoteCatalogPayloadV1 = {
@@ -83,6 +85,7 @@ function normalizeTrack(track: RemoteCatalogTrackV1): CatalogTrackStub {
     prerequisiteTrackIds: track.prerequisiteTrackIds ?? [],
     targetBpm: track.targetBpm,
     masteryAccuracyThreshold: track.masteryAccuracyThreshold,
+    premiumAccessIds: track.premiumAccessIds ?? [],
   };
 }
 
@@ -135,6 +138,7 @@ export function buildMockRemoteCatalogPayload(): RemoteCatalogPayloadV1 {
       prerequisiteTrackIds: track.prerequisiteTrackIds,
       targetBpm: track.targetBpm,
       masteryAccuracyThreshold: track.masteryAccuracyThreshold,
+      premiumAccessIds: track.premiumAccessIds,
     })),
   };
 }

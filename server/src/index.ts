@@ -15,6 +15,7 @@ import {
 
 const PORT = Number(process.env.PORT) || 8787;
 const MOCK_SUBSCRIPTION_STATUS = (process.env.MOCK_SUBSCRIPTION_STATUS ?? "none").toLowerCase();
+const MOCK_VALID_UNTIL_DAYS = Number(process.env.MOCK_VALID_UNTIL_DAYS ?? "0");
 const stripeSecret = process.env.STRIPE_SECRET_KEY;
 const stripe = stripeSecret ? new Stripe(stripeSecret) : null;
 
@@ -27,15 +28,19 @@ app.get("/health", (_req, res) => {
 
 /** Desktop app sync target — replace with DB-backed logic later. */
 app.get("/api/v1/subscription", (_req, res) => {
-  const allowed = new Set(["active", "trialing", "past_due", "none"]);
+  const allowed = new Set(["active", "trialing", "past_due", "canceling", "canceled", "none"]);
   const status = allowed.has(MOCK_SUBSCRIPTION_STATUS) ? MOCK_SUBSCRIPTION_STATUS : "none";
   const tier =
     process.env.MOCK_TIER && process.env.MOCK_TIER.trim() !== "" ? process.env.MOCK_TIER : null;
+  const validUntilUnixMs =
+    Number.isFinite(MOCK_VALID_UNTIL_DAYS) && MOCK_VALID_UNTIL_DAYS !== 0
+      ? Date.now() + MOCK_VALID_UNTIL_DAYS * 86_400_000
+      : null;
   res.json({
     schemaVersion: 1,
     status,
     tier,
-    validUntilUnixMs: null,
+    validUntilUnixMs,
   });
 });
 

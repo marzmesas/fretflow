@@ -1,6 +1,7 @@
 /** Stub catalog (Phase 5); server entitlements will replace this shape later. */
 
 export type CatalogTierId = "free" | "premium";
+export type CatalogPremiumAccessId = "pro" | "blues_pack" | "fingerstyle_pack";
 
 export type CatalogDifficulty = "beginner" | "easy" | "intermediate" | "advanced";
 
@@ -54,4 +55,6 @@ export type CatalogTrackStub = {
   prerequisiteTrackIds?: string[];
   targetBpm?: number;
   masteryAccuracyThreshold?: number;
+  /** Preview-only mapping for eventual subscription or one-off pack unlocks. */
+  premiumAccessIds?: CatalogPremiumAccessId[];
 };
