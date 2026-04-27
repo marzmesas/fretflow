@@ -732,7 +732,7 @@
       <span class="muted">
         Account shows your plan status, but premium chart access is not live yet.
       </span>
-      <button type="button" class="btn" onclick={openAccount}>Open Account</button>
+      <button type="button" class="btn" onclick={openAccount}>View plans</button>
     </div>
   {/if}
 

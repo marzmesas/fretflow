@@ -5,6 +5,7 @@
     loadLocalFrontendUserProfile,
     type FrontendUserProfile,
   } from "$lib/account/profile";
+  import { PLAN_OFFERS } from "$lib/account/plan-offers";
   import { getShellIdentityRollout } from "$lib/account/shell-identity";
   import {
     buildRemoteUserProfileSeed,
@@ -58,6 +59,7 @@
   let analyticsStatus = $state<string | null>(null);
   let pendingAnalyticsEvents = $state(0);
   let analyticsRetryAt = $state<string | null>(null);
+  let planSelectionStatus = $state<string | null>(null);
   let remoteProfile = $state<RemoteUserProfileV1 | null>(null);
   let remoteProfileError = $state<string | null>(null);
   let loadingRemoteProfile = $state(false);
@@ -388,6 +390,17 @@
     return ownership === "remote_first" ? "Remote first" : "Local only";
   }
 
+  function effectivePlanId(): "free" | "pro" {
+    return subscription?.tier === "pro" || subscription?.entitled ? "pro" : "free";
+  }
+
+  function previewPlanIntent(planId: "free" | "pro") {
+    planSelectionStatus =
+      planId === "pro"
+        ? "Checkout is not live yet. Use the plan sync controls below to test entitlement-aware UI."
+        : "Free remains the default local-first plan until checkout and entitlement delivery are live.";
+  }
+
   function profileAuthStateLabel(state: FrontendUserProfile["auth"]["state"]): string {
     switch (state) {
       case "guest":
@@ -606,6 +619,42 @@
             {/if}
             Offline grace window: {subscription.graceDays} day{subscription.graceDays === 1 ? "" : "s"}.
           </p>
+
+          <div class="plan-grid">
+            {#each PLAN_OFFERS as offer (offer.id)}
+              {@const isCurrentPlan = effectivePlanId() === offer.id}
+              <div class={`plan-card plan-card--${offer.accent}`}>
+                <div class="plan-card__header">
+                  <div>
+                    <h3>{offer.name}</h3>
+                    <p class="muted plan-card__cadence">{offer.cadence}</p>
+                  </div>
+                  {#if isCurrentPlan}
+                    <span class="status-pill status-pill--active">Current</span>
+                  {/if}
+                </div>
+                <div class="plan-card__price">{offer.priceLabel}</div>
+                <ul class="plan-card__features">
+                  {#each offer.features as feature (feature)}
+                    <li>{feature}</li>
+                  {/each}
+                </ul>
+                <button
+                  type="button"
+                  class="btn"
+                  class:btn-primary={!isCurrentPlan && offer.id === "pro"}
+                  onclick={() => previewPlanIntent(offer.id)}
+                  disabled={isCurrentPlan}
+                >
+                  {isCurrentPlan ? "Current plan" : offer.id === "pro" ? "Preview upgrade" : "Keep free"}
+                </button>
+              </div>
+            {/each}
+          </div>
+
+          {#if planSelectionStatus}
+            <p class="muted account-footnote">{planSelectionStatus}</p>
+          {/if}
 
           <label class="account-field">
             <span class="muted">Service URL</span>
@@ -1038,6 +1087,57 @@
   .subscription-stat strong {
     font-size: 0.95rem;
     line-height: 1.45;
+  }
+  .plan-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: 0.85rem;
+  }
+  .plan-card {
+    display: grid;
+    gap: 0.8rem;
+    padding: 1rem;
+    border-radius: 18px;
+    border: 1px solid var(--ff-border);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 34%),
+      rgba(9, 8, 10, 0.2);
+  }
+  .plan-card--premium {
+    background:
+      radial-gradient(circle at top right, rgba(63, 208, 195, 0.12), transparent 38%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 34%),
+      rgba(9, 8, 10, 0.2);
+    border-color: color-mix(in srgb, var(--ff-accent) 42%, var(--ff-border));
+  }
+  .plan-card__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+  .plan-card h3 {
+    margin: 0;
+    font-size: 1.05rem;
+  }
+  .plan-card__cadence {
+    margin: 0.2rem 0 0;
+  }
+  .plan-card__price {
+    font-family: var(--ff-font-display);
+    font-size: 1.8rem;
+    line-height: 1;
+    letter-spacing: -0.04em;
+    color: var(--ff-text);
+  }
+  .plan-card__features {
+    margin: 0;
+    padding-left: 1.15rem;
+    display: grid;
+    gap: 0.45rem;
+    color: var(--ff-muted-strong);
+    font-size: 0.9rem;
+    line-height: 1.5;
   }
   .status-pill {
     display: inline-flex;
