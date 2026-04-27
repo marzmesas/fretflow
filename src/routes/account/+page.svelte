@@ -9,6 +9,10 @@
     CONTENT_PACK_OFFERS,
     PLAN_OFFERS,
   } from "$lib/account/plan-offers";
+  import {
+    requestCheckoutPreview,
+    type CheckoutPreviewOfferId,
+  } from "$lib/account/checkout-preview";
   import { getShellIdentityRollout } from "$lib/account/shell-identity";
   import { getSubscriptionLifecycle } from "$lib/account/subscription-lifecycle";
   import {
@@ -68,6 +72,7 @@
   let pendingAnalyticsEvents = $state(0);
   let analyticsRetryAt = $state<string | null>(null);
   let planSelectionStatus = $state<string | null>(null);
+  let checkoutPreviewOfferId = $state<CheckoutPreviewOfferId | null>(null);
   let remoteProfile = $state<RemoteUserProfileV1 | null>(null);
   let remoteProfileError = $state<string | null>(null);
   let loadingRemoteProfile = $state(false);
@@ -398,20 +403,38 @@
     return subscription?.tier === "pro" || subscription?.entitled ? "pro" : "free";
   }
 
-  function previewPlanIntent(planId: "free" | "pro") {
-    planSelectionStatus =
-      planId === "pro"
-        ? "Checkout is not live yet. Use the plan sync controls below to test entitlement-aware UI."
-        : "Free remains the default local-first plan until checkout and entitlement delivery are live.";
-  }
-
-  function previewPackIntent(packId: (typeof CONTENT_PACK_OFFERS)[number]["id"]): void {
-    const pack = CONTENT_PACK_OFFERS.find((offer) => offer.id === packId);
-    if (pack == null) {
-      planSelectionStatus = "Pack preview is unavailable.";
+  async function previewPlanIntent(planId: "free" | "pro") {
+    if (planId === "free") {
+      planSelectionStatus =
+        "Free remains the default local-first plan until checkout and entitlement delivery are live.";
       return;
     }
-    planSelectionStatus = `${pack.name} is a packaging preview for one-off purchases. Checkout is not live yet, but the premium library can already explain how this pack differs from Pro.`;
+    await previewCheckoutOffer(planId);
+  }
+
+  async function previewPackIntent(packId: (typeof CONTENT_PACK_OFFERS)[number]["id"]): Promise<void> {
+    await previewCheckoutOffer(packId);
+  }
+
+  async function previewCheckoutOffer(offerId: CheckoutPreviewOfferId): Promise<void> {
+    const apiBaseUrl = subscriptionApiBase.trim();
+    if (apiBaseUrl === "") {
+      planSelectionStatus = "Set a service URL first so Account can request the checkout preview scaffold.";
+      return;
+    }
+    checkoutPreviewOfferId = offerId;
+    planSelectionStatus = null;
+    try {
+      const preview = await requestCheckoutPreview({
+        apiBaseUrl,
+        offerId,
+      });
+      planSelectionStatus = `${preview.summary} Preview path: ${preview.checkoutPath}.`;
+    } catch (e) {
+      planSelectionStatus = e instanceof Error ? e.message : String(e);
+    } finally {
+      checkoutPreviewOfferId = null;
+    }
   }
 
   function profileAuthStateLabel(state: FrontendUserProfile["auth"]["state"]): string {
@@ -671,10 +694,18 @@
                   type="button"
                   class="btn"
                   class:btn-primary={!isCurrentPlan && offer.id === "pro"}
-                  onclick={() => previewPlanIntent(offer.id)}
-                  disabled={isCurrentPlan}
+                  onclick={() => void previewPlanIntent(offer.id)}
+                  disabled={isCurrentPlan || checkoutPreviewOfferId === offer.id}
                 >
-                  {isCurrentPlan ? "Current plan" : offer.id === "pro" ? "Preview upgrade" : "Keep free"}
+                  {#if isCurrentPlan}
+                    Current plan
+                  {:else if checkoutPreviewOfferId === offer.id}
+                    Opening…
+                  {:else if offer.id === "pro"}
+                    Preview checkout
+                  {:else}
+                    Keep free
+                  {/if}
                 </button>
               </div>
             {/each}
@@ -705,8 +736,13 @@
                   <p class="account-footnote">
                     Includes {pack.includedTrackIds.length} premium preview track{pack.includedTrackIds.length === 1 ? "" : "s"} in the current scaffold.
                   </p>
-                  <button type="button" class="btn" onclick={() => previewPackIntent(pack.id)}>
-                    Preview pack
+                  <button
+                    type="button"
+                    class="btn"
+                    onclick={() => void previewPackIntent(pack.id)}
+                    disabled={checkoutPreviewOfferId === pack.id}
+                  >
+                    {checkoutPreviewOfferId === pack.id ? "Opening…" : "Preview checkout"}
                   </button>
                 </div>
               {/each}

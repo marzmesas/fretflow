@@ -17,6 +17,7 @@ npm run dev
 - Profile seed preview: `POST /api/v1/profile/seed-preview`
 - Profile write scaffold: `PUT /api/v1/profile`
 - Analytics batch intake: `POST /api/v1/analytics/batch`
+- Checkout preview scaffold: `POST /api/v1/billing/checkout-preview`
 - Subscription (for `sync_subscription_now` when you wire it; no checkout in the product UI yet): `GET /api/v1/subscription`
 - Stripe: `POST /api/stripe/webhook` (raw body). Set `STRIPE_WEBHOOK_SECRET` + `STRIPE_SECRET_KEY` to verify signatures; otherwise the handler logs and returns `{ received: true, verified: false }` for local testing.
 

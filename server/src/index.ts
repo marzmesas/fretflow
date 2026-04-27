@@ -6,6 +6,7 @@ import cors from "cors";
 import express from "express";
 import Stripe from "stripe";
 import { isAnalyticsBatchV1 } from "./analytics.js";
+import { buildCheckoutPreviewPayload } from "./billing.js";
 import { buildMockCatalogPayload } from "./catalog.js";
 import {
   buildPreviewUserProfilePayload,
@@ -84,6 +85,14 @@ app.post("/api/v1/analytics/batch", express.json({ limit: "256kb" }), (req, res)
     batchId: req.body.batchId,
     acceptedEvents: req.body.events.length,
   });
+});
+
+app.post("/api/v1/billing/checkout-preview", express.json({ limit: "32kb" }), (req, res) => {
+  const payload = buildCheckoutPreviewPayload(req.body);
+  if (payload == null) {
+    return res.status(400).json({ error: "Invalid checkout preview payload" });
+  }
+  return res.json(payload);
 });
 
 app.post(
