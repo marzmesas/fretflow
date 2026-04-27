@@ -8,8 +8,11 @@
     loadLocalFrontendUserProfile,
     type FrontendUserProfile,
   } from "$lib/account/profile";
+  import { loadRemoteUserProfile, type RemoteUserProfileV1 } from "$lib/account/remote-profile";
+  import { getRemoteProfileRole } from "$lib/account/remote-profile-gate";
+  import { getRemoteProfileSurfaceRollout } from "$lib/account/remote-profile-surface-rollout";
   import { getShellIdentityRollout } from "$lib/account/shell-identity";
-  import type { AppSession, InputConnectionStatus } from "$lib/ipc";
+  import type { AppSession, InputConnectionStatus, SubscriptionState } from "$lib/ipc";
   import { isTauri } from "$lib/tauri-env";
 
   let { children } = $props();
@@ -30,7 +33,9 @@
 
   let connectionStatus = $state<InputConnectionStatus | null>(null);
   let session = $state<AppSession | null>(null);
+  let subscription = $state<SubscriptionState | null>(null);
   let profile = $state<FrontendUserProfile | null>(null);
+  let remoteProfile = $state<RemoteUserProfileV1 | null>(null);
   let pollId: ReturnType<typeof setInterval> | null = null;
   let pathname = $derived($page.url.pathname);
   let shell = $derived(getShellMeta(pathname));
@@ -90,7 +95,14 @@
       profile = null;
       return;
     }
-    profile = loadLocalFrontendUserProfile(nextSession, null);
+    profile = loadLocalFrontendUserProfile(nextSession, subscription);
+  }
+
+  function shellAccountLabel(): string {
+    if (remoteProfile?.fields.displayName?.trim()) {
+      return remoteProfile.fields.displayName;
+    }
+    return profile?.auth.accountLabel ?? "Guest";
   }
 
   async function refreshShellState() {
@@ -110,7 +122,27 @@
     } catch {
       session = null;
     }
+    try {
+      subscription = await invoke<SubscriptionState>("get_subscription_state");
+    } catch {
+      subscription = null;
+    }
     refreshProfile(session);
+    const remoteProfileRollout = getRemoteProfileSurfaceRollout({
+      apiBaseUrl: subscription?.apiBaseUrl ?? "",
+      remoteProfileRole: getRemoteProfileRole(session),
+    });
+    if (remoteProfileRollout.ready) {
+      try {
+        remoteProfile = await loadRemoteUserProfile({
+          apiBaseUrl: subscription?.apiBaseUrl ?? "",
+        });
+      } catch {
+        remoteProfile = null;
+      }
+    } else {
+      remoteProfile = null;
+    }
   }
 
   onMount(() => {
@@ -198,12 +230,14 @@
               title={shellIdentity.detail}
             >
               {#if profile?.auth.signedIn}
-                {profile.auth.accountLabel}
+                {shellAccountLabel()}
               {:else}
                 Sign in to sync later
               {/if}
             </a>
-            <span class="app-sidebar__footer-copy">{shellIdentity.summary}</span>
+            <span class="app-sidebar__footer-copy">
+              {remoteProfile != null ? "Connected profile is now active in the shell." : shellIdentity.summary}
+            </span>
           </div>
         {/if}
 

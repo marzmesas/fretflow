@@ -2,9 +2,13 @@
   import { afterNavigate, goto } from "$app/navigation";
   import { onMount } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
-  import type { AppInfo } from "$lib/ipc";
+  import type { AppInfo, AppSession, SubscriptionState } from "$lib/ipc";
+  import { loadRemoteUserProfile, type RemoteUserProfileV1 } from "$lib/account/remote-profile";
+  import { getRemoteProfileRole } from "$lib/account/remote-profile-gate";
+  import { getRemoteProfileSurfaceRollout } from "$lib/account/remote-profile-surface-rollout";
   import {
     LEARNING_PATHS,
+    getLearningPathById,
     getLearningPathProgress,
     recommendLearningPathSeed,
     type LearningPathProgress,
@@ -37,9 +41,10 @@
   let recommendedTracks = $state<RecommendedTrack[]>([]);
   let learningPaths = $state<LearningPathProgress[]>([]);
   let practiceGoals = $state<PracticeGoalsSnapshot>(toPracticeGoalsSnapshot(loadPracticeGoals()));
+  let remoteProfile = $state<RemoteUserProfileV1 | null>(null);
   let assessmentExperience = $state<OnboardingExperienceLevel>("brand_new");
   let assessmentGoal = $state<OnboardingPracticeGoal>("fundamentals");
-  let heroPath = $derived(recommendedAssessmentPath());
+  let heroPath = $derived(activeRecommendedPath());
 
   const STEP_COPY: Record<OnboardingStepId, { title: string; detail: string; href: string }> = {
     settings: {
@@ -82,14 +87,14 @@
     onboarding = dismissOnboarding();
   }
 
-  function recommendedAssessmentTrack() {
-    const trackId = onboarding?.assessment?.recommendedTrackId;
+  function activeRecommendedTrack() {
+    const trackId = remoteProfile?.fields.recommendedTrackId ?? onboarding?.assessment?.recommendedTrackId;
     if (!trackId) return null;
     return findCatalogTrackById(trackId);
   }
 
-  function recommendedAssessmentPath() {
-    const pathId = onboarding?.assessment?.recommendedPathId;
+  function activeRecommendedPath() {
+    const pathId = remoteProfile?.fields.recommendedPathId ?? onboarding?.assessment?.recommendedPathId;
     if (!pathId) return null;
     return LEARNING_PATHS.find((path) => path.id === pathId) ?? null;
   }
@@ -105,7 +110,7 @@
   }
 
   function openAssessmentRecommendation() {
-    const trackId = onboarding?.assessment?.recommendedTrackId;
+    const trackId = activeRecommendedTrack()?.id;
     if (!trackId) {
       void goto("/practice");
       return;
@@ -184,6 +189,30 @@
     );
   }
 
+  async function refreshRemoteSurfaceProfile() {
+    if (!isTauri()) {
+      remoteProfile = null;
+      return;
+    }
+    try {
+      const session = await invoke<AppSession>("get_session");
+      const subscription = await invoke<SubscriptionState>("get_subscription_state");
+      const rollout = getRemoteProfileSurfaceRollout({
+        apiBaseUrl: subscription.apiBaseUrl,
+        remoteProfileRole: getRemoteProfileRole(session),
+      });
+      if (!rollout.ready) {
+        remoteProfile = null;
+        return;
+      }
+      remoteProfile = await loadRemoteUserProfile({
+        apiBaseUrl: subscription.apiBaseUrl,
+      });
+    } catch {
+      remoteProfile = null;
+    }
+  }
+
   onMount(async () => {
     refreshHomeState();
     if (!isTauri()) {
@@ -193,6 +222,7 @@
     }
     try {
       appInfo = await invoke<AppInfo>("get_app_info");
+      await refreshRemoteSurfaceProfile();
     } catch (e) {
       loadError = String(e);
     }
@@ -200,6 +230,7 @@
 
   afterNavigate(() => {
     refreshHomeState();
+    void refreshRemoteSurfaceProfile();
   });
 </script>
 
@@ -250,8 +281,8 @@
 
   {#if onboarding && !onboarding.hidden}
     {@const nextStep = nextOnboardingStep()}
-    {@const seededTrack = recommendedAssessmentTrack()}
-    {@const seededPath = recommendedAssessmentPath()}
+    {@const seededTrack = activeRecommendedTrack()}
+    {@const seededPath = activeRecommendedPath()}
       {@const setupAction = recommendedSetupAction()}
     <section class="home-activation">
       <div class="panel onboarding-panel">
@@ -345,11 +376,13 @@
           </ol>
         </div>
 
-        {#if seededPath}
-          <div class="panel home-note-card home-note-card--accent">
-            <p class="home-note-card__eyebrow">Seeded recommendation</p>
+      {#if seededPath}
+        <div class="panel home-note-card home-note-card--accent">
+            <p class="home-note-card__eyebrow">{remoteProfile ? "Connected profile" : "Seeded recommendation"}</p>
             <h2>{seededPath.title}</h2>
             <p>
+              {#if remoteProfile?.fields.practiceGoal}
+                Focus: <strong>{remoteProfile.fields.practiceGoal}</strong>.{/if}
               {seededPath.description}
               {#if seededTrack}
                 Start with <strong>{seededTrack.title}</strong> for the cleanest first step.
