@@ -5,6 +5,7 @@
     loadLocalFrontendUserProfile,
     type FrontendUserProfile,
   } from "$lib/account/profile";
+  import { getShellIdentityRollout } from "$lib/account/shell-identity";
   import {
     buildRemoteUserProfileSeed,
     loadRemoteUserProfile,
@@ -358,6 +359,21 @@
     return ownership === "remote_first" ? "Remote first" : "Local only";
   }
 
+  function profileAuthStateLabel(state: FrontendUserProfile["auth"]["state"]): string {
+    switch (state) {
+      case "guest":
+        return "Guest";
+      case "local_dev":
+        return "Local preview";
+      case "remote_auth":
+        return "Connected account";
+      default: {
+        const exhaustiveCheck: never = state;
+        throw new Error(`Unhandled auth state: ${exhaustiveCheck}`);
+      }
+    }
+  }
+
   function profilePolicyGroups(): Array<{ title: string; policies: ProfileFieldPolicy[] }> {
     return [
       { title: "Remote-backed after auth", policies: remoteFirstProfilePolicies },
@@ -386,7 +402,7 @@
     <div class="ff-page-hero__stat">
       <span class="ff-page-hero__stat-label">Identity</span>
       <strong>{profile?.auth.accountLabel ?? "Loading"}</strong>
-      <span class="muted">{profile?.auth.signedIn ? "This device is currently signed in." : "No signed-in identity is active yet."}</span>
+      <span class="muted">{getShellIdentityRollout(session).summary}</span>
     </div>
     <div class="ff-page-hero__stat">
       <span class="ff-page-hero__stat-label">Plan</span>
@@ -429,7 +445,7 @@
             </div>
             <div class="subscription-stat">
               <span class="muted">Auth state</span>
-              <strong>{profile.auth.state === "local_dev" ? "Local dev" : "Guest"}</strong>
+              <strong>{profileAuthStateLabel(profile.auth.state)}</strong>
             </div>
             <div class="subscription-stat">
               <span class="muted">Recommended path</span>
@@ -644,6 +660,28 @@
             </p>
           </div>
         </div>
+
+        <details class="account-disclosure ff-disclosure">
+          <summary>Shell identity rollout</summary>
+          <div class="account-disclosure__body ff-disclosure__body">
+            <div class="policy-group">
+              <div class="policy-item">
+                <div class="policy-item__header">
+                  <strong>Current shell identity source</strong>
+                  <span class={`status-pill status-pill--${getShellIdentityRollout(session).source === "remote_auth" ? "active" : getShellIdentityRollout(session).source === "local_session_stub" ? "warning" : "inactive"}`}>
+                    {getShellIdentityRollout(session).source === "remote_auth"
+                      ? "Connected account"
+                      : getShellIdentityRollout(session).source === "local_session_stub"
+                        ? "Local preview"
+                        : "Guest"}
+                  </span>
+                </div>
+                <p class="muted">{getShellIdentityRollout(session).summary}</p>
+                <p class="muted account-panel__intro">{getShellIdentityRollout(session).detail}</p>
+              </div>
+            </div>
+          </div>
+        </details>
 
         <details class="account-disclosure ff-disclosure">
           <summary>Catalog rollout</summary>

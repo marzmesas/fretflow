@@ -121,4 +121,24 @@ describe("frontend user profile", () => {
     expect(profile.practice.goalProgress).toBe("2/2");
     expect(profile.subscription.syncReady).toBe(true);
   });
+
+  it("promotes non-dev auth into the remote shell identity state", () => {
+    const profile = buildFrontendUserProfile({
+      session: makeSession({
+        signedIn: true,
+        authKind: "oauth",
+        displayName: "Player one",
+        signedInAtUnixMs: 999,
+        entitlements: ["catalog:premium"],
+      }),
+      subscription: makeSubscription(),
+      onboarding: makeOnboarding(),
+      practiceGoals: makePracticeGoals(),
+      pendingAnalyticsEvents: 1,
+    });
+
+    expect(profile.auth.state).toBe("remote_auth");
+    expect(profile.auth.accountLabel).toBe("Player one");
+    expect(profile.auth.signedIn).toBe(true);
+  });
 });

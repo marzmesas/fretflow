@@ -8,6 +8,7 @@
     loadLocalFrontendUserProfile,
     type FrontendUserProfile,
   } from "$lib/account/profile";
+  import { getShellIdentityRollout } from "$lib/account/shell-identity";
   import type { AppSession, InputConnectionStatus } from "$lib/ipc";
   import { isTauri } from "$lib/tauri-env";
 
@@ -184,14 +185,17 @@
 
       <div class="app-masthead__utilities">
         {#if isTauri()}
+          {@const shellIdentity = getShellIdentityRollout(session)}
           <div class="app-utility-card">
-            <span class="app-utility-card__label">Account</span>
+            <span class="app-utility-card__label">
+              {shellIdentity.source === "remote_auth" ? "Connected account" : "Shell identity"}
+            </span>
             <a
               href="/account"
               class="session-account-pill"
               class:connection-pill--on={profile?.auth.signedIn ?? false}
               aria-current={pathname === "/account" ? "page" : undefined}
-              title="Account"
+              title={shellIdentity.detail}
             >
               {#if profile?.auth.signedIn}
                 {profile.auth.accountLabel}
@@ -199,6 +203,7 @@
                 Sign in to sync later
               {/if}
             </a>
+            <span class="app-sidebar__footer-copy">{shellIdentity.summary}</span>
           </div>
         {/if}
 

@@ -13,8 +13,9 @@ import {
   type PracticeGoalsSnapshot,
 } from "../practice-goals-storage";
 import type { AppSession, SubscriptionState } from "../ipc";
+import { getShellIdentityRollout } from "./shell-identity";
 
-export type FrontendProfileAuthState = "guest" | "local_dev";
+export type FrontendProfileAuthState = "guest" | "local_dev" | "remote_auth";
 
 export type FrontendUserProfile = {
   schemaVersion: 1;
@@ -70,8 +71,12 @@ function isLearningPathId(value: unknown): value is LearningPathId {
 }
 
 function resolveAuthState(session: AppSession | null): FrontendProfileAuthState {
-  if (session?.signedIn && session.authKind === "dev") {
+  const shellIdentity = getShellIdentityRollout(session);
+  if (shellIdentity.source === "local_session_stub") {
     return "local_dev";
+  }
+  if (shellIdentity.source === "remote_auth") {
+    return "remote_auth";
   }
   return "guest";
 }
@@ -79,7 +84,9 @@ function resolveAuthState(session: AppSession | null): FrontendProfileAuthState 
 function resolveDisplayName(session: AppSession | null, authState: FrontendProfileAuthState): string {
   const candidate = session?.displayName?.trim();
   if (candidate) return candidate;
-  return authState === "local_dev" ? "Dev" : "Guest";
+  if (authState === "local_dev") return "Dev";
+  if (authState === "remote_auth") return "Player";
+  return "Guest";
 }
 
 export function buildFrontendUserProfile(
