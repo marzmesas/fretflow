@@ -7,7 +7,7 @@ import express from "express";
 import Stripe from "stripe";
 import { isAnalyticsBatchV1 } from "./analytics.js";
 import { buildMockCatalogPayload } from "./catalog.js";
-import { buildMockUserProfilePayload } from "./profile.js";
+import { buildMockUserProfilePayload, buildPreviewUserProfilePayload } from "./profile.js";
 
 const PORT = Number(process.env.PORT) || 8787;
 const MOCK_SUBSCRIPTION_STATUS = (process.env.MOCK_SUBSCRIPTION_STATUS ?? "none").toLowerCase();
@@ -42,6 +42,14 @@ app.get("/api/v1/catalog", (_req, res) => {
 
 app.get("/api/v1/profile", (_req, res) => {
   res.json(buildMockUserProfilePayload());
+});
+
+app.post("/api/v1/profile/seed-preview", express.json({ limit: "32kb" }), (req, res) => {
+  const payload = buildPreviewUserProfilePayload(req.body);
+  if (payload == null) {
+    return res.status(400).json({ error: "Invalid remote profile seed payload" });
+  }
+  return res.json(payload);
 });
 
 app.post("/api/v1/analytics/batch", express.json({ limit: "256kb" }), (req, res) => {

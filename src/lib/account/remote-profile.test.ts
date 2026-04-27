@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildRemoteUserProfileSeed, loadRemoteUserProfile } from "./remote-profile";
+import {
+  buildRemoteUserProfileSeed,
+  loadRemoteUserProfile,
+  previewRemoteUserProfileSeed,
+} from "./remote-profile";
 import type { FrontendUserProfile } from "./profile";
 
 function makeProfile(overrides: Partial<FrontendUserProfile> = {}): FrontendUserProfile {
@@ -85,6 +89,7 @@ describe("remote profile seed", () => {
 
     expect(payload).toEqual({
       schemaVersion: 1,
+      seedSource: "frontend_preview",
       fields: {
         displayName: "Mario",
         practiceGoal: "rhythm",
@@ -102,6 +107,7 @@ describe("remote profile seed", () => {
         ok: true,
         json: async () => ({
           schemaVersion: 1,
+          seedSource: "mock_seed",
           fields: {
             displayName: "Local dev",
             practiceGoal: "fundamentals",
@@ -114,5 +120,53 @@ describe("remote profile seed", () => {
     });
 
     expect(profile.fields.recommendedPathId).toBe("starter");
+  });
+
+  it("previews a frontend-backed remote seed through the API", async () => {
+    const seed = buildRemoteUserProfileSeed(
+      makeProfile({
+        auth: {
+          state: "local_dev",
+          signedIn: true,
+          displayName: "Mario",
+          accountLabel: "Mario",
+          authKind: "dev",
+          signedInAtUnixMs: 1,
+          entitlements: [],
+        },
+        learning: {
+          onboardingCompleted: true,
+          onboardingHidden: true,
+          remainingSteps: [],
+          experienceLevel: "returning",
+          practiceGoal: "technique",
+          recommendedPathId: "technique",
+          recommendedPathTitle: "Technique ladder",
+          recommendedTrackId: "bundled-palm-mute-drill",
+          recommendedTrackTitle: "Palm mute drill",
+        },
+        practice: {
+          streakDays: 2,
+          goalProgress: "1/3",
+          goalMetToday: false,
+          dailyGoalSessions: 3,
+        },
+      }),
+    );
+
+    const profile = await previewRemoteUserProfileSeed({
+      apiBaseUrl: "http://127.0.0.1:8787",
+      seed,
+      fetchImpl: (async () => ({
+        ok: true,
+        json: async () => ({
+          ...seed,
+          seedSource: "frontend_preview",
+        }),
+      })) as unknown as typeof fetch,
+    });
+
+    expect(profile.seedSource).toBe("frontend_preview");
+    expect(profile.fields.recommendedTrackId).toBe("bundled-palm-mute-drill");
   });
 });

@@ -2,6 +2,7 @@ import type { FrontendUserProfile } from "./profile";
 
 export type RemoteUserProfileV1 = {
   schemaVersion: 1;
+  seedSource: "mock_seed" | "frontend_preview";
   fields: {
     displayName: string | null;
     practiceGoal: string | null;
@@ -16,11 +17,16 @@ export type LoadRemoteUserProfileOptions = {
   fetchImpl?: typeof fetch;
 };
 
+export type PreviewRemoteUserProfileSeedOptions = LoadRemoteUserProfileOptions & {
+  seed: RemoteUserProfileV1;
+};
+
 export function buildRemoteUserProfileSeed(
   profile: FrontendUserProfile,
 ): RemoteUserProfileV1 {
   return {
     schemaVersion: 1,
+    seedSource: "frontend_preview",
     fields: {
       displayName: profile.auth.signedIn ? profile.auth.displayName : null,
       practiceGoal: profile.learning.practiceGoal,
@@ -38,7 +44,12 @@ function normalizeApiBaseUrl(apiBaseUrl: string): string {
 function isRemoteUserProfile(value: unknown): value is RemoteUserProfileV1 {
   if (value == null || typeof value !== "object") return false;
   const profile = value as Partial<RemoteUserProfileV1>;
-  if (profile.schemaVersion !== 1 || profile.fields == null || typeof profile.fields !== "object") {
+  if (
+    profile.schemaVersion !== 1 ||
+    (profile.seedSource !== "mock_seed" && profile.seedSource !== "frontend_preview") ||
+    profile.fields == null ||
+    typeof profile.fields !== "object"
+  ) {
     return false;
   }
   const fields = profile.fields as Partial<RemoteUserProfileV1["fields"]>;
@@ -72,6 +83,31 @@ export async function loadRemoteUserProfile(
   const payload = (await response.json()) as unknown;
   if (!isRemoteUserProfile(payload)) {
     throw new Error("profile fetch returned an invalid response");
+  }
+  return payload;
+}
+
+export async function previewRemoteUserProfileSeed(
+  options: PreviewRemoteUserProfileSeedOptions,
+): Promise<RemoteUserProfileV1> {
+  const apiBaseUrl = normalizeApiBaseUrl(options.apiBaseUrl);
+  if (apiBaseUrl === "") {
+    throw new Error("profile preview requires an API base URL");
+  }
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const response = await fetchImpl(`${apiBaseUrl}/api/v1/profile/seed-preview`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(options.seed),
+  });
+  if (!response.ok) {
+    throw new Error(`profile preview failed: ${response.status}`);
+  }
+  const payload = (await response.json()) as unknown;
+  if (!isRemoteUserProfile(payload)) {
+    throw new Error("profile preview returned an invalid response");
   }
   return payload;
 }

@@ -8,6 +8,7 @@
   import {
     buildRemoteUserProfileSeed,
     loadRemoteUserProfile,
+    previewRemoteUserProfileSeed,
     type RemoteUserProfileV1,
   } from "$lib/account/remote-profile";
   import { getRemoteProfileRole } from "$lib/account/remote-profile-gate";
@@ -87,6 +88,7 @@
       session = await invoke<AppSession>("get_session");
       error = null;
       refreshProfile(session, subscription);
+      void refreshRemoteProfile();
     } catch (e) {
       session = null;
       error = e instanceof Error ? e.message : String(e);
@@ -125,6 +127,7 @@
         payload: { displayName: name || null },
       });
       refreshProfile(session, subscription);
+      void refreshRemoteProfile();
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
     } finally {
@@ -140,6 +143,7 @@
       session = await invoke<AppSession>("sign_out");
       displayName = "";
       refreshProfile(session, subscription);
+      void refreshRemoteProfile();
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
     } finally {
@@ -197,7 +201,15 @@
     loadingRemoteProfile = true;
     remoteProfileError = null;
     try {
-      remoteProfile = await loadRemoteUserProfile({ apiBaseUrl });
+      const remoteProfileRole = getRemoteProfileRole(session);
+      if (remoteProfileRole === "preview_only" && profile != null) {
+        remoteProfile = await previewRemoteUserProfileSeed({
+          apiBaseUrl,
+          seed: buildRemoteUserProfileSeed(profile),
+        });
+      } else {
+        remoteProfile = await loadRemoteUserProfile({ apiBaseUrl });
+      }
     } catch (e) {
       remoteProfile = null;
       remoteProfileError = e instanceof Error ? e.message : String(e);
@@ -782,6 +794,7 @@
                     <p class="account-error">{remoteProfileError}</p>
                   {:else if remoteProfile}
                     <p class="muted">
+                      Preview source: <strong>{remoteProfile.seedSource === "frontend_preview" ? "Current device seed" : "Static mock seed"}</strong><br />
                       Online display name: <strong>{remoteProfile.fields.displayName ?? "Not set"}</strong><br />
                       Online practice goal: <strong>{remoteProfile.fields.practiceGoal ?? "Not set"}</strong><br />
                       Online seeded path: <strong>{remoteProfile.fields.recommendedPathId ?? "Not set"}</strong><br />
