@@ -10,11 +10,13 @@
     PLAN_OFFERS,
   } from "$lib/account/plan-offers";
   import {
-    requestCheckoutPreview,
-    type CheckoutPreviewOfferId,
-  } from "$lib/account/checkout-preview";
+    requestBillingPortalSession,
+    requestCheckoutSession,
+    type BillingOfferId,
+  } from "$lib/account/billing-flow";
   import { getShellIdentityRollout } from "$lib/account/shell-identity";
   import { getSubscriptionLifecycle } from "$lib/account/subscription-lifecycle";
+  import { openUrl } from "@tauri-apps/plugin-opener";
   import {
     buildRemoteUserProfileSeed,
     loadRemoteUserProfile,
@@ -72,7 +74,9 @@
   let pendingAnalyticsEvents = $state(0);
   let analyticsRetryAt = $state<string | null>(null);
   let planSelectionStatus = $state<string | null>(null);
-  let checkoutPreviewOfferId = $state<CheckoutPreviewOfferId | null>(null);
+  let billingActionStatus = $state<string | null>(null);
+  let activeBillingOfferId = $state<BillingOfferId | null>(null);
+  let billingRecoveryBusy = $state(false);
   let remoteProfile = $state<RemoteUserProfileV1 | null>(null);
   let remoteProfileError = $state<string | null>(null);
   let loadingRemoteProfile = $state(false);
@@ -409,31 +413,94 @@
         "Free remains the default local-first plan until checkout and entitlement delivery are live.";
       return;
     }
-    await previewCheckoutOffer(planId);
+    await startCheckout(planId);
   }
 
   async function previewPackIntent(packId: (typeof CONTENT_PACK_OFFERS)[number]["id"]): Promise<void> {
-    await previewCheckoutOffer(packId);
+    await startCheckout(packId);
   }
 
-  async function previewCheckoutOffer(offerId: CheckoutPreviewOfferId): Promise<void> {
-    const apiBaseUrl = subscriptionApiBase.trim();
-    if (apiBaseUrl === "") {
-      planSelectionStatus = "Set a service URL first so Account can request the checkout preview scaffold.";
+  async function openBillingUrl(url: string): Promise<void> {
+    if (isTauri()) {
+      await openUrl(url);
       return;
     }
-    checkoutPreviewOfferId = offerId;
-    planSelectionStatus = null;
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  async function startCheckout(offerId: BillingOfferId): Promise<void> {
+    const apiBaseUrl = subscriptionApiBase.trim();
+    if (apiBaseUrl === "") {
+      billingActionStatus = "Set a service URL first so Account can request a checkout session.";
+      return;
+    }
+    activeBillingOfferId = offerId;
+    billingActionStatus = null;
     try {
-      const preview = await requestCheckoutPreview({
+      const result = await requestCheckoutSession({
         apiBaseUrl,
         offerId,
+        accountLabel: profile?.auth.accountLabel ?? session?.displayName ?? null,
       });
-      planSelectionStatus = `${preview.summary} Preview path: ${preview.checkoutPath}.`;
+      if (result.status === "blocked") {
+        billingActionStatus = `${result.summary} ${result.detail}`;
+        return;
+      }
+      await openBillingUrl(result.launchUrl);
+      billingActionStatus = `${result.summary} Opened in your browser.`;
     } catch (e) {
-      planSelectionStatus = e instanceof Error ? e.message : String(e);
+      billingActionStatus = e instanceof Error ? e.message : String(e);
     } finally {
-      checkoutPreviewOfferId = null;
+      activeBillingOfferId = null;
+    }
+  }
+
+  function canOpenBillingRecovery(): boolean {
+    return (
+      subscriptionLifecycle.status === "past_due" ||
+      subscriptionLifecycle.status === "canceling" ||
+      subscriptionLifecycle.status === "active" ||
+      subscriptionLifecycle.status === "trialing"
+    );
+  }
+
+  function billingRecoveryLabel(): string {
+    switch (subscriptionLifecycle.status) {
+      case "past_due":
+        return "Recover billing";
+      case "canceling":
+        return "Manage cancellation";
+      case "active":
+      case "trialing":
+        return "Manage billing";
+      default:
+        return "Open billing portal";
+    }
+  }
+
+  async function openBillingRecovery(): Promise<void> {
+    const apiBaseUrl = subscriptionApiBase.trim();
+    if (apiBaseUrl === "") {
+      billingActionStatus = "Set a service URL first so Account can request billing recovery.";
+      return;
+    }
+    billingRecoveryBusy = true;
+    billingActionStatus = null;
+    try {
+      const result = await requestBillingPortalSession({
+        apiBaseUrl,
+        lifecycleStatus: subscriptionLifecycle.status,
+      });
+      if (result.status === "blocked") {
+        billingActionStatus = `${result.summary} ${result.detail}`;
+        return;
+      }
+      await openBillingUrl(result.launchUrl);
+      billingActionStatus = `${result.summary} Opened in your browser.`;
+    } catch (e) {
+      billingActionStatus = e instanceof Error ? e.message : String(e);
+    } finally {
+      billingRecoveryBusy = false;
     }
   }
 
@@ -670,6 +737,20 @@
             This account currently sees {premiumPreviewTrackCount} premium preview row{premiumPreviewTrackCount === 1 ? "" : "s"} across plans and packs.
           </p>
 
+          {#if canOpenBillingRecovery()}
+            <div class="account-actions">
+              <button
+                type="button"
+                class="btn"
+                class:btn-primary={subscriptionLifecycle.status === "past_due"}
+                onclick={() => void openBillingRecovery()}
+                disabled={billingRecoveryBusy}
+              >
+                {billingRecoveryBusy ? "Opening…" : billingRecoveryLabel()}
+              </button>
+            </div>
+          {/if}
+
           <div class="plan-grid">
             {#each PLAN_OFFERS as offer (offer.id)}
               {@const isCurrentPlan = effectivePlanId() === offer.id}
@@ -695,14 +776,14 @@
                   class="btn"
                   class:btn-primary={!isCurrentPlan && offer.id === "pro"}
                   onclick={() => void previewPlanIntent(offer.id)}
-                  disabled={isCurrentPlan || checkoutPreviewOfferId === offer.id}
+                  disabled={isCurrentPlan || activeBillingOfferId === offer.id}
                 >
                   {#if isCurrentPlan}
                     Current plan
-                  {:else if checkoutPreviewOfferId === offer.id}
+                  {:else if activeBillingOfferId === offer.id}
                     Opening…
                   {:else if offer.id === "pro"}
-                    Preview checkout
+                    Start checkout
                   {:else}
                     Keep free
                   {/if}
@@ -715,7 +796,7 @@
             <div class="ff-section-header account-panel__header">
               <div>
                 <p class="ff-section-eyebrow">Optional packaging</p>
-                <h3>Preview content packs</h3>
+                <h3>Optional content packs</h3>
                 <p class="muted ff-section-intro account-panel__intro">
                   These one-off packs keep premium from being a single all-or-nothing wall. Pro stays the broadest offer, while packs target focused techniques or styles.
                 </p>
@@ -729,7 +810,7 @@
                       <h3>{pack.name}</h3>
                       <p class="muted plan-card__cadence">{pack.focus}</p>
                     </div>
-                    <span class="status-pill status-pill--warning">Preview</span>
+                    <span class="status-pill status-pill--warning">One-off</span>
                   </div>
                   <div class="plan-card__price">{pack.priceLabel}</div>
                   <p class="muted plan-card__summary">{pack.summary}</p>
@@ -740,9 +821,9 @@
                     type="button"
                     class="btn"
                     onclick={() => void previewPackIntent(pack.id)}
-                    disabled={checkoutPreviewOfferId === pack.id}
+                    disabled={activeBillingOfferId === pack.id}
                   >
-                    {checkoutPreviewOfferId === pack.id ? "Opening…" : "Preview checkout"}
+                    {activeBillingOfferId === pack.id ? "Opening…" : "Start checkout"}
                   </button>
                 </div>
               {/each}
@@ -751,6 +832,9 @@
 
           {#if planSelectionStatus}
             <p class="muted account-footnote">{planSelectionStatus}</p>
+          {/if}
+          {#if billingActionStatus}
+            <p class="muted account-footnote">{billingActionStatus}</p>
           {/if}
 
           <label class="account-field">
