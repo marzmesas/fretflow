@@ -6,6 +6,7 @@ import cors from "cors";
 import express from "express";
 import Stripe from "stripe";
 import { isAnalyticsBatchV1 } from "./analytics.js";
+import { buildAuthSignInPayload } from "./auth.js";
 import {
   createBillingPortalPayload,
   createCheckoutSessionPayload,
@@ -55,6 +56,14 @@ app.get("/api/v1/catalog", (_req, res) => {
 
 app.get("/api/v1/profile", (_req, res) => {
   res.json(getCurrentUserProfilePayload());
+});
+
+app.post("/api/v1/auth/sign-in", express.json({ limit: "32kb" }), (req, res) => {
+  const payload = buildAuthSignInPayload(req.body);
+  if (payload == null) {
+    return res.status(400).json({ error: "Invalid auth sign-in payload" });
+  }
+  return res.json(payload);
 });
 
 app.post("/api/v1/profile/seed-preview", express.json({ limit: "32kb" }), (req, res) => {

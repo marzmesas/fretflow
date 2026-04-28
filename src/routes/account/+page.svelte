@@ -61,6 +61,7 @@
   let subscription = $state<SubscriptionState | null>(null);
   let profile = $state<FrontendUserProfile | null>(null);
   let displayName = $state("");
+  let authEmail = $state("");
   let subscriptionApiBase = $state("");
   let catalogSourcePreference = $state<CatalogSourcePreference>("system");
   let busy = $state(false);
@@ -144,14 +145,17 @@
     }
   }
 
-  async function devSignIn() {
+  async function remoteSignIn() {
     if (!isTauri()) return;
     busy = true;
     error = null;
     try {
-      const name = displayName.trim();
-      session = await invoke<AppSession>("dev_sign_in", {
-        payload: { displayName: name || null },
+      session = await invoke<AppSession>("remote_sign_in", {
+        payload: {
+          apiBaseUrl: subscriptionApiBase.trim(),
+          email: authEmail.trim(),
+          displayName: displayName.trim() || null,
+        },
       });
       refreshProfile(session, subscription);
       void refreshRemoteProfile();
@@ -169,6 +173,7 @@
     try {
       session = await invoke<AppSession>("sign_out");
       displayName = "";
+      authEmail = "";
       refreshProfile(session, subscription);
       void refreshRemoteProfile();
     } catch (e) {
@@ -519,6 +524,12 @@
     }
   }
 
+  function authKindLabel(authKind: string | null | undefined): string {
+    if (authKind === "email") return "Email sign-in";
+    if (authKind === "dev") return "Local preview";
+    return authKind?.trim() || "Unknown";
+  }
+
   function profilePolicyGroups(): Array<{ title: string; policies: ProfileFieldPolicy[] }> {
     return [
       { title: "Remote-backed after auth", policies: remoteFirstProfilePolicies },
@@ -629,11 +640,16 @@
         {#if session && profile}
           {#if profile.auth.signedIn}
             <p style="margin: 0 0 0.5rem">
-              Signed in as <strong>{profile.auth.authKind ?? "?"}</strong>
+              Signed in through <strong>{authKindLabel(profile.auth.authKind)}</strong>
               {#if profile.auth.displayName}
                 · {profile.auth.displayName}
               {/if}
             </p>
+            {#if session.email}
+              <p class="muted" style="margin: 0 0 0.5rem; font-size: 0.88rem">
+                {session.email}
+              </p>
+            {/if}
             {#if profile.auth.signedInAtUnixMs != null}
               <p class="muted" style="margin: 0 0 0.75rem; font-size: 0.88rem">
                 Since {new Date(profile.auth.signedInAtUnixMs).toLocaleString()}
@@ -649,19 +665,40 @@
             {/if}
             <button type="button" class="btn" onclick={signOut} disabled={busy}>Sign out</button>
           {:else}
+            <p class="muted account-footnote">
+              This uses the same service URL configured below and creates a non-dev account session so profile, catalog, and billing rollout decisions can follow a real identity.
+            </p>
+            <label class="account-field">
+              <span class="muted">Email</span>
+              <input
+                type="email"
+                bind:value={authEmail}
+                placeholder="you@example.com"
+                disabled={busy}
+                class="account-input"
+              />
+            </label>
             <label class="account-field">
               <span class="muted">Display name (optional)</span>
               <input
                 type="text"
                 bind:value={displayName}
-                placeholder="e.g. Local dev"
+                placeholder="e.g. Mario"
                 disabled={busy}
                 class="account-input"
               />
             </label>
-            <button type="button" class="btn btn-primary" onclick={devSignIn} disabled={busy}>
-              {busy ? "…" : "Sign in as dev"}
+            <button
+              type="button"
+              class="btn btn-primary"
+              onclick={remoteSignIn}
+              disabled={busy || subscriptionApiBase.trim() === "" || authEmail.trim() === ""}
+            >
+              {busy ? "Connecting…" : "Sign in with email"}
             </button>
+            {#if subscriptionApiBase.trim() === ""}
+              <p class="muted account-footnote">Set a service URL below before signing in.</p>
+            {/if}
           {/if}
         {:else}
           <p class="muted" style="margin: 0">Loading session…</p>

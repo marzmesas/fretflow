@@ -32,6 +32,7 @@ pub fn run() {
             midi::stop_midi_input_listen,
             session::get_session,
             session::dev_sign_in,
+            session::remote_sign_in,
             session::sign_out,
             subscription::get_subscription_state,
             subscription::sync_subscription_now,

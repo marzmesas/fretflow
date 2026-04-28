@@ -12,6 +12,7 @@ npm run dev
 ```
 
 - Health: `GET http://127.0.0.1:8787/health`
+- Email sign-in scaffold: `POST /api/v1/auth/sign-in`
 - Catalog seed: `GET /api/v1/catalog`
 - Profile seed: `GET /api/v1/profile`
 - Profile seed preview: `POST /api/v1/profile/seed-preview`

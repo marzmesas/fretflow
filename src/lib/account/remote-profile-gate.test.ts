@@ -21,7 +21,8 @@ describe("remote profile gate", () => {
       getRemoteProfileRole({
         schemaVersion: 1,
         signedIn: true,
-        authKind: "oauth",
+        authKind: "email",
+        email: "user@example.com",
         displayName: "User",
         signedInAtUnixMs: 1,
         entitlements: [],

@@ -40,7 +40,8 @@ describe("catalog rollout policy", () => {
       session: {
         schemaVersion: 1,
         signedIn: true,
-        authKind: "oauth",
+        authKind: "email",
+        email: "player@example.com",
         displayName: "Player",
         signedInAtUnixMs: 1,
         entitlements: [],

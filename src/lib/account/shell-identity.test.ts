@@ -24,7 +24,8 @@ describe("shell identity rollout", () => {
     const rollout = getShellIdentityRollout({
       schemaVersion: 1,
       signedIn: true,
-      authKind: "oauth",
+      authKind: "email",
+      email: "mario@example.com",
       displayName: "Mario",
       signedInAtUnixMs: 1,
       entitlements: [],

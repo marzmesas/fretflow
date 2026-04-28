@@ -22,13 +22,14 @@ Use **snake_case** Rust symbols; Tauri exposes them with the same names to the f
 | `list_midi_input_ports` | — | `{ id, name }[]` | `id` is an opaque backend identifier (persist, don’t parse) |
 | `start_midi_input_listen` | `{ portId }` | `()` | Opens selected MIDI input; voice messages → `input:event` (see below) |
 | `stop_midi_input_listen` | — | `()` | Closes the active MIDI input connection |
-| `get_session` | — | `AppSession` | Local stub: reads `session.json` in app config dir |
-| `dev_sign_in` | `{ payload: { displayName?: string \| null } }` | `AppSession` | Writes dev session + placeholder entitlements (`local:*`) |
+| `get_session` | — | `AppSession` | Reads `session.json` in app config dir |
+| `remote_sign_in` | `{ payload: { apiBaseUrl: string, email: string, displayName?: string \| null } }` | `AppSession` | Calls `POST {apiBaseUrl}/api/v1/auth/sign-in` and persists the returned non-dev session |
+| `dev_sign_in` | `{ payload: { displayName?: string \| null } }` | `AppSession` | Preview-only local session stub for diagnostics / fallback |
 | `sign_out` | — | `AppSession` | Removes `session.json` |
 
 **`AudioPreferences`:** `preferredInputDeviceId`, `preferredInputDeviceLabel?` (cpal device name for hotplug remapping), `latencyOffsetMs`, `preferredMidiInputPortId`, `preferredMidiInputPortName?` (MIDI port name for remapping when opaque ids change), `backingDroneEnabled?`, `backingDroneMuted?` (Practice reference drone), `inputStreamSampleRateHz?` (`null` = device default), `inputStreamBufferFrames?` (`null` = cpal default buffer). Label/name fields omit or `null` when unset; older prefs files deserialize with missing keys.
 
-**`AppSession`:** `schemaVersion`, `signedIn`, `authKind` (`"dev"` when signed in, else `null`), `displayName`, `signedInAtUnixMs`, `entitlements` (string array — stub until backend).
+**`AppSession`:** `schemaVersion`, `signedIn`, `authKind`, `accountId?`, `email?`, `displayName`, `signedInAtUnixMs`, `entitlements`.
 
 ### Subscription / billing (deferred — not in product UI)
 

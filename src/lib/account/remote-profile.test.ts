@@ -179,7 +179,7 @@ describe("remote profile seed", () => {
           signedIn: true,
           displayName: "Mario",
           accountLabel: "Mario",
-          authKind: "oauth",
+          authKind: "email",
           signedInAtUnixMs: 1,
           entitlements: [],
         },

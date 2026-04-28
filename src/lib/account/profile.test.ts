@@ -126,7 +126,8 @@ describe("frontend user profile", () => {
     const profile = buildFrontendUserProfile({
       session: makeSession({
         signedIn: true,
-        authKind: "oauth",
+        authKind: "email",
+        email: "player@example.com",
         displayName: "Player one",
         signedInAtUnixMs: 999,
         entitlements: ["catalog:premium"],
