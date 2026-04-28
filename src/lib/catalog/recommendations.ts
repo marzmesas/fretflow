@@ -15,8 +15,12 @@ function difficultyIndex(difficulty: CatalogDifficulty | undefined): number {
   return index === -1 ? 0 : index;
 }
 
-export function getRecommendedTracks(history: SessionSummaryV1[], limit = 3): RecommendedTrack[] {
-  const bundled = listPlayableBundledCatalogTracks();
+export function getRecommendedTracks(
+  history: SessionSummaryV1[],
+  limit = 3,
+  bundledTracks: CatalogTrackStub[] = listPlayableBundledCatalogTracks(),
+): RecommendedTrack[] {
+  const bundled = bundledTracks;
   if (bundled.length === 0) return [];
 
   const practicedTrackIds = history

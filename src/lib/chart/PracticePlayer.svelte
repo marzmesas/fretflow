@@ -2,7 +2,13 @@
   import { invoke } from "@tauri-apps/api/core";
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
   import { onDestroy, onMount } from "svelte";
-  import type { AudioPreferences, InputConnectionStatus, InputEventPayload } from "$lib/ipc";
+  import type {
+    AppSession,
+    AudioPreferences,
+    InputConnectionStatus,
+    InputEventPayload,
+    SubscriptionState,
+  } from "$lib/ipc";
   import {
     EVENT_AUDIO_INPUT_ERROR,
     EVENT_AUDIO_LEVEL,
@@ -61,8 +67,12 @@
     type PracticePresetV1,
   } from "./practice-presets-storage";
   import { getOnboardingAssessment, markOnboardingStepCompleted } from "$lib/onboarding-storage";
+  import {
+    findTrackInSnapshot,
+    loadActiveCatalogSnapshot,
+  } from "$lib/catalog/active-catalog";
   import { getLearningPathContinuation } from "$lib/catalog/learning-paths";
-  import { findCatalogTrackById } from "$lib/catalog/catalog-service";
+  import { getCatalogSnapshot, type CatalogSnapshot } from "$lib/catalog/catalog-service";
   import { getPostSessionCoaching } from "$lib/catalog/post-session-coaching";
   import { validateChart } from "./validate";
   import { resolvePracticeChart } from "$lib/catalog/resolve-practice-chart";
@@ -145,12 +155,14 @@
     return toPracticeGoalsSnapshot(loadPracticeGoals());
   }
   let practiceGoals = $state<PracticeGoalsSnapshot>(readGoalsSnapshot());
+  let activeCatalogSnapshot = $state<CatalogSnapshot>(getCatalogSnapshot());
+  let activeCatalogSubscription = $state<SubscriptionState | null>(null);
   const chartInsight = $derived.by(() =>
     getChartSessionStats(sessionHistory, { chartTitle: chart.title, practiceTrackId: trackId }),
   );
   const practiceRecommendation = $derived(getPracticeRecommendation(chartInsight));
   const currentCatalogTrack = $derived.by(() => {
-    return findCatalogTrackById(trackId);
+    return findTrackInSnapshot(activeCatalogSnapshot, trackId);
   });
   const pathContinuation = $derived.by(() => {
     const pathId = getOnboardingAssessment()?.recommendedPathId;
@@ -491,7 +503,7 @@
     rafId = 0;
   }
 
-  let prevTrackId: string | null | undefined = undefined;
+  let prevTrackResolveKey: string | null = null;
   let bundledFetchSeq = 0;
   let practicePresetKey = $state<string | null>(null);
 
@@ -625,6 +637,11 @@
 
   $effect(() => {
     const id = trackId ?? null;
+    const trackResolveKey = [
+      id ?? "",
+      activeCatalogSnapshot.sourceMode,
+      activeCatalogSubscription?.entitled ? "entitled" : "locked",
+    ].join(":");
 
     const pendingRaw = consumePendingPracticeChartJson();
     if (pendingRaw != null) {
@@ -632,7 +649,7 @@
         const data = JSON.parse(pendingRaw) as unknown;
         if (validateChart(data)) {
           resetPlayerToChart(data);
-          prevTrackId = id;
+          prevTrackResolveKey = trackResolveKey;
           return;
         }
       } catch {
@@ -640,10 +657,13 @@
       }
     }
 
-    if (prevTrackId === id) return;
-    prevTrackId = id;
+    if (prevTrackResolveKey === trackResolveKey) return;
+    prevTrackResolveKey = trackResolveKey;
 
-    const resolved = resolvePracticeChart(id);
+    const resolved = resolvePracticeChart(id, {
+      catalogTracks: activeCatalogSnapshot.tracks,
+      subscription: activeCatalogSubscription,
+    });
     const bundledUrl = resolved.bundledChartUrl;
     if (bundledUrl) {
       const seq = ++bundledFetchSeq;
@@ -1004,6 +1024,18 @@
     window.addEventListener("focus", onWindowFocusPractice);
     void (async () => {
       if (isTauri()) {
+        try {
+          const session = await invoke<AppSession>("get_session");
+          const subscription = await invoke<SubscriptionState>("get_subscription_state");
+          activeCatalogSubscription = subscription;
+          activeCatalogSnapshot = await loadActiveCatalogSnapshot({
+            session,
+            subscription,
+          });
+        } catch {
+          activeCatalogSubscription = null;
+          activeCatalogSnapshot = getCatalogSnapshot();
+        }
         void refreshInputConnection();
         inputConnPoll = setInterval(() => void refreshInputConnection(), 2500);
         midiUnlisten = await listen<InputEventPayload>(EVENT_INPUT_EVENT, handleInputScoring);

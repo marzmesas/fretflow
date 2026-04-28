@@ -3,7 +3,6 @@
   import { onDestroy, onMount } from "svelte";
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
   import PracticePlayer from "$lib/chart/PracticePlayer.svelte";
-  import { resolvePracticeChart } from "$lib/catalog/resolve-practice-chart";
   import type { InputEventPayload } from "$lib/ipc";
   import { EVENT_INPUT_EVENT } from "$lib/ipc";
   import { isTauri } from "$lib/tauri-env";
@@ -14,7 +13,6 @@
   let browserOnly = $state(false);
 
   const practiceTrackId = $derived(page.url.searchParams.get("track"));
-  const trackResolve = $derived(resolvePracticeChart(practiceTrackId));
 
   onMount(async () => {
     if (!isTauri()) {
@@ -36,13 +34,6 @@
   Play along with the scrolling highway. Scoring works with MIDI or mic input — configure both in
   <a href="/settings">Settings</a>.
 </p>
-
-{#if trackResolve.trackRequestInvalid}
-  <p class="muted" style="margin: 0 0 0.75rem; color: #fbbf24">
-    Unknown or locked <code>track</code> — showing the demo chart. Open a free row from
-    <a href="/library">Library</a>.
-  </p>
-{/if}
 
 <div class="panel">
   <PracticePlayer trackId={practiceTrackId} />

@@ -1,6 +1,9 @@
-import { DEMO_CHART } from "$lib/chart/demo-chart";
-import type { FretflowChartV1 } from "$lib/chart/types";
+import { DEMO_CHART } from "../chart/demo-chart";
+import type { FretflowChartV1 } from "../chart/types";
+import type { SubscriptionState } from "../ipc";
+import { getCatalogTrackAccess } from "./entitlement-overlay";
 import { findCatalogTrackById } from "./catalog-service";
+import type { CatalogTrackStub } from "./types";
 import { resolveUserChart } from "./user-charts";
 
 export type ResolvedPracticeChart = {
@@ -17,7 +20,13 @@ export type ResolvedPracticeChart = {
  * Map `?track=` from Library (or future deep links) to chart data.
  * Unknown or locked ids fall back to the embedded demo chart.
  */
-export function resolvePracticeChart(trackId: string | null | undefined): ResolvedPracticeChart {
+export function resolvePracticeChart(
+  trackId: string | null | undefined,
+  options: {
+    catalogTracks?: CatalogTrackStub[];
+    subscription?: SubscriptionState | null;
+  } = {},
+): ResolvedPracticeChart {
   const id = typeof trackId === "string" && trackId.trim() !== "" ? trackId.trim() : null;
   if (!id) {
     return {
@@ -46,8 +55,10 @@ export function resolvePracticeChart(trackId: string | null | undefined): Resolv
     };
   }
 
-  const row = findCatalogTrackById(id);
-  if (!row || row.tier === "premium") {
+  const row =
+    options.catalogTracks?.find((track) => track.id === id) ??
+    findCatalogTrackById(id);
+  if (!row) {
     return {
       chart: DEMO_CHART,
       catalogTrackId: null,
@@ -55,7 +66,8 @@ export function resolvePracticeChart(trackId: string | null | undefined): Resolv
       bundledChartUrl: null,
     };
   }
-  if (row.practiceChartKey === "none") {
+  const access = getCatalogTrackAccess(row, options.subscription ?? null);
+  if (!access.canPractice) {
     return {
       chart: DEMO_CHART,
       catalogTrackId: null,

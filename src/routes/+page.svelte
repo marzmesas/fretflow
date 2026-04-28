@@ -7,13 +7,17 @@
   import { getRemoteProfileRole } from "$lib/account/remote-profile-gate";
   import { getRemoteProfileSurfaceRollout } from "$lib/account/remote-profile-surface-rollout";
   import {
+    findTrackInSnapshot,
+    loadActiveCatalogSnapshot,
+  } from "$lib/catalog/active-catalog";
+  import {
     LEARNING_PATHS,
     getLearningPathById,
     getLearningPathProgress,
     recommendLearningPathSeed,
     type LearningPathProgress,
   } from "$lib/catalog/learning-paths";
-  import { findCatalogTrackById } from "$lib/catalog/catalog-service";
+  import { getCatalogSnapshot, type CatalogSnapshot } from "$lib/catalog/catalog-service";
   import { getRecommendedTracks, type RecommendedTrack } from "$lib/catalog/recommendations";
   import {
     getRecentSessions,
@@ -42,6 +46,7 @@
   let learningPaths = $state<LearningPathProgress[]>([]);
   let practiceGoals = $state<PracticeGoalsSnapshot>(toPracticeGoalsSnapshot(loadPracticeGoals()));
   let remoteProfile = $state<RemoteUserProfileV1 | null>(null);
+  let catalogSnapshot = $state<CatalogSnapshot>(getCatalogSnapshot());
   let assessmentExperience = $state<OnboardingExperienceLevel>("brand_new");
   let assessmentGoal = $state<OnboardingPracticeGoal>("fundamentals");
   let heroPath = $derived(activeRecommendedPath());
@@ -73,7 +78,7 @@
     lastSession = loadLastSession();
     const history = loadSessionHistory();
     recentSessions = getRecentSessions(history, 4);
-    recommendedTracks = getRecommendedTracks(history, 3);
+    recommendedTracks = getRecommendedTracks(history, 3, catalogSnapshot.playableBundledTracks);
     learningPaths = getLearningPathProgress(history);
     practiceGoals = toPracticeGoalsSnapshot(loadPracticeGoals());
   }
@@ -90,7 +95,7 @@
   function activeRecommendedTrack() {
     const trackId = remoteProfile?.fields.recommendedTrackId ?? onboarding?.assessment?.recommendedTrackId;
     if (!trackId) return null;
-    return findCatalogTrackById(trackId);
+    return findTrackInSnapshot(catalogSnapshot, trackId);
   }
 
   function activeRecommendedPath() {
@@ -213,6 +218,26 @@
     }
   }
 
+  async function refreshActiveCatalogSnapshot() {
+    if (!isTauri()) {
+      catalogSnapshot = getCatalogSnapshot();
+      refreshHomeState();
+      return;
+    }
+    try {
+      const session = await invoke<AppSession>("get_session");
+      const subscription = await invoke<SubscriptionState>("get_subscription_state");
+      catalogSnapshot = await loadActiveCatalogSnapshot({
+        session,
+        subscription,
+      });
+    } catch {
+      catalogSnapshot = getCatalogSnapshot();
+    } finally {
+      refreshHomeState();
+    }
+  }
+
   onMount(async () => {
     refreshHomeState();
     if (!isTauri()) {
@@ -222,6 +247,7 @@
     }
     try {
       appInfo = await invoke<AppInfo>("get_app_info");
+      await refreshActiveCatalogSnapshot();
       await refreshRemoteSurfaceProfile();
     } catch (e) {
       loadError = String(e);
@@ -229,7 +255,7 @@
   });
 
   afterNavigate(() => {
-    refreshHomeState();
+    void refreshActiveCatalogSnapshot();
     void refreshRemoteSurfaceProfile();
   });
 </script>
