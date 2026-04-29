@@ -24,6 +24,8 @@ describe("billing-flow", () => {
       {
         apiBaseUrl: "http://127.0.0.1:8787/",
         offerId: "pro",
+        accountId: "acct_123",
+        email: "player@example.com",
         accountLabel: "Mario",
       },
       fetchImpl,
@@ -32,7 +34,16 @@ describe("billing-flow", () => {
     expect(response.status).toBe("ready");
     expect(fetchImpl).toHaveBeenCalledWith(
       "http://127.0.0.1:8787/api/v1/billing/checkout-session",
-      expect.objectContaining({ method: "POST" }),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          schemaVersion: 1,
+          offerId: "pro",
+          accountId: "acct_123",
+          email: "player@example.com",
+          accountLabel: "Mario",
+        }),
+      }),
     );
   });
 
@@ -44,9 +55,9 @@ describe("billing-flow", () => {
         kind: "billing_portal",
         status: "blocked",
         provider: "stripe",
-        reason: "missing_customer",
-        summary: "Billing recovery is configured, but no Stripe customer is linked yet.",
-        detail: "Set MOCK_STRIPE_CUSTOMER_ID or real auth-backed customer mapping.",
+        reason: "missing_account",
+        summary: "Billing recovery requires a signed-in account.",
+        detail: "Sign in with your email account before opening billing recovery so the server can link the right Stripe customer.",
         offerId: null,
         billingMode: null,
       }),
@@ -56,6 +67,8 @@ describe("billing-flow", () => {
       {
         apiBaseUrl: "http://127.0.0.1:8787",
         lifecycleStatus: "past_due",
+        accountId: "acct_123",
+        email: "player@example.com",
       },
       fetchImpl,
     );
@@ -63,7 +76,15 @@ describe("billing-flow", () => {
     expect(response.status).toBe("blocked");
     expect(fetchImpl).toHaveBeenCalledWith(
       "http://127.0.0.1:8787/api/v1/billing/recovery-session",
-      expect.objectContaining({ method: "POST" }),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          schemaVersion: 1,
+          lifecycleStatus: "past_due",
+          accountId: "acct_123",
+          email: "player@example.com",
+        }),
+      }),
     );
   });
 
@@ -82,6 +103,8 @@ describe("billing-flow", () => {
         {
           apiBaseUrl: "http://127.0.0.1:8787",
           offerId: "pro",
+          accountId: "acct_123",
+          email: "player@example.com",
         },
         fetchImpl,
       ),

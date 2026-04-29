@@ -439,12 +439,18 @@
       billingActionStatus = "Set a service URL first so Account can request a checkout session.";
       return;
     }
+    if (!session?.signedIn || !session.accountId || !session.email) {
+      billingActionStatus = "Sign in with your email account before starting checkout.";
+      return;
+    }
     activeBillingOfferId = offerId;
     billingActionStatus = null;
     try {
       const result = await requestCheckoutSession({
         apiBaseUrl,
         offerId,
+        accountId: session.accountId,
+        email: session.email,
         accountLabel: profile?.auth.accountLabel ?? session?.displayName ?? null,
       });
       if (result.status === "blocked") {
@@ -489,12 +495,18 @@
       billingActionStatus = "Set a service URL first so Account can request billing recovery.";
       return;
     }
+    if (!session?.signedIn || !session.accountId || !session.email) {
+      billingActionStatus = "Sign in with your email account before opening billing recovery.";
+      return;
+    }
     billingRecoveryBusy = true;
     billingActionStatus = null;
     try {
       const result = await requestBillingPortalSession({
         apiBaseUrl,
         lifecycleStatus: subscriptionLifecycle.status,
+        accountId: session.accountId,
+        email: session.email,
       });
       if (result.status === "blocked") {
         billingActionStatus = `${result.summary} ${result.detail}`;

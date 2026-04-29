@@ -1,25 +1,34 @@
 import Stripe from "stripe";
+import {
+  assignStripeCustomerId,
+  getStoredAccount,
+  type StoredAccountRecord,
+} from "./account-store.js";
 
 type BillingOfferId = "pro" | "blues_pack" | "fingerstyle_pack";
 type BillingActionKind = "checkout" | "billing_portal";
 type BillingMode = "subscription" | "one_time";
 type BillingBlockedReason =
+  | "missing_account"
   | "missing_stripe_secret"
   | "missing_price_id"
   | "missing_checkout_urls"
-  | "missing_customer"
   | "missing_portal_return_url"
   | "session_missing_url";
 
 type CheckoutSessionRequest = {
   schemaVersion?: number;
   offerId?: BillingOfferId;
+  accountId?: string;
+  email?: string;
   accountLabel?: string | null;
 };
 
 type BillingPortalRequest = {
   schemaVersion?: number;
   lifecycleStatus?: string;
+  accountId?: string;
+  email?: string;
 };
 
 export type BillingLaunchResponse =
@@ -137,6 +146,47 @@ function accountLabelMetadata(accountLabel: string | null | undefined): string {
   return normalized && normalized.length > 0 ? normalized : "Player";
 }
 
+function normalizeEmail(email: string | null | undefined): string {
+  return email?.trim().toLowerCase() ?? "";
+}
+
+function resolveStoredBillingAccount(input: {
+  accountId?: string;
+  email?: string;
+}): StoredAccountRecord | null {
+  const accountId = input.accountId?.trim() ?? "";
+  const email = normalizeEmail(input.email);
+  if (accountId === "" || email === "") {
+    return null;
+  }
+  const account = getStoredAccount(accountId);
+  if (account == null || normalizeEmail(account.email) !== email) {
+    return null;
+  }
+  return account;
+}
+
+async function ensureStripeCustomerId(
+  stripe: Stripe,
+  account: StoredAccountRecord,
+  accountLabel: string | null | undefined,
+): Promise<string> {
+  const existingCustomerId = account.stripeCustomerId?.trim();
+  if (existingCustomerId) {
+    return existingCustomerId;
+  }
+  const customer = await stripe.customers.create({
+    email: account.email,
+    name: accountLabelMetadata(accountLabel ?? account.displayName),
+    metadata: {
+      accountId: account.accountId,
+      source: "fretflow_server_scaffold",
+    },
+  });
+  assignStripeCustomerId(account.accountId, customer.id);
+  return customer.id;
+}
+
 export async function createCheckoutSessionPayload(
   payload: unknown,
   stripe: Stripe | null,
@@ -163,6 +213,17 @@ export async function createCheckoutSessionPayload(
     );
   }
   const offer = getOfferConfig(request.offerId);
+  const account = resolveStoredBillingAccount(request);
+  if (account == null) {
+    return blockedResponse(
+      "checkout",
+      "missing_account",
+      "Checkout requires a signed-in account.",
+      "Sign in with your email account before starting checkout so billing can be linked to the right player.",
+      offer.offerId,
+      offer.billingMode,
+    );
+  }
   if (stripe == null) {
     return blockedResponse(
       "checkout",
@@ -195,13 +256,17 @@ export async function createCheckoutSessionPayload(
       offer.billingMode,
     );
   }
+  const customerId = await ensureStripeCustomerId(stripe, account, request.accountLabel);
   const session = await stripe.checkout.sessions.create({
     mode: offer.billingMode === "subscription" ? "subscription" : "payment",
+    customer: customerId,
     line_items: [{ price: priceId, quantity: 1 }],
     success_url: urls.successUrl,
     cancel_url: urls.cancelUrl,
     metadata: {
       offerId: offer.offerId,
+      accountId: account.accountId,
+      email: account.email,
       accountLabel: accountLabelMetadata(request.accountLabel),
     },
   });
@@ -224,23 +289,23 @@ export async function createBillingPortalPayload(
 ): Promise<BillingLaunchResponse> {
   const request = payload as BillingPortalRequest | null;
   const lifecycleStatus = request?.lifecycleStatus?.trim() || "unknown";
+  const account = resolveStoredBillingAccount(request ?? {});
+  if (account == null) {
+    return blockedResponse(
+      "billing_portal",
+      "missing_account",
+      "Billing recovery requires a signed-in account.",
+      "Sign in with your email account before opening billing recovery so the server can link the right Stripe customer.",
+      null,
+      null,
+    );
+  }
   if (stripe == null) {
     return blockedResponse(
       "billing_portal",
       "missing_stripe_secret",
       "Billing recovery is not configured on this server yet.",
-      "Set STRIPE_SECRET_KEY and a Stripe customer mapping before opening the billing portal.",
-      null,
-      null,
-    );
-  }
-  const customerId = normalizeUrlEnv("MOCK_STRIPE_CUSTOMER_ID");
-  if (customerId === "") {
-    return blockedResponse(
-      "billing_portal",
-      "missing_customer",
-      "Billing recovery is configured, but no Stripe customer is linked yet.",
-      "Set MOCK_STRIPE_CUSTOMER_ID until real auth/customer mapping is in place.",
+      "Set STRIPE_SECRET_KEY before opening the billing portal.",
       null,
       null,
     );
@@ -256,6 +321,7 @@ export async function createBillingPortalPayload(
       null,
     );
   }
+  const customerId = await ensureStripeCustomerId(stripe, account, account.displayName);
   const session = await stripe.billingPortal.sessions.create({
     customer: customerId,
     return_url: returnUrl,

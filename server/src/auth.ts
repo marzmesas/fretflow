@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import { recordSignedInAccount } from "./account-store.js";
 
 type AuthSignInRequest = {
   schemaVersion?: number;
@@ -62,5 +63,12 @@ export function buildAuthSignInPayload(payload: unknown): AuthSignInResponse | n
     sessionToken: `sess_${randomUUID()}`,
   };
   authSessions.set(response.sessionToken, response);
+  recordSignedInAccount({
+    accountId: response.accountId,
+    email: response.email,
+    displayName: response.displayName,
+    entitlements: response.entitlements,
+    signedInAtUnixMs: response.signedInAtUnixMs,
+  });
   return response;
 }

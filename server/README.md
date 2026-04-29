@@ -61,5 +61,6 @@ npm run dev
 Set `MOCK_SUBSCRIPTION_STATUS=active` to simulate a paid plan while the real billing integration is built.
 Use `MOCK_VALID_UNTIL_DAYS=14` to preview trial ends, renewals, or cancellation windows in the desktop UI.
 Set `MOCK_PREMIUM_PLAYABLE=true` to let the remote catalog advertise playable premium rows for entitlement testing.
-Set the `STRIPE_PRICE_*` and `STRIPE_CHECKOUT_*` env vars to enable real Stripe Checkout session creation from the desktop Account page.
-Set `MOCK_STRIPE_CUSTOMER_ID` plus `STRIPE_BILLING_PORTAL_RETURN_URL` to enable Billing Portal launch for past-due or cancellation recovery testing.
+Set the `STRIPE_PRICE_*`, `STRIPE_CHECKOUT_*`, and `STRIPE_BILLING_PORTAL_RETURN_URL` env vars to enable real Stripe Checkout and Billing Portal launches from the desktop Account page.
+
+The server now persists signed-in dev accounts and their linked Stripe customer ids in `server/.data/accounts.json` so billing identity survives local server restarts.

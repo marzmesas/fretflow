@@ -6,10 +6,10 @@ export type BillingProvider = "stripe";
 export type BillingMode = "subscription" | "one_time";
 export type BillingBlockedReason =
   | "missing_service_url"
+  | "missing_account"
   | "missing_stripe_secret"
   | "missing_price_id"
   | "missing_checkout_urls"
-  | "missing_customer"
   | "missing_portal_return_url"
   | "session_missing_url";
 
@@ -40,12 +40,16 @@ export type BillingLaunchResponse = BillingLaunchReady | BillingLaunchBlocked;
 type CheckoutSessionRequest = {
   schemaVersion: 1;
   offerId: BillingOfferId;
+  accountId: string | null;
+  email: string | null;
   accountLabel: string | null;
 };
 
 type BillingPortalRequest = {
   schemaVersion: 1;
   lifecycleStatus: string;
+  accountId: string | null;
+  email: string | null;
 };
 
 function isBillingOfferId(value: unknown): value is BillingOfferId {
@@ -66,11 +70,11 @@ function isBillingMode(value: unknown): value is BillingMode | null {
 
 function isBillingBlockedReason(value: unknown): value is BillingBlockedReason {
   return (
+    value === "missing_account" ||
     value === "missing_service_url" ||
     value === "missing_stripe_secret" ||
     value === "missing_price_id" ||
     value === "missing_checkout_urls" ||
-    value === "missing_customer" ||
     value === "missing_portal_return_url" ||
     value === "session_missing_url"
   );
@@ -133,6 +137,8 @@ export async function requestCheckoutSession(
   input: {
     apiBaseUrl: string;
     offerId: BillingOfferId;
+    accountId?: string | null;
+    email?: string | null;
     accountLabel?: string | null;
   },
   fetchImpl: typeof fetch = fetch,
@@ -140,6 +146,8 @@ export async function requestCheckoutSession(
   const payload: CheckoutSessionRequest = {
     schemaVersion: 1,
     offerId: input.offerId,
+    accountId: input.accountId?.trim() || null,
+    email: input.email?.trim().toLowerCase() || null,
     accountLabel: input.accountLabel?.trim() || null,
   };
   return postBillingAction(input.apiBaseUrl, "/api/v1/billing/checkout-session", payload, fetchImpl);
@@ -149,12 +157,16 @@ export async function requestBillingPortalSession(
   input: {
     apiBaseUrl: string;
     lifecycleStatus: string;
+    accountId?: string | null;
+    email?: string | null;
   },
   fetchImpl: typeof fetch = fetch,
 ): Promise<BillingLaunchResponse> {
   const payload: BillingPortalRequest = {
     schemaVersion: 1,
     lifecycleStatus: input.lifecycleStatus,
+    accountId: input.accountId?.trim() || null,
+    email: input.email?.trim().toLowerCase() || null,
   };
   return postBillingAction(input.apiBaseUrl, "/api/v1/billing/recovery-session", payload, fetchImpl);
 }
