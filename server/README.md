@@ -39,10 +39,12 @@ npm run dev
 
 `GET /api/v1/profile` is the first non-billing profile scaffold:
 
+- requires `accountId` and `email` query params from the signed-in desktop session
 - display name
 - onboarding practice goal
 - seeded path / first chart recommendation
 - daily goal target
+- returns the signed-in account's stored profile when present, otherwise an account-seeded default
 
 `POST /api/v1/profile/seed-preview` stops the Account preview from depending on a static mock profile:
 
@@ -53,9 +55,10 @@ npm run dev
 
 `PUT /api/v1/profile` is the first profile-write scaffold:
 
+- accepts the signed-in account identity plus the first-wave remote profile fields
 - accepts the same first-wave remote profile fields
 - validates the payload shape
-- stores the payload in server memory for the current dev run
+- stores the payload in the signed-in account record under `server/.data/accounts.json`
 - returns the normalized saved payload marked as `backend_persisted`
 
 Set `MOCK_SUBSCRIPTION_STATUS=active` to simulate a paid plan while the real billing integration is built.

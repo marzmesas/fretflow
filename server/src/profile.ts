@@ -1,3 +1,9 @@
+import {
+  getStoredAccount,
+  getStoredRemoteProfile,
+  saveStoredRemoteProfile,
+} from "./account-store.js";
+
 export type RemoteUserProfileV1 = {
   schemaVersion: 1;
   seedSource: "mock_seed" | "frontend_preview" | "backend_persisted";
@@ -10,12 +16,38 @@ export type RemoteUserProfileV1 = {
   };
 };
 
-export function buildMockUserProfilePayload(): RemoteUserProfileV1 {
+type RemoteProfileIdentity = {
+  accountId?: string;
+  email?: string;
+};
+
+type RemoteProfileWriteRequest = RemoteProfileIdentity & {
+  profile?: unknown;
+};
+
+function normalizeEmail(email: string | null | undefined): string {
+  return email?.trim().toLowerCase() ?? "";
+}
+
+function resolveStoredProfileAccount(identity: RemoteProfileIdentity) {
+  const accountId = identity.accountId?.trim() ?? "";
+  const email = normalizeEmail(identity.email);
+  if (accountId === "" || email === "") {
+    return null;
+  }
+  const account = getStoredAccount(accountId);
+  if (account == null || normalizeEmail(account.email) !== email) {
+    return null;
+  }
+  return account;
+}
+
+export function buildMockUserProfilePayload(displayName: string | null = "Local dev"): RemoteUserProfileV1 {
   return {
     schemaVersion: 1,
     seedSource: "mock_seed",
     fields: {
-      displayName: "Local dev",
+      displayName,
       practiceGoal: "fundamentals",
       recommendedPathId: "starter",
       recommendedTrackId: "bundled-one-note",
@@ -70,26 +102,38 @@ export function buildPreviewUserProfilePayload(seed: unknown): RemoteUserProfile
   };
 }
 
-let persistedProfilePayload: RemoteUserProfileV1 | null = null;
-
-export function getCurrentUserProfilePayload(): RemoteUserProfileV1 {
-  return persistedProfilePayload ?? buildMockUserProfilePayload();
-}
-
-export function saveUserProfilePayload(seed: unknown): RemoteUserProfileV1 | null {
-  if (!isRemoteUserProfilePayload(seed)) {
+export function getCurrentUserProfilePayload(identity: RemoteProfileIdentity): RemoteUserProfileV1 | null {
+  const account = resolveStoredProfileAccount(identity);
+  if (account == null) {
     return null;
   }
-  persistedProfilePayload = {
+  const persistedProfile = getStoredRemoteProfile(account.accountId);
+  if (persistedProfile != null && isRemoteUserProfilePayload(persistedProfile)) {
+    return persistedProfile;
+  }
+  return buildMockUserProfilePayload(account.displayName);
+}
+
+export function saveUserProfilePayload(request: unknown): RemoteUserProfileV1 | null {
+  if (request == null || typeof request !== "object") {
+    return null;
+  }
+  const payload = request as RemoteProfileWriteRequest;
+  const account = resolveStoredProfileAccount(payload);
+  if (account == null || !isRemoteUserProfilePayload(payload.profile)) {
+    return null;
+  }
+  const persistedProfilePayload: RemoteUserProfileV1 = {
     schemaVersion: 1,
     seedSource: "backend_persisted",
     fields: {
-      displayName: seed.fields.displayName,
-      practiceGoal: seed.fields.practiceGoal,
-      recommendedPathId: seed.fields.recommendedPathId,
-      recommendedTrackId: seed.fields.recommendedTrackId,
-      dailyGoalSessions: seed.fields.dailyGoalSessions,
+      displayName: payload.profile.fields.displayName,
+      practiceGoal: payload.profile.fields.practiceGoal,
+      recommendedPathId: payload.profile.fields.recommendedPathId,
+      recommendedTrackId: payload.profile.fields.recommendedTrackId,
+      dailyGoalSessions: payload.profile.fields.dailyGoalSessions,
     },
   };
+  saveStoredRemoteProfile(account.accountId, persistedProfilePayload as Record<string, unknown>);
   return persistedProfilePayload;
 }

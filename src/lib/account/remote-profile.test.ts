@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   buildRemoteUserProfileSeed,
   loadRemoteUserProfile,
@@ -104,6 +104,8 @@ describe("remote profile seed", () => {
   it("loads the remote profile payload from the API", async () => {
     const profile = await loadRemoteUserProfile({
       apiBaseUrl: "http://127.0.0.1:8787",
+      accountId: "acct_123",
+      email: "player@example.com",
       fetchImpl: (async () => ({
         ok: true,
         json: async () => ({
@@ -188,6 +190,8 @@ describe("remote profile seed", () => {
 
     const profile = await saveRemoteUserProfile({
       apiBaseUrl: "http://127.0.0.1:8787",
+      accountId: "acct_123",
+      email: "player@example.com",
       profile: seed,
       fetchImpl: (async () => ({
         ok: true,
@@ -200,5 +204,35 @@ describe("remote profile seed", () => {
 
     expect(profile.seedSource).toBe("backend_persisted");
     expect(profile.fields.displayName).toBe("Mario");
+  });
+
+  it("includes account identity in remote profile requests", async () => {
+    const fetchImpl = (async () => ({
+      ok: true,
+      json: async () => ({
+        schemaVersion: 1,
+        seedSource: "mock_seed",
+        fields: {
+          displayName: "Mario",
+          practiceGoal: "fundamentals",
+          recommendedPathId: "starter",
+          recommendedTrackId: "bundled-one-note",
+          dailyGoalSessions: 1,
+        },
+      }),
+    })) as unknown as typeof fetch;
+
+    const fetchSpy = vi.fn(fetchImpl);
+
+    await loadRemoteUserProfile({
+      apiBaseUrl: "http://127.0.0.1:8787",
+      accountId: "acct_123",
+      email: "PLAYER@example.com",
+      fetchImpl: fetchSpy,
+    });
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "http://127.0.0.1:8787/api/v1/profile?accountId=acct_123&email=player%40example.com",
+    );
   });
 });

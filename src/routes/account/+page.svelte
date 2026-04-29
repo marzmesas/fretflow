@@ -240,7 +240,11 @@
           seed: buildRemoteUserProfileSeed(profile),
         });
       } else {
-        remoteProfile = await loadRemoteUserProfile({ apiBaseUrl });
+        remoteProfile = await loadRemoteUserProfile({
+          apiBaseUrl,
+          accountId: session?.accountId ?? "",
+          email: session?.email ?? "",
+        });
       }
     } catch (e) {
       remoteProfile = null;
@@ -265,9 +269,11 @@
     try {
       remoteProfile = await saveRemoteUserProfile({
         apiBaseUrl: subscriptionApiBase,
+        accountId: session?.accountId ?? "",
+        email: session?.email ?? "",
         profile: seed,
       });
-      remoteProfileWriteStatus = "Saved the current online profile fields to the server scaffold.";
+      remoteProfileWriteStatus = "Saved the current online profile fields to the signed-in cloud profile.";
     } catch (e) {
       remoteProfileError = e instanceof Error ? e.message : String(e);
     } finally {

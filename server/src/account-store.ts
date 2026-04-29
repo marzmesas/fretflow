@@ -9,6 +9,7 @@ export type StoredAccountRecord = {
   entitlements: string[];
   lastSignedInAtUnixMs: number;
   stripeCustomerId: string | null;
+  remoteProfile: Record<string, unknown> | null;
 };
 
 type StoredAccountSnapshot = {
@@ -58,7 +59,10 @@ function isStoredAccountRecord(value: unknown): value is StoredAccountRecord {
     Array.isArray(record.entitlements) &&
     record.entitlements.every((entitlement) => typeof entitlement === "string") &&
     typeof record.lastSignedInAtUnixMs === "number" &&
-    (typeof record.stripeCustomerId === "string" || record.stripeCustomerId === null)
+    (typeof record.stripeCustomerId === "string" || record.stripeCustomerId === null) &&
+    ((record.remoteProfile != null && typeof record.remoteProfile === "object") ||
+      record.remoteProfile === null ||
+      record.remoteProfile === undefined)
   );
 }
 
@@ -92,6 +96,7 @@ export function recordSignedInAccount(input: {
     entitlements: [...input.entitlements],
     lastSignedInAtUnixMs: input.signedInAtUnixMs,
     stripeCustomerId: existing?.stripeCustomerId ?? null,
+    remoteProfile: existing?.remoteProfile ?? null,
   };
   cache.set(record.accountId, record);
   persistAccountCache(cache);
@@ -114,6 +119,26 @@ export function assignStripeCustomerId(
   const updated: StoredAccountRecord = {
     ...existing,
     stripeCustomerId: normalizedCustomerId,
+  };
+  cache.set(accountId, updated);
+  persistAccountCache(cache);
+  return updated;
+}
+
+export function getStoredRemoteProfile(accountId: string): Record<string, unknown> | null {
+  return getStoredAccount(accountId)?.remoteProfile ?? null;
+}
+
+export function saveStoredRemoteProfile(
+  accountId: string,
+  remoteProfile: Record<string, unknown>,
+): StoredAccountRecord | null {
+  const cache = getAccountCache();
+  const existing = cache.get(accountId);
+  if (existing == null) return null;
+  const updated: StoredAccountRecord = {
+    ...existing,
+    remoteProfile: { ...remoteProfile },
   };
   cache.set(accountId, updated);
   persistAccountCache(cache);

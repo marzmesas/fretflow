@@ -54,8 +54,15 @@ app.get("/api/v1/catalog", (_req, res) => {
   res.json(buildMockCatalogPayload());
 });
 
-app.get("/api/v1/profile", (_req, res) => {
-  res.json(getCurrentUserProfilePayload());
+app.get("/api/v1/profile", (req, res) => {
+  const payload = getCurrentUserProfilePayload({
+    accountId: typeof req.query.accountId === "string" ? req.query.accountId : undefined,
+    email: typeof req.query.email === "string" ? req.query.email : undefined,
+  });
+  if (payload == null) {
+    return res.status(400).json({ error: "Invalid remote profile identity" });
+  }
+  return res.json(payload);
 });
 
 app.post("/api/v1/auth/sign-in", express.json({ limit: "32kb" }), (req, res) => {

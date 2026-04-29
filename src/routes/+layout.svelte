@@ -136,6 +136,8 @@
       try {
         remoteProfile = await loadRemoteUserProfile({
           apiBaseUrl: subscription?.apiBaseUrl ?? "",
+          accountId: session?.accountId ?? "",
+          email: session?.email ?? "",
         });
       } catch {
         remoteProfile = null;

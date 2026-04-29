@@ -12,12 +12,17 @@ export type RemoteUserProfileV1 = {
   };
 };
 
-export type LoadRemoteUserProfileOptions = {
+type RemoteProfileApiOptions = {
   apiBaseUrl: string;
   fetchImpl?: typeof fetch;
 };
 
-export type PreviewRemoteUserProfileSeedOptions = LoadRemoteUserProfileOptions & {
+export type LoadRemoteUserProfileOptions = RemoteProfileApiOptions & {
+  accountId: string;
+  email: string;
+};
+
+export type PreviewRemoteUserProfileSeedOptions = RemoteProfileApiOptions & {
   seed: RemoteUserProfileV1;
 };
 
@@ -43,6 +48,21 @@ export function buildRemoteUserProfileSeed(
 
 function normalizeApiBaseUrl(apiBaseUrl: string): string {
   return apiBaseUrl.trim().replace(/\/+$/, "");
+}
+
+function normalizeAccountIdentity(accountId: string, email: string): {
+  accountId: string;
+  email: string;
+} {
+  const normalizedAccountId = accountId.trim();
+  const normalizedEmail = email.trim().toLowerCase();
+  if (normalizedAccountId === "" || normalizedEmail === "") {
+    throw new Error("remote profile requests require a signed-in account");
+  }
+  return {
+    accountId: normalizedAccountId,
+    email: normalizedEmail,
+  };
 }
 
 function isRemoteUserProfile(value: unknown): value is RemoteUserProfileV1 {
@@ -81,8 +101,10 @@ export async function loadRemoteUserProfile(
   if (apiBaseUrl === "") {
     throw new Error("profile fetch requires an API base URL");
   }
+  const identity = normalizeAccountIdentity(options.accountId, options.email);
   const fetchImpl = options.fetchImpl ?? fetch;
-  const response = await fetchImpl(`${apiBaseUrl}/api/v1/profile`);
+  const params = new URLSearchParams(identity);
+  const response = await fetchImpl(`${apiBaseUrl}/api/v1/profile?${params.toString()}`);
   if (!response.ok) {
     throw new Error(`profile fetch failed: ${response.status}`);
   }
@@ -125,13 +147,17 @@ export async function saveRemoteUserProfile(
   if (apiBaseUrl === "") {
     throw new Error("profile write requires an API base URL");
   }
+  const identity = normalizeAccountIdentity(options.accountId, options.email);
   const fetchImpl = options.fetchImpl ?? fetch;
   const response = await fetchImpl(`${apiBaseUrl}/api/v1/profile`, {
     method: "PUT",
     headers: {
       "content-type": "application/json",
     },
-    body: JSON.stringify(options.profile),
+    body: JSON.stringify({
+      ...identity,
+      profile: options.profile,
+    }),
   });
   if (!response.ok) {
     throw new Error(`profile write failed: ${response.status}`);
