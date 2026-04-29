@@ -144,7 +144,11 @@ fn dev_entitlements() -> Vec<String> {
 }
 
 fn to_app_session(s: &StoredSession) -> AppSession {
-    let signed_in = s.kind.as_ref().map(|kind| !kind.trim().is_empty()).unwrap_or(false);
+    let signed_in = s
+        .kind
+        .as_ref()
+        .map(|kind| !kind.trim().is_empty())
+        .unwrap_or(false);
     let entitlements = if !signed_in {
         Vec::new()
     } else if s.kind.as_deref() == Some("dev") && s.entitlements.is_empty() {
@@ -156,7 +160,11 @@ fn to_app_session(s: &StoredSession) -> AppSession {
         schema_version: 1,
         signed_in,
         auth_kind: if signed_in { s.kind.clone() } else { None },
-        account_id: if signed_in { s.account_id.clone() } else { None },
+        account_id: if signed_in {
+            s.account_id.clone()
+        } else {
+            None
+        },
         email: if signed_in { s.email.clone() } else { None },
         display_name: if signed_in {
             s.display_name.clone()
