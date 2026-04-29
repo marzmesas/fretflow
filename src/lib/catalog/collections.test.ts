@@ -3,6 +3,7 @@ import {
   createCollection,
   deleteCollection,
   getCollections,
+  replaceCollections,
   removeTrackFromCollections,
   toggleTrackInCollection,
 } from "./collections";
@@ -57,5 +58,26 @@ describe("catalog collections", () => {
     const collections = removeTrackFromCollections("track-1");
     expect(collections.every((collection) => collection.trackIds.length === 0)).toBe(true);
     expect(getCollections()).toHaveLength(2);
+  });
+
+  it("replaces collections with normalized remote state", () => {
+    expect(
+      replaceCollections([
+        {
+          id: " remote-a ",
+          name: " Warmups ",
+          trackIds: ["track-1", "track-1", " track-2 "],
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+      ]),
+    ).toEqual([
+      {
+        id: "remote-a",
+        name: "Warmups",
+        trackIds: ["track-1", "track-2"],
+        createdAt: "2026-01-01T00:00:00.000Z",
+      },
+    ]);
+    expect(getCollections()[0]?.trackIds).toEqual(["track-1", "track-2"]);
   });
 });

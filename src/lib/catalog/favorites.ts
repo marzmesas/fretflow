@@ -1,5 +1,9 @@
 const STORAGE_KEY = "fretflow.favoriteTracks.v1";
 
+function normalizeFavoriteTrackIds(ids: string[]): string[] {
+  return [...new Set(ids.map((id) => id.trim()).filter((id) => id.length > 0))];
+}
+
 export function getFavoriteTrackIds(): string[] {
   if (typeof window === "undefined") return [];
   try {
@@ -7,7 +11,7 @@ export function getFavoriteTrackIds(): string[] {
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item): item is string => typeof item === "string");
+    return normalizeFavoriteTrackIds(parsed.filter((item): item is string => typeof item === "string"));
   } catch {
     return [];
   }
@@ -16,10 +20,16 @@ export function getFavoriteTrackIds(): string[] {
 function saveFavoriteTrackIds(ids: string[]): void {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(ids));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizeFavoriteTrackIds(ids)));
   } catch {
     /* private mode / quota */
   }
+}
+
+export function replaceFavoriteTrackIds(ids: string[]): string[] {
+  const next = normalizeFavoriteTrackIds(ids);
+  saveFavoriteTrackIds(next);
+  return next;
 }
 
 export function toggleFavoriteTrackId(trackId: string): string[] {

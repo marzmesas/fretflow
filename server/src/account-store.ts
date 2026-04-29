@@ -2,6 +2,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+export type StoredLibraryCollection = {
+  id: string;
+  name: string;
+  trackIds: string[];
+  createdAt: string;
+};
+
 export type StoredAccountRecord = {
   accountId: string;
   email: string;
@@ -10,6 +17,8 @@ export type StoredAccountRecord = {
   lastSignedInAtUnixMs: number;
   stripeCustomerId: string | null;
   remoteProfile: Record<string, unknown> | null;
+  favoriteTrackIds: string[];
+  collections: StoredLibraryCollection[];
 };
 
 type StoredAccountSnapshot = {
@@ -30,6 +39,18 @@ let accountCache: Map<string, StoredAccountRecord> | null = null;
 function normalizeString(value: string | null | undefined): string | null {
   const trimmed = value?.trim();
   return trimmed && trimmed.length > 0 ? trimmed : null;
+}
+
+function isStoredLibraryCollection(value: unknown): value is StoredLibraryCollection {
+  if (value == null || typeof value !== "object") return false;
+  const collection = value as Partial<StoredLibraryCollection>;
+  return (
+    typeof collection.id === "string" &&
+    typeof collection.name === "string" &&
+    typeof collection.createdAt === "string" &&
+    Array.isArray(collection.trackIds) &&
+    collection.trackIds.every((trackId) => typeof trackId === "string")
+  );
 }
 
 function readAccountSnapshot(): Map<string, StoredAccountRecord> {
@@ -62,7 +83,12 @@ function isStoredAccountRecord(value: unknown): value is StoredAccountRecord {
     (typeof record.stripeCustomerId === "string" || record.stripeCustomerId === null) &&
     ((record.remoteProfile != null && typeof record.remoteProfile === "object") ||
       record.remoteProfile === null ||
-      record.remoteProfile === undefined)
+      record.remoteProfile === undefined) &&
+    (record.favoriteTrackIds === undefined ||
+      (Array.isArray(record.favoriteTrackIds) &&
+        record.favoriteTrackIds.every((trackId) => typeof trackId === "string"))) &&
+    (record.collections === undefined ||
+      (Array.isArray(record.collections) && record.collections.every(isStoredLibraryCollection)))
   );
 }
 
@@ -97,6 +123,8 @@ export function recordSignedInAccount(input: {
     lastSignedInAtUnixMs: input.signedInAtUnixMs,
     stripeCustomerId: existing?.stripeCustomerId ?? null,
     remoteProfile: existing?.remoteProfile ?? null,
+    favoriteTrackIds: existing?.favoriteTrackIds ?? [],
+    collections: existing?.collections ?? [],
   };
   cache.set(record.accountId, record);
   persistAccountCache(cache);
@@ -139,6 +167,49 @@ export function saveStoredRemoteProfile(
   const updated: StoredAccountRecord = {
     ...existing,
     remoteProfile: { ...remoteProfile },
+  };
+  cache.set(accountId, updated);
+  persistAccountCache(cache);
+  return updated;
+}
+
+export function getStoredFavoriteTrackIds(accountId: string): string[] {
+  return [...(getStoredAccount(accountId)?.favoriteTrackIds ?? [])];
+}
+
+export function saveStoredFavoriteTrackIds(
+  accountId: string,
+  favoriteTrackIds: string[],
+): StoredAccountRecord | null {
+  const cache = getAccountCache();
+  const existing = cache.get(accountId);
+  if (existing == null) return null;
+  const updated: StoredAccountRecord = {
+    ...existing,
+    favoriteTrackIds: [...favoriteTrackIds],
+  };
+  cache.set(accountId, updated);
+  persistAccountCache(cache);
+  return updated;
+}
+
+export function getStoredCollections(accountId: string): StoredLibraryCollection[] {
+  return [...(getStoredAccount(accountId)?.collections ?? [])];
+}
+
+export function saveStoredCollections(
+  accountId: string,
+  collections: StoredLibraryCollection[],
+): StoredAccountRecord | null {
+  const cache = getAccountCache();
+  const existing = cache.get(accountId);
+  if (existing == null) return null;
+  const updated: StoredAccountRecord = {
+    ...existing,
+    collections: collections.map((collection) => ({
+      ...collection,
+      trackIds: [...collection.trackIds],
+    })),
   };
   cache.set(accountId, updated);
   persistAccountCache(cache);

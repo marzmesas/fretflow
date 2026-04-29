@@ -37,6 +37,13 @@
     type MutationOwnership,
   } from "$lib/catalog/mutation-policies";
   import {
+    applyRemoteLibraryState,
+    buildLocalRemoteLibraryState,
+    loadRemoteLibraryState,
+    saveRemoteLibraryState,
+    type RemoteLibraryStateV1,
+  } from "$lib/catalog/remote-library";
+  import {
     getCatalogMigrationTarget,
     getCatalogSnapshot,
     invalidateCatalogSnapshot,
@@ -83,6 +90,11 @@
   let loadingRemoteProfile = $state(false);
   let savingRemoteProfile = $state(false);
   let remoteProfileWriteStatus = $state<string | null>(null);
+  let remoteLibrary = $state<RemoteLibraryStateV1 | null>(null);
+  let remoteLibraryError = $state<string | null>(null);
+  let remoteLibraryStatus = $state<string | null>(null);
+  let loadingRemoteLibrary = $state(false);
+  let savingRemoteLibrary = $state(false);
   const catalogMigrationTarget = getCatalogMigrationTarget();
   const catalogSnapshot = getCatalogSnapshot();
   const premiumPreviewTrackCount = catalogSnapshot.tracks.filter((track) => track.tier === "premium").length;
@@ -117,6 +129,7 @@
       error = null;
       refreshProfile(session, subscription);
       void refreshRemoteProfile();
+      void refreshRemoteLibrary();
     } catch (e) {
       session = null;
       error = e instanceof Error ? e.message : String(e);
@@ -138,6 +151,7 @@
       refreshProfile(session, subscription);
       void maybeSendScheduledAnalyticsNow();
       void refreshRemoteProfile();
+      void refreshRemoteLibrary();
     } catch (e) {
       subscription = null;
       subscriptionError = e instanceof Error ? e.message : String(e);
@@ -176,6 +190,7 @@
       authEmail = "";
       refreshProfile(session, subscription);
       void refreshRemoteProfile();
+      void refreshRemoteLibrary();
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
     } finally {
@@ -193,6 +208,7 @@
       refreshProfile(session, subscription);
       void maybeSendScheduledAnalyticsNow();
       void refreshRemoteProfile();
+      void refreshRemoteLibrary();
     } catch (e) {
       subscriptionError = e instanceof Error ? e.message : String(e);
     } finally {
@@ -212,6 +228,7 @@
       refreshProfile(session, subscription);
       void maybeSendScheduledAnalyticsNow();
       void refreshRemoteProfile();
+      void refreshRemoteLibrary();
     } catch (e) {
       subscriptionError = e instanceof Error ? e.message : String(e);
     } finally {
@@ -279,6 +296,69 @@
     } finally {
       savingRemoteProfile = false;
     }
+  }
+
+  async function refreshRemoteLibrary() {
+    if (!isTauri()) {
+      remoteLibrary = null;
+      return;
+    }
+    const apiBaseUrl = subscriptionApiBase.trim();
+    if (apiBaseUrl === "" || !session?.accountId || !session.email) {
+      remoteLibrary = null;
+      remoteLibraryError = null;
+      return;
+    }
+    loadingRemoteLibrary = true;
+    remoteLibraryError = null;
+    try {
+      remoteLibrary = await loadRemoteLibraryState({
+        apiBaseUrl,
+        accountId: session.accountId,
+        email: session.email,
+      });
+    } catch (e) {
+      remoteLibrary = null;
+      remoteLibraryError = e instanceof Error ? e.message : String(e);
+    } finally {
+      loadingRemoteLibrary = false;
+    }
+  }
+
+  async function saveRemoteLibraryNow() {
+    const apiBaseUrl = subscriptionApiBase.trim();
+    if (apiBaseUrl === "" || !session?.accountId || !session.email) {
+      remoteLibraryStatus = "Sign in with your email account and set a service URL before saving cloud library state.";
+      return;
+    }
+    savingRemoteLibrary = true;
+    remoteLibraryError = null;
+    remoteLibraryStatus = null;
+    try {
+      remoteLibrary = await saveRemoteLibraryState({
+        apiBaseUrl,
+        accountId: session.accountId,
+        email: session.email,
+        state: buildLocalRemoteLibraryState(),
+      });
+      remoteLibraryStatus = "Saved favorites and collections to the signed-in cloud library.";
+    } catch (e) {
+      remoteLibraryError = e instanceof Error ? e.message : String(e);
+    } finally {
+      savingRemoteLibrary = false;
+    }
+  }
+
+  function applyRemoteLibraryNow() {
+    if (remoteLibrary == null) {
+      remoteLibraryStatus = "Load cloud library state before applying it to this device.";
+      return;
+    }
+    const applied = applyRemoteLibraryState(remoteLibrary);
+    remoteLibrary = applied;
+    remoteLibraryStatus = `Applied ${applied.favorites.length} favorite${
+      applied.favorites.length === 1 ? "" : "s"
+    } and ${applied.collections.length} collection${applied.collections.length === 1 ? "" : "s"} to this device.`;
   }
 
   function getCurrentCatalogRollout() {
@@ -1174,7 +1254,7 @@
                     <p class="account-error">{remoteProfileError}</p>
                   {:else if remoteProfile}
                     <p class="muted">
-                      Preview source: <strong>{remoteProfile.seedSource === "frontend_preview" ? "Current device seed" : "Static mock seed"}</strong><br />
+                      Preview source: <strong>{remoteProfile.seedSource === "frontend_preview" ? "Current device seed" : remoteProfile.seedSource === "backend_persisted" ? "Saved cloud profile" : "Account seed"}</strong><br />
                       Online display name: <strong>{remoteProfile.fields.displayName ?? "Not set"}</strong><br />
                       Online practice goal: <strong>{remoteProfile.fields.practiceGoal ?? "Not set"}</strong><br />
                       Online seeded path: <strong>{remoteProfile.fields.recommendedPathId ?? "Not set"}</strong><br />
@@ -1182,6 +1262,56 @@
                     </p>
                   {:else}
                     <p class="muted">No online profile loaded yet. Set the service URL and refresh to preview `/api/v1/profile`.</p>
+                  {/if}
+                </div>
+              </div>
+
+              <div class="policy-group">
+                <div class="policy-item">
+                  <div class="policy-item__header">
+                    <strong>Cloud library state</strong>
+                    <div class="account-actions">
+                      <button
+                        type="button"
+                        class="btn"
+                        onclick={refreshRemoteLibrary}
+                        disabled={loadingRemoteLibrary || savingRemoteLibrary}
+                      >
+                        {loadingRemoteLibrary ? "Loading…" : "Load cloud library"}
+                      </button>
+                      <button
+                        type="button"
+                        class="btn"
+                        onclick={() => void saveRemoteLibraryNow()}
+                        disabled={savingRemoteLibrary || loadingRemoteLibrary}
+                      >
+                        {savingRemoteLibrary ? "Saving…" : "Save cloud library"}
+                      </button>
+                      <button
+                        type="button"
+                        class="btn"
+                        onclick={applyRemoteLibraryNow}
+                        disabled={remoteLibrary == null || loadingRemoteLibrary || savingRemoteLibrary}
+                      >
+                        Apply to this device
+                      </button>
+                    </div>
+                  </div>
+                  <p class="muted account-panel__intro">
+                    Favorites and collections are the first account-backed library fields. Saving pushes the current device state to the server; applying pulls the cloud snapshot back onto this device.
+                  </p>
+                  {#if remoteLibraryStatus}
+                    <p class="muted account-footnote">{remoteLibraryStatus}</p>
+                  {/if}
+                  {#if remoteLibraryError}
+                    <p class="account-error">{remoteLibraryError}</p>
+                  {:else if remoteLibrary}
+                    <p class="muted">
+                      Cloud favorites: <strong>{remoteLibrary.favorites.length}</strong><br />
+                      Cloud collections: <strong>{remoteLibrary.collections.length}</strong>
+                    </p>
+                  {:else}
+                    <p class="muted">No cloud library snapshot loaded yet.</p>
                   {/if}
                 </div>
               </div>

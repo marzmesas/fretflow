@@ -17,6 +17,10 @@ import {
   getCurrentUserProfilePayload,
   saveUserProfilePayload,
 } from "./profile.js";
+import {
+  getCurrentRemoteLibraryState,
+  saveRemoteLibraryState,
+} from "./library-state.js";
 
 const PORT = Number(process.env.PORT) || 8787;
 const MOCK_SUBSCRIPTION_STATUS = (process.env.MOCK_SUBSCRIPTION_STATUS ?? "none").toLowerCase();
@@ -85,6 +89,25 @@ app.put("/api/v1/profile", express.json({ limit: "32kb" }), (req, res) => {
   const payload = saveUserProfilePayload(req.body);
   if (payload == null) {
     return res.status(400).json({ error: "Invalid remote profile payload" });
+  }
+  return res.json(payload);
+});
+
+app.get("/api/v1/library-state", (req, res) => {
+  const payload = getCurrentRemoteLibraryState({
+    accountId: typeof req.query.accountId === "string" ? req.query.accountId : undefined,
+    email: typeof req.query.email === "string" ? req.query.email : undefined,
+  });
+  if (payload == null) {
+    return res.status(400).json({ error: "Invalid remote library identity" });
+  }
+  return res.json(payload);
+});
+
+app.put("/api/v1/library-state", express.json({ limit: "64kb" }), (req, res) => {
+  const payload = saveRemoteLibraryState(req.body);
+  if (payload == null) {
+    return res.status(400).json({ error: "Invalid remote library payload" });
   }
   return res.json(payload);
 });

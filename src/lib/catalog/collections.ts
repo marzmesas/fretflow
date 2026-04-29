@@ -27,15 +27,7 @@ function readRecord(): CollectionRecordV1 {
     }
     return {
       schemaVersion: 1,
-      collections: parsed.collections.filter(
-        (collection): collection is ChartCollectionV1 =>
-          collection != null &&
-          typeof collection === "object" &&
-          typeof collection.id === "string" &&
-          typeof collection.name === "string" &&
-          Array.isArray(collection.trackIds) &&
-          typeof collection.createdAt === "string",
-      ),
+      collections: parsed.collections.filter(isChartCollectionV1),
     };
   } catch {
     return { schemaVersion: 1, collections: [] };
@@ -55,8 +47,41 @@ function makeId(): string {
   return `collection-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+export function isChartCollectionV1(value: unknown): value is ChartCollectionV1 {
+  if (value == null || typeof value !== "object") return false;
+  const collection = value as Partial<ChartCollectionV1>;
+  return (
+    typeof collection.id === "string" &&
+    typeof collection.name === "string" &&
+    typeof collection.createdAt === "string" &&
+    Array.isArray(collection.trackIds) &&
+    collection.trackIds.every((trackId) => typeof trackId === "string")
+  );
+}
+
+function normalizeCollections(collections: ChartCollectionV1[]): ChartCollectionV1[] {
+  return collections
+    .filter(isChartCollectionV1)
+    .map((collection) => ({
+      id: collection.id.trim(),
+      name: collection.name.trim(),
+      createdAt: collection.createdAt,
+      trackIds: [...new Set(collection.trackIds.map((trackId) => trackId.trim()).filter((trackId) => trackId.length > 0))],
+    }))
+    .filter((collection) => collection.id !== "" && collection.name !== "");
+}
+
 export function getCollections(): ChartCollectionV1[] {
   return readRecord().collections;
+}
+
+export function replaceCollections(collections: ChartCollectionV1[]): ChartCollectionV1[] {
+  const next = normalizeCollections(collections);
+  writeRecord({
+    schemaVersion: 1,
+    collections: next,
+  });
+  return next;
 }
 
 export function createCollection(name: string): ChartCollectionV1[] {

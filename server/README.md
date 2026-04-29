@@ -17,6 +17,8 @@ npm run dev
 - Profile seed: `GET /api/v1/profile`
 - Profile seed preview: `POST /api/v1/profile/seed-preview`
 - Profile write scaffold: `PUT /api/v1/profile`
+- Library cloud state: `GET /api/v1/library-state`
+- Library cloud state write: `PUT /api/v1/library-state`
 - Analytics batch intake: `POST /api/v1/analytics/batch`
 - Stripe Checkout session scaffold: `POST /api/v1/billing/checkout-session`
 - Stripe Billing Portal / recovery scaffold: `POST /api/v1/billing/recovery-session`
@@ -60,6 +62,12 @@ npm run dev
 - validates the payload shape
 - stores the payload in the signed-in account record under `server/.data/accounts.json`
 - returns the normalized saved payload marked as `backend_persisted`
+
+`GET /api/v1/library-state` and `PUT /api/v1/library-state` are the first account-backed library sync scaffold:
+
+- require `accountId` and `email` from the signed-in desktop session
+- read and write favorites plus named collections
+- keep imported charts, presets, and saved loops on-device for now
 
 Set `MOCK_SUBSCRIPTION_STATUS=active` to simulate a paid plan while the real billing integration is built.
 Use `MOCK_VALID_UNTIL_DAYS=14` to preview trial ends, renewals, or cancellation windows in the desktop UI.

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   getFavoriteTrackIds,
+  replaceFavoriteTrackIds,
   removeFavoriteTrackId,
   toggleFavoriteTrackId,
 } from "./favorites";
@@ -45,5 +46,13 @@ describe("catalog favorites", () => {
     toggleFavoriteTrackId("track-b");
     expect(removeFavoriteTrackId("track-a")).toEqual(["track-b"]);
     expect(getFavoriteTrackIds()).toEqual(["track-b"]);
+  });
+
+  it("replaces favorites with a normalized list", () => {
+    expect(replaceFavoriteTrackIds([" track-a ", "track-b", "track-a", ""])).toEqual([
+      "track-a",
+      "track-b",
+    ]);
+    expect(getFavoriteTrackIds()).toEqual(["track-a", "track-b"]);
   });
 });
