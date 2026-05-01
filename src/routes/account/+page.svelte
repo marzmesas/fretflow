@@ -27,6 +27,13 @@
   import { getRemoteProfileRole } from "$lib/account/remote-profile-gate";
   import { getProfileWriteRollout } from "$lib/account/profile-write-rollout";
   import {
+    applyRemoteProgressState,
+    buildLocalRemoteProgressState,
+    loadRemoteProgressState,
+    saveRemoteProgressState,
+    type RemoteProgressStateV1,
+  } from "$lib/account/remote-progress";
+  import {
     listProfileFieldPoliciesByOwnership,
     type ProfileFieldPolicy,
     type ProfileFieldOwnership,
@@ -95,6 +102,11 @@
   let remoteLibraryStatus = $state<string | null>(null);
   let loadingRemoteLibrary = $state(false);
   let savingRemoteLibrary = $state(false);
+  let remoteProgress = $state<RemoteProgressStateV1 | null>(null);
+  let remoteProgressError = $state<string | null>(null);
+  let remoteProgressStatus = $state<string | null>(null);
+  let loadingRemoteProgress = $state(false);
+  let savingRemoteProgress = $state(false);
   const catalogMigrationTarget = getCatalogMigrationTarget();
   const catalogSnapshot = getCatalogSnapshot();
   const premiumPreviewTrackCount = catalogSnapshot.tracks.filter((track) => track.tier === "premium").length;
@@ -130,6 +142,7 @@
       refreshProfile(session, subscription);
       void refreshRemoteProfile();
       void refreshRemoteLibrary();
+      void refreshRemoteProgress();
     } catch (e) {
       session = null;
       error = e instanceof Error ? e.message : String(e);
@@ -152,6 +165,7 @@
       void maybeSendScheduledAnalyticsNow();
       void refreshRemoteProfile();
       void refreshRemoteLibrary();
+      void refreshRemoteProgress();
     } catch (e) {
       subscription = null;
       subscriptionError = e instanceof Error ? e.message : String(e);
@@ -191,6 +205,7 @@
       refreshProfile(session, subscription);
       void refreshRemoteProfile();
       void refreshRemoteLibrary();
+      void refreshRemoteProgress();
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
     } finally {
@@ -209,6 +224,7 @@
       void maybeSendScheduledAnalyticsNow();
       void refreshRemoteProfile();
       void refreshRemoteLibrary();
+      void refreshRemoteProgress();
     } catch (e) {
       subscriptionError = e instanceof Error ? e.message : String(e);
     } finally {
@@ -229,6 +245,7 @@
       void maybeSendScheduledAnalyticsNow();
       void refreshRemoteProfile();
       void refreshRemoteLibrary();
+      void refreshRemoteProgress();
     } catch (e) {
       subscriptionError = e instanceof Error ? e.message : String(e);
     } finally {
@@ -359,6 +376,71 @@
     remoteLibraryStatus = `Applied ${applied.favorites.length} favorite${
       applied.favorites.length === 1 ? "" : "s"
     } and ${applied.collections.length} collection${applied.collections.length === 1 ? "" : "s"} to this device.`;
+  }
+
+  async function refreshRemoteProgress() {
+    if (!isTauri()) {
+      remoteProgress = null;
+      return;
+    }
+    const apiBaseUrl = subscriptionApiBase.trim();
+    if (apiBaseUrl === "" || !session?.accountId || !session.email) {
+      remoteProgress = null;
+      remoteProgressError = null;
+      return;
+    }
+    loadingRemoteProgress = true;
+    remoteProgressError = null;
+    try {
+      remoteProgress = await loadRemoteProgressState({
+        apiBaseUrl,
+        accountId: session.accountId,
+        email: session.email,
+      });
+    } catch (e) {
+      remoteProgress = null;
+      remoteProgressError = e instanceof Error ? e.message : String(e);
+    } finally {
+      loadingRemoteProgress = false;
+    }
+  }
+
+  async function saveRemoteProgressNow() {
+    const apiBaseUrl = subscriptionApiBase.trim();
+    if (apiBaseUrl === "" || !session?.accountId || !session.email) {
+      remoteProgressStatus = "Sign in with your email account and set a service URL before saving cloud progress.";
+      return;
+    }
+    savingRemoteProgress = true;
+    remoteProgressError = null;
+    remoteProgressStatus = null;
+    try {
+      remoteProgress = await saveRemoteProgressState({
+        apiBaseUrl,
+        accountId: session.accountId,
+        email: session.email,
+        state: buildLocalRemoteProgressState(),
+      });
+      remoteProgressStatus = "Saved recent sessions and path progress to the signed-in cloud account.";
+    } catch (e) {
+      remoteProgressError = e instanceof Error ? e.message : String(e);
+    } finally {
+      savingRemoteProgress = false;
+    }
+  }
+
+  function applyRemoteProgressNow() {
+    if (remoteProgress == null) {
+      remoteProgressStatus = "Load cloud progress before applying it to this device.";
+      return;
+    }
+    const applied = applyRemoteProgressState(remoteProgress);
+    remoteProgress = applied;
+    remoteProgressStatus = `Applied ${applied.sessionHistory.length} session${
+      applied.sessionHistory.length === 1 ? "" : "s"
+    } and ${applied.learningPathProgress.length} path progress snapshot${
+      applied.learningPathProgress.length === 1 ? "" : "s"
+    } to this device.`;
   }
 
   function getCurrentCatalogRollout() {
@@ -1312,6 +1394,57 @@
                     </p>
                   {:else}
                     <p class="muted">No cloud library snapshot loaded yet.</p>
+                  {/if}
+                </div>
+              </div>
+
+              <div class="policy-group">
+                <div class="policy-item">
+                  <div class="policy-item__header">
+                    <strong>Cloud progress state</strong>
+                    <div class="account-actions">
+                      <button
+                        type="button"
+                        class="btn"
+                        onclick={refreshRemoteProgress}
+                        disabled={loadingRemoteProgress || savingRemoteProgress}
+                      >
+                        {loadingRemoteProgress ? "Loading…" : "Load cloud progress"}
+                      </button>
+                      <button
+                        type="button"
+                        class="btn"
+                        onclick={() => void saveRemoteProgressNow()}
+                        disabled={savingRemoteProgress || loadingRemoteProgress}
+                      >
+                        {savingRemoteProgress ? "Saving…" : "Save cloud progress"}
+                      </button>
+                      <button
+                        type="button"
+                        class="btn"
+                        onclick={applyRemoteProgressNow}
+                        disabled={remoteProgress == null || loadingRemoteProgress || savingRemoteProgress}
+                      >
+                        Apply to this device
+                      </button>
+                    </div>
+                  </div>
+                  <p class="muted account-panel__intro">
+                    Practice history and guided path progress are the first cloud continuity layer after profile and library state. This keeps cross-device momentum visible without yet moving every practice preset online.
+                  </p>
+                  {#if remoteProgressStatus}
+                    <p class="muted account-footnote">{remoteProgressStatus}</p>
+                  {/if}
+                  {#if remoteProgressError}
+                    <p class="account-error">{remoteProgressError}</p>
+                  {:else if remoteProgress}
+                    <p class="muted">
+                      Cloud sessions: <strong>{remoteProgress.sessionHistory.length}</strong><br />
+                      Cloud path summaries: <strong>{remoteProgress.learningPathProgress.length}</strong><br />
+                      Last cloud update: <strong>{remoteProgress.lastUpdatedAt === new Date(0).toISOString() ? "Never" : new Date(remoteProgress.lastUpdatedAt).toLocaleString()}</strong>
+                    </p>
+                  {:else}
+                    <p class="muted">No cloud progress snapshot loaded yet.</p>
                   {/if}
                 </div>
               </div>

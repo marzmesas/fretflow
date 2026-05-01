@@ -18,6 +18,33 @@ export type SessionSummaryV1 = {
   inputSource?: string;
 };
 
+function isSessionSummaryV1(value: unknown): value is SessionSummaryV1 {
+  if (value == null || typeof value !== "object") return false;
+  const session = value as Partial<SessionSummaryV1>;
+  return (
+    session.schemaVersion === 1 &&
+    typeof session.at === "string" &&
+    typeof session.chartTitle === "string" &&
+    (typeof session.practiceTrackId === "string" ||
+      session.practiceTrackId === null ||
+      session.practiceTrackId === undefined) &&
+    typeof session.scoringMode === "string" &&
+    typeof session.hits === "number" &&
+    typeof session.misses === "number" &&
+    typeof session.accuracyPercent === "number" &&
+    typeof session.maxCombo === "number" &&
+    (typeof session.totalNotes === "number" || session.totalNotes === undefined) &&
+    (typeof session.inputSource === "string" || session.inputSource === undefined)
+  );
+}
+
+function normalizeSessionHistory(history: SessionSummaryV1[]): SessionSummaryV1[] {
+  return history
+    .filter(isSessionSummaryV1)
+    .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
+    .slice(0, MAX_HISTORY);
+}
+
 export function saveLastSession(summary: SessionSummaryV1): void {
   try {
     localStorage.setItem(LAST_KEY, JSON.stringify(summary));
@@ -43,8 +70,7 @@ function appendSessionHistory(summary: SessionSummaryV1): void {
   try {
     const history = loadSessionHistory();
     history.unshift(summary);
-    if (history.length > MAX_HISTORY) history.length = MAX_HISTORY;
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(normalizeSessionHistory(history)));
   } catch {
     /* quota / private mode */
   }
@@ -56,15 +82,25 @@ export function loadSessionHistory(): SessionSummaryV1[] {
     if (!raw) return [];
     const arr = JSON.parse(raw);
     if (!Array.isArray(arr)) return [];
-    return arr.filter(
-      (o: unknown) =>
-        o != null &&
-        typeof o === "object" &&
-        (o as SessionSummaryV1).schemaVersion === 1,
-    ) as SessionSummaryV1[];
+    return normalizeSessionHistory(arr as SessionSummaryV1[]);
   } catch {
     return [];
   }
+}
+
+export function replaceSessionHistory(history: SessionSummaryV1[]): SessionSummaryV1[] {
+  const next = normalizeSessionHistory(history);
+  try {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+    if (next[0] != null) {
+      localStorage.setItem(LAST_KEY, JSON.stringify(next[0]));
+    } else {
+      localStorage.removeItem(LAST_KEY);
+    }
+  } catch {
+    /* ignore */
+  }
+  return next;
 }
 
 export function clearSessionHistory(): void {

@@ -5,6 +5,7 @@ import {
   getPracticeRecommendation,
   getRecentSessions,
   getSessionStats,
+  replaceSessionHistory,
   type SessionSummaryV1,
 } from "./session-storage";
 
@@ -85,5 +86,31 @@ describe("session-storage", () => {
 
   it("returns a deduplicated recent session list by track id", () => {
     expect(getRecentSessions(HISTORY, 4)).toEqual([HISTORY[0], HISTORY[2]]);
+  });
+
+  it("replaces local session history with a normalized sorted snapshot", () => {
+    const store = new Map<string, string>();
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: globalThis,
+    });
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: {
+        getItem(key: string) {
+          return store.get(key) ?? null;
+        },
+        setItem(key: string, value: string) {
+          store.set(key, value);
+        },
+        removeItem(key: string) {
+          store.delete(key);
+        },
+      },
+    });
+
+    const next = replaceSessionHistory([HISTORY[2]!, HISTORY[0]!, HISTORY[1]!]);
+    expect(next).toEqual(HISTORY);
+    expect(JSON.parse(store.get("fretflow.lastSession.v1") ?? "null")).toEqual(HISTORY[0]);
   });
 });
