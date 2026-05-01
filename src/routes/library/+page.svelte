@@ -7,6 +7,8 @@
     CONTENT_PACK_OFFERS,
     describeTrackPremiumAccess,
   } from "$lib/account/plan-offers";
+  import { loadRemoteProgressState } from "$lib/account/remote-progress";
+  import { getRemoteProgressSurfaceRollout } from "$lib/account/remote-progress-surface-rollout";
   import { getSubscriptionLifecycle } from "$lib/account/subscription-lifecycle";
   import {
     findCatalogTrackById,
@@ -64,6 +66,7 @@
   const initialHistory = loadSessionHistory();
   let latestSessionByTrackId = $state<Record<string, SessionSummaryV1>>(getLatestSessionsByTrackId(initialHistory));
   let recommendedTracks = $state<RecommendedTrack[]>(getRecommendedTracks(initialHistory, 3));
+  let progressSource = $state<"local" | "cloud">("local");
   let collections = $state<ChartCollectionV1[]>(initialCollections);
   let subscription = $state<SubscriptionState | null>(null);
   let activeCollectionId = $state<string | null>(initialCollections[0]?.id ?? null);
@@ -190,6 +193,16 @@
 
   function setActiveTechniqueTag(next: CatalogTechniqueTag | null) {
     updateLibraryUrl({ techniqueTag: next });
+  }
+
+  function applyHistorySurface(history: SessionSummaryV1[], source: "local" | "cloud"): void {
+    latestSessionByTrackId = getLatestSessionsByTrackId(history);
+    recommendedTracks = getRecommendedTracks(
+      history,
+      3,
+      catalogTracks.filter((track) => track.practiceChartKey === "bundled"),
+    );
+    progressSource = source;
   }
 
   const filtered = $derived.by(() => {
@@ -389,6 +402,7 @@
 
   onMount(() => {
     void (async () => {
+      applyHistorySurface(initialHistory, "local");
       const snapshot = await loadCatalogSnapshot();
       catalogTracks = snapshot.tracks;
       skillTags = snapshot.skillTags;
@@ -427,6 +441,24 @@
       catalogSourceMode = refreshedSnapshot.sourceMode;
       catalogMigrationLabel = refreshedSnapshot.migrationTarget.label;
       onlinePremiumPlayable = refreshedSnapshot.migrationTarget.includesPlayablePremiumTracks;
+      const progressRollout = getRemoteProgressSurfaceRollout({
+        apiBaseUrl: subscription?.apiBaseUrl ?? "",
+        remoteProfileRole: getRemoteProfileRole(session),
+      });
+      if (!progressRollout.ready || session?.accountId == null || session.email == null) {
+        applyHistorySurface(loadSessionHistory(), "local");
+        return;
+      }
+      try {
+        const remoteProgress = await loadRemoteProgressState({
+          apiBaseUrl: subscription?.apiBaseUrl ?? "",
+          accountId: session.accountId,
+          email: session.email,
+        });
+        applyHistorySurface(remoteProgress.sessionHistory, "cloud");
+      } catch {
+        applyHistorySurface(loadSessionHistory(), "local");
+      }
     })();
   });
 
@@ -596,7 +628,10 @@
       <div class="recommended-strip__header">
         <div>
           <h3>Suggested for you</h3>
-          <p class="muted">Quick picks based on your recent bundled-chart runs.</p>
+          <p class="muted">
+            Quick picks based on your recent bundled-chart runs.
+            {progressSource === "cloud" ? " Using cloud progress." : " Using this device's local history."}
+          </p>
         </div>
       </div>
       <div class="recommended-strip__grid">

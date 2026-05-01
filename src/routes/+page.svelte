@@ -4,8 +4,10 @@
   import { invoke } from "@tauri-apps/api/core";
   import type { AppInfo, AppSession, SubscriptionState } from "$lib/ipc";
   import { loadRemoteUserProfile, type RemoteUserProfileV1 } from "$lib/account/remote-profile";
+  import { loadRemoteProgressState } from "$lib/account/remote-progress";
   import { getRemoteProfileRole } from "$lib/account/remote-profile-gate";
   import { getRemoteProfileSurfaceRollout } from "$lib/account/remote-profile-surface-rollout";
+  import { getRemoteProgressSurfaceRollout } from "$lib/account/remote-progress-surface-rollout";
   import {
     findTrackInSnapshot,
     loadActiveCatalogSnapshot,
@@ -46,6 +48,7 @@
   let learningPaths = $state<LearningPathProgress[]>([]);
   let practiceGoals = $state<PracticeGoalsSnapshot>(toPracticeGoalsSnapshot(loadPracticeGoals()));
   let remoteProfile = $state<RemoteUserProfileV1 | null>(null);
+  let progressSource = $state<"local" | "cloud">("local");
   let catalogSnapshot = $state<CatalogSnapshot>(getCatalogSnapshot());
   let assessmentExperience = $state<OnboardingExperienceLevel>("brand_new");
   let assessmentGoal = $state<OnboardingPracticeGoal>("fundamentals");
@@ -69,14 +72,13 @@
     },
   };
 
-  function refreshHomeState() {
+  function refreshHomeState(history: SessionSummaryV1[] = loadSessionHistory()) {
     onboarding = getOnboardingSnapshot();
     if (onboarding.assessment) {
       assessmentExperience = onboarding.assessment.experienceLevel;
       assessmentGoal = onboarding.assessment.practiceGoal;
     }
-    lastSession = loadLastSession();
-    const history = loadSessionHistory();
+    lastSession = history[0] ?? loadLastSession();
     recentSessions = getRecentSessions(history, 4);
     recommendedTracks = getRecommendedTracks(history, 3, catalogSnapshot.playableBundledTracks);
     learningPaths = getLearningPathProgress(history);
@@ -220,10 +222,39 @@
     }
   }
 
+  async function refreshProgressSurfaceState() {
+    const localHistory = loadSessionHistory();
+    progressSource = "local";
+    if (!isTauri()) {
+      refreshHomeState(localHistory);
+      return;
+    }
+    try {
+      const session = await invoke<AppSession>("get_session");
+      const subscription = await invoke<SubscriptionState>("get_subscription_state");
+      const rollout = getRemoteProgressSurfaceRollout({
+        apiBaseUrl: subscription.apiBaseUrl,
+        remoteProfileRole: getRemoteProfileRole(session),
+      });
+      if (!rollout.ready) {
+        refreshHomeState(localHistory);
+        return;
+      }
+      const remoteProgress = await loadRemoteProgressState({
+        apiBaseUrl: subscription.apiBaseUrl,
+        accountId: session.accountId ?? "",
+        email: session.email ?? "",
+      });
+      progressSource = "cloud";
+      refreshHomeState(remoteProgress.sessionHistory);
+    } catch {
+      refreshHomeState(localHistory);
+    }
+  }
+
   async function refreshActiveCatalogSnapshot() {
     if (!isTauri()) {
       catalogSnapshot = getCatalogSnapshot();
-      refreshHomeState();
       return;
     }
     try {
@@ -235,8 +266,6 @@
       });
     } catch {
       catalogSnapshot = getCatalogSnapshot();
-    } finally {
-      refreshHomeState();
     }
   }
 
@@ -251,14 +280,18 @@
       appInfo = await invoke<AppInfo>("get_app_info");
       await refreshActiveCatalogSnapshot();
       await refreshRemoteSurfaceProfile();
+      await refreshProgressSurfaceState();
     } catch (e) {
       loadError = String(e);
     }
   });
 
   afterNavigate(() => {
-    void refreshActiveCatalogSnapshot();
-    void refreshRemoteSurfaceProfile();
+    void (async () => {
+      await refreshActiveCatalogSnapshot();
+      await refreshRemoteSurfaceProfile();
+      await refreshProgressSurfaceState();
+    })();
   });
 </script>
 
@@ -288,7 +321,9 @@
         <span class="ff-page-hero__stat-label">Recent runs</span>
         <strong>{recentSessions.length > 0 ? `${recentSessions.length} charts tracked` : "No sessions yet"}</strong>
         <span class="home-hero__stat-detail">
-          {recentSessions.length > 0 ? "Resume from the queue or pivot into a recommendation." : "Complete one full run to seed your queue."}
+          {recentSessions.length > 0
+            ? `Resume from the queue or pivot into a recommendation. Source: ${progressSource === "cloud" ? "cloud progress" : "this device"}.`
+            : "Complete one full run to seed your queue."}
         </span>
       </div>
       <div class="ff-page-hero__stat">
