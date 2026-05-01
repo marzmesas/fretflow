@@ -19,6 +19,8 @@ npm run dev
 - Profile write scaffold: `PUT /api/v1/profile`
 - Library cloud state: `GET /api/v1/library-state`
 - Library cloud state write: `PUT /api/v1/library-state`
+- Progress cloud state: `GET /api/v1/progress-state`
+- Progress cloud state write: `PUT /api/v1/progress-state`
 - Analytics batch intake: `POST /api/v1/analytics/batch`
 - Stripe Checkout session scaffold: `POST /api/v1/billing/checkout-session`
 - Stripe Billing Portal / recovery scaffold: `POST /api/v1/billing/recovery-session`
@@ -68,6 +70,12 @@ npm run dev
 - require `accountId` and `email` from the signed-in desktop session
 - read and write favorites plus named collections
 - keep imported charts, presets, and saved loops on-device for now
+
+`GET /api/v1/progress-state` and `PUT /api/v1/progress-state` are the first account-backed progress sync scaffold:
+
+- require `accountId` and `email` from the signed-in desktop session
+- read and write recent session history plus learning-path progress summaries
+- keep per-device presets, saved loops, and calibration state local for now
 
 Set `MOCK_SUBSCRIPTION_STATUS=active` to simulate a paid plan while the real billing integration is built.
 Use `MOCK_VALID_UNTIL_DAYS=14` to preview trial ends, renewals, or cancellation windows in the desktop UI.

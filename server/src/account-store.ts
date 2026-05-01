@@ -19,6 +19,7 @@ export type StoredAccountRecord = {
   remoteProfile: Record<string, unknown> | null;
   favoriteTrackIds: string[];
   collections: StoredLibraryCollection[];
+  remoteProgress: Record<string, unknown> | null;
 };
 
 type StoredAccountSnapshot = {
@@ -88,7 +89,10 @@ function isStoredAccountRecord(value: unknown): value is StoredAccountRecord {
       (Array.isArray(record.favoriteTrackIds) &&
         record.favoriteTrackIds.every((trackId) => typeof trackId === "string"))) &&
     (record.collections === undefined ||
-      (Array.isArray(record.collections) && record.collections.every(isStoredLibraryCollection)))
+      (Array.isArray(record.collections) && record.collections.every(isStoredLibraryCollection))) &&
+    ((record.remoteProgress != null && typeof record.remoteProgress === "object") ||
+      record.remoteProgress === null ||
+      record.remoteProgress === undefined)
   );
 }
 
@@ -125,6 +129,7 @@ export function recordSignedInAccount(input: {
     remoteProfile: existing?.remoteProfile ?? null,
     favoriteTrackIds: existing?.favoriteTrackIds ?? [],
     collections: existing?.collections ?? [],
+    remoteProgress: existing?.remoteProgress ?? null,
   };
   cache.set(record.accountId, record);
   persistAccountCache(cache);
@@ -210,6 +215,26 @@ export function saveStoredCollections(
       ...collection,
       trackIds: [...collection.trackIds],
     })),
+  };
+  cache.set(accountId, updated);
+  persistAccountCache(cache);
+  return updated;
+}
+
+export function getStoredRemoteProgress(accountId: string): Record<string, unknown> | null {
+  return getStoredAccount(accountId)?.remoteProgress ?? null;
+}
+
+export function saveStoredRemoteProgress(
+  accountId: string,
+  remoteProgress: Record<string, unknown>,
+): StoredAccountRecord | null {
+  const cache = getAccountCache();
+  const existing = cache.get(accountId);
+  if (existing == null) return null;
+  const updated: StoredAccountRecord = {
+    ...existing,
+    remoteProgress: { ...remoteProgress },
   };
   cache.set(accountId, updated);
   persistAccountCache(cache);
