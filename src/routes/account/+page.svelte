@@ -27,6 +27,10 @@
   import { getRemoteProfileRole } from "$lib/account/remote-profile-gate";
   import { getProfileWriteRollout } from "$lib/account/profile-write-rollout";
   import {
+    compareRemoteProgressStates,
+    mergeRemoteProgressStates,
+  } from "$lib/account/remote-progress-conflicts";
+  import {
     applyRemoteProgressState,
     buildLocalRemoteProgressState,
     loadRemoteProgressState,
@@ -107,6 +111,12 @@
   let remoteProgressStatus = $state<string | null>(null);
   let loadingRemoteProgress = $state(false);
   let savingRemoteProgress = $state(false);
+  const localProgressSnapshot = $derived(buildLocalRemoteProgressState());
+  const progressConflict = $derived(
+    remoteProgress == null
+      ? null
+      : compareRemoteProgressStates(localProgressSnapshot, remoteProgress),
+  );
   const catalogMigrationTarget = getCatalogMigrationTarget();
   const catalogSnapshot = getCatalogSnapshot();
   const premiumPreviewTrackCount = catalogSnapshot.tracks.filter((track) => track.tier === "premium").length;
@@ -441,6 +451,39 @@
     } and ${applied.learningPathProgress.length} path progress snapshot${
       applied.learningPathProgress.length === 1 ? "" : "s"
     } to this device.`;
+  }
+
+  async function mergeRemoteProgressNow() {
+    const apiBaseUrl = subscriptionApiBase.trim();
+    if (remoteProgress == null) {
+      remoteProgressStatus = "Load cloud progress before merging.";
+      return;
+    }
+    if (apiBaseUrl === "" || !session?.accountId || !session.email) {
+      remoteProgressStatus = "Sign in with your email account and set a service URL before merging cloud progress.";
+      return;
+    }
+    savingRemoteProgress = true;
+    remoteProgressError = null;
+    remoteProgressStatus = null;
+    try {
+      const mergedState = mergeRemoteProgressStates(localProgressSnapshot, remoteProgress);
+      const savedState = await saveRemoteProgressState({
+        apiBaseUrl,
+        accountId: session.accountId,
+        email: session.email,
+        state: mergedState,
+      });
+      const applied = applyRemoteProgressState(savedState);
+      remoteProgress = savedState;
+      remoteProgressStatus = `Merged local and cloud progress into ${applied.sessionHistory.length} total session${
+        applied.sessionHistory.length === 1 ? "" : "s"
+      } and saved the unified snapshot online.`;
+    } catch (e) {
+      remoteProgressError = e instanceof Error ? e.message : String(e);
+    } finally {
+      savingRemoteProgress = false;
+    }
   }
 
   function getCurrentCatalogRollout() {
@@ -1422,6 +1465,14 @@
                       <button
                         type="button"
                         class="btn"
+                        onclick={() => void mergeRemoteProgressNow()}
+                        disabled={remoteProgress == null || savingRemoteProgress || loadingRemoteProgress}
+                      >
+                        {savingRemoteProgress ? "Saving…" : "Merge and save"}
+                      </button>
+                      <button
+                        type="button"
+                        class="btn"
                         onclick={applyRemoteProgressNow}
                         disabled={remoteProgress == null || loadingRemoteProgress || savingRemoteProgress}
                       >
@@ -1438,6 +1489,18 @@
                   {#if remoteProgressError}
                     <p class="account-error">{remoteProgressError}</p>
                   {:else if remoteProgress}
+                    {#if progressConflict}
+                      <p class="muted account-footnote">
+                        <strong>{progressConflict.summary}</strong><br />
+                        {progressConflict.detail}
+                      </p>
+                      <p class="muted account-footnote">
+                        Local sessions: <strong>{progressConflict.localSessionCount}</strong>
+                        · Cloud sessions: <strong>{progressConflict.remoteSessionCount}</strong>
+                        · Local only: <strong>{progressConflict.localOnlySessions}</strong>
+                        · Cloud only: <strong>{progressConflict.remoteOnlySessions}</strong>
+                      </p>
+                    {/if}
                     <p class="muted">
                       Cloud sessions: <strong>{remoteProgress.sessionHistory.length}</strong><br />
                       Cloud path summaries: <strong>{remoteProgress.learningPathProgress.length}</strong><br />
