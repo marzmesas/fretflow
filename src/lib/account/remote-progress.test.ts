@@ -63,6 +63,7 @@ describe("remote progress state", () => {
 
   it("builds a cloud progress snapshot from local history", () => {
     const state = buildLocalRemoteProgressState(history);
+    expect(state.revision).toBe(0);
     expect(state.sessionHistory).toEqual(history);
     expect(state.learningPathProgress[0]?.pathId).toBe("starter");
     expect(state.learningPathProgress[0]?.completedSteps).toBe(1);
@@ -71,12 +72,14 @@ describe("remote progress state", () => {
   it("applies cloud progress onto local storage and recomputes path progress", () => {
     const state = applyRemoteProgressState({
       schemaVersion: 1,
+      revision: 3,
       lastUpdatedAt: "2026-04-29T11:00:00.000Z",
       sessionHistory: [...history].reverse(),
       learningPathProgress: [],
     });
 
     expect(state.sessionHistory[0]?.practiceTrackId).toBe("bundled-one-note");
+    expect(state.revision).toBe(3);
     expect(state.learningPathProgress[0]?.pathId).toBe("starter");
     expect(JSON.parse(store.get("fretflow.lastSession.v1") ?? "null")?.practiceTrackId).toBe(
       "bundled-one-note",
@@ -88,6 +91,7 @@ describe("remote progress state", () => {
       ok: true,
       json: async () => ({
         schemaVersion: 1,
+        revision: 4,
         lastUpdatedAt: "2026-04-29T11:00:00.000Z",
         sessionHistory: history,
         learningPathProgress: [],
@@ -112,6 +116,7 @@ describe("remote progress state", () => {
       ok: true,
       json: async () => ({
         schemaVersion: 1,
+        revision: 4,
         lastUpdatedAt: "2026-04-29T11:00:00.000Z",
         sessionHistory: history,
         learningPathProgress: [],
@@ -124,6 +129,7 @@ describe("remote progress state", () => {
       email: "player@example.com",
       state: {
         schemaVersion: 1,
+        revision: 0,
         lastUpdatedAt: "2026-04-29T11:00:00.000Z",
         sessionHistory: history,
         learningPathProgress: [],
@@ -140,6 +146,7 @@ describe("remote progress state", () => {
           email: "player@example.com",
           state: {
             schemaVersion: 1,
+            revision: 0,
             lastUpdatedAt: "2026-04-29T11:00:00.000Z",
             sessionHistory: history,
             learningPathProgress: [],

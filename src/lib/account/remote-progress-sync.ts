@@ -3,6 +3,7 @@ import { compareRemoteProgressStates, mergeRemoteProgressStates } from "./remote
 import {
   buildLocalRemoteProgressState,
   loadRemoteProgressState,
+  RemoteProgressWriteConflictError,
   saveRemoteProgressState,
   type RemoteProgressStateV1,
 } from "./remote-progress";
@@ -67,13 +68,28 @@ export async function syncRemoteProgressAfterPracticeSession(
       ? localState
       : mergeRemoteProgressStates(localState, remoteState);
 
-  const savedState = await saveRemoteProgressState({
-    apiBaseUrl: subscription?.apiBaseUrl ?? "",
-    accountId: session.accountId,
-    email: session.email,
-    state: nextState,
-    fetchImpl: input.fetchImpl,
-  });
+  let savedState: RemoteProgressStateV1;
+  try {
+    savedState = await saveRemoteProgressState({
+      apiBaseUrl: subscription?.apiBaseUrl ?? "",
+      accountId: session.accountId,
+      email: session.email,
+      state: nextState,
+      fetchImpl: input.fetchImpl,
+    });
+  } catch (error) {
+    if (!(error instanceof RemoteProgressWriteConflictError)) {
+      throw error;
+    }
+    const mergedRetryState = mergeRemoteProgressStates(nextState, error.currentState);
+    savedState = await saveRemoteProgressState({
+      apiBaseUrl: subscription?.apiBaseUrl ?? "",
+      accountId: session.accountId,
+      email: session.email,
+      state: mergedRetryState,
+      fetchImpl: input.fetchImpl,
+    });
+  }
 
   return {
     status: "synced",

@@ -167,5 +167,9 @@ export function mergeRemoteProgressStates(
     ...localState.sessionHistory,
     ...remoteState.sessionHistory,
   ]).sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
-  return buildRemoteProgressStateFromHistory(mergedSessions);
+  return buildRemoteProgressStateFromHistory(
+    mergedSessions,
+    new Date().toISOString(),
+    Math.max(localState.revision, remoteState.revision),
+  );
 }

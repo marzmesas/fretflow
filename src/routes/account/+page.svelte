@@ -30,6 +30,7 @@
     compareRemoteProgressStates,
     mergeRemoteProgressStates,
   } from "$lib/account/remote-progress-conflicts";
+  import { getPracticeProgressSourcePolicy } from "$lib/account/remote-progress-practice-policy";
   import {
     applyRemoteProgressState,
     buildLocalRemoteProgressState,
@@ -116,6 +117,12 @@
     remoteProgress == null
       ? null
       : compareRemoteProgressStates(localProgressSnapshot, remoteProgress),
+  );
+  const practiceProgressPolicy = $derived(
+    getPracticeProgressSourcePolicy({
+      apiBaseUrl: subscription?.apiBaseUrl ?? "",
+      remoteProfileRole: getRemoteProfileRole(session),
+    }),
   );
   const catalogMigrationTarget = getCatalogMigrationTarget();
   const catalogSnapshot = getCatalogSnapshot();
@@ -1483,6 +1490,10 @@
                   <p class="muted account-panel__intro">
                     Practice history and guided path progress are the first cloud continuity layer after profile and library state. This keeps cross-device momentum visible without yet moving every practice preset online.
                   </p>
+                  <p class="muted account-footnote">
+                    <strong>{practiceProgressPolicy.summary}</strong><br />
+                    {practiceProgressPolicy.detail}
+                  </p>
                   {#if remoteProgressStatus}
                     <p class="muted account-footnote">{remoteProgressStatus}</p>
                   {/if}
@@ -1504,6 +1515,7 @@
                     <p class="muted">
                       Cloud sessions: <strong>{remoteProgress.sessionHistory.length}</strong><br />
                       Cloud path summaries: <strong>{remoteProgress.learningPathProgress.length}</strong><br />
+                      Cloud revision: <strong>{remoteProgress.revision}</strong><br />
                       Last cloud update: <strong>{remoteProgress.lastUpdatedAt === new Date(0).toISOString() ? "Never" : new Date(remoteProgress.lastUpdatedAt).toLocaleString()}</strong>
                     </p>
                   {:else}

@@ -39,10 +39,21 @@ export type RemoteSessionSummaryV1 = {
 
 export type RemoteProgressStateV1 = {
   schemaVersion: 1;
+  revision: number;
   lastUpdatedAt: string;
   sessionHistory: RemoteSessionSummaryV1[];
   learningPathProgress: RemoteLearningPathProgressSummaryV1[];
 };
+
+export type SaveRemoteProgressStateResult =
+  | {
+      status: "saved";
+      state: RemoteProgressStateV1;
+    }
+  | {
+      status: "conflict";
+      currentState: RemoteProgressStateV1;
+    };
 
 function normalizeEmail(email: string | null | undefined): string {
   return email?.trim().toLowerCase() ?? "";
@@ -108,6 +119,7 @@ export function isRemoteProgressStatePayload(value: unknown): value is RemotePro
   const payload = value as Partial<RemoteProgressStateV1>;
   return (
     payload.schemaVersion === 1 &&
+    typeof payload.revision === "number" &&
     typeof payload.lastUpdatedAt === "string" &&
     Array.isArray(payload.sessionHistory) &&
     payload.sessionHistory.every(isRemoteSessionSummary) &&
@@ -151,6 +163,7 @@ function normalizeLearningPathProgress(
 function emptyRemoteProgressState(): RemoteProgressStateV1 {
   return {
     schemaVersion: 1,
+    revision: 0,
     lastUpdatedAt: new Date(0).toISOString(),
     sessionHistory: [],
     learningPathProgress: [],
@@ -166,6 +179,7 @@ export function getCurrentRemoteProgressState(identity: RemoteProgressIdentity):
   if (persisted != null && isRemoteProgressStatePayload(persisted)) {
     return {
       schemaVersion: 1,
+      revision: persisted.revision,
       lastUpdatedAt: persisted.lastUpdatedAt,
       sessionHistory: normalizeSessionHistory(persisted.sessionHistory),
       learningPathProgress: normalizeLearningPathProgress(persisted.learningPathProgress),
@@ -174,7 +188,7 @@ export function getCurrentRemoteProgressState(identity: RemoteProgressIdentity):
   return emptyRemoteProgressState();
 }
 
-export function saveRemoteProgressState(request: unknown): RemoteProgressStateV1 | null {
+export function saveRemoteProgressState(request: unknown): SaveRemoteProgressStateResult | null {
   if (request == null || typeof request !== "object") {
     return null;
   }
@@ -183,12 +197,23 @@ export function saveRemoteProgressState(request: unknown): RemoteProgressStateV1
   if (account == null || !isRemoteProgressStatePayload(payload.state)) {
     return null;
   }
+  const currentState = getCurrentRemoteProgressState(payload) ?? emptyRemoteProgressState();
+  if (payload.state.revision !== currentState.revision) {
+    return {
+      status: "conflict",
+      currentState,
+    };
+  }
   const persistedState: RemoteProgressStateV1 = {
     schemaVersion: 1,
+    revision: currentState.revision + 1,
     lastUpdatedAt: payload.state.lastUpdatedAt,
     sessionHistory: normalizeSessionHistory(payload.state.sessionHistory),
     learningPathProgress: normalizeLearningPathProgress(payload.state.learningPathProgress),
   };
   saveStoredRemoteProgress(account.accountId, persistedState as Record<string, unknown>);
-  return persistedState;
+  return {
+    status: "saved",
+    state: persistedState,
+  };
 }

@@ -132,7 +132,10 @@ app.put("/api/v1/progress-state", express.json({ limit: "256kb" }), (req, res) =
   if (payload == null) {
     return res.status(400).json({ error: "Invalid remote progress payload" });
   }
-  return res.json(payload);
+  if (payload.status === "conflict") {
+    return res.status(409).json(payload.currentState);
+  }
+  return res.json(payload.state);
 });
 
 app.post("/api/v1/analytics/batch", express.json({ limit: "256kb" }), (req, res) => {

@@ -21,6 +21,7 @@ export type RemoteLearningPathProgressSummaryV1 = {
 
 export type RemoteProgressStateV1 = {
   schemaVersion: 1;
+  revision: number;
   lastUpdatedAt: string;
   sessionHistory: SessionSummaryV1[];
   learningPathProgress: RemoteLearningPathProgressSummaryV1[];
@@ -43,6 +44,16 @@ export type SaveRemoteProgressStateOptions = RemoteProgressApiOptions &
   RemoteProgressIdentity & {
     state: RemoteProgressStateV1;
   };
+
+export class RemoteProgressWriteConflictError extends Error {
+  readonly currentState: RemoteProgressStateV1;
+
+  constructor(currentState: RemoteProgressStateV1) {
+    super("remote progress write conflict");
+    this.name = "RemoteProgressWriteConflictError";
+    this.currentState = currentState;
+  }
+}
 
 function normalizeApiBaseUrl(apiBaseUrl: string): string {
   const normalized = apiBaseUrl.trim().replace(/\/+$/, "");
@@ -118,6 +129,7 @@ export function isRemoteProgressState(value: unknown): value is RemoteProgressSt
   const state = value as Partial<RemoteProgressStateV1>;
   return (
     state.schemaVersion === 1 &&
+    typeof state.revision === "number" &&
     typeof state.lastUpdatedAt === "string" &&
     Array.isArray(state.sessionHistory) &&
     state.sessionHistory.every(isSessionSummary) &&
@@ -143,10 +155,12 @@ function summarizeLearningPathProgress(
 export function buildRemoteProgressStateFromHistory(
   history: SessionSummaryV1[],
   lastUpdatedAt = new Date().toISOString(),
+  revision = 0,
 ): RemoteProgressStateV1 {
   const sessionHistory = normalizeSessionHistory(history);
   return {
     schemaVersion: 1,
+    revision,
     lastUpdatedAt,
     sessionHistory,
     learningPathProgress: summarizeLearningPathProgress(getLearningPathProgress(sessionHistory)),
@@ -165,6 +179,7 @@ export function applyRemoteProgressState(
   const normalizedHistory = replaceSessionHistory(state.sessionHistory);
   return {
     schemaVersion: 1,
+    revision: state.revision,
     lastUpdatedAt: state.lastUpdatedAt,
     sessionHistory: normalizedHistory,
     learningPathProgress: summarizeLearningPathProgress(
@@ -208,6 +223,13 @@ export async function saveRemoteProgressState(
     }),
   });
   if (!response.ok) {
+    if (response.status === 409) {
+      const payload = (await response.json()) as unknown;
+      if (isRemoteProgressState(payload)) {
+        throw new RemoteProgressWriteConflictError(payload);
+      }
+      throw new Error("remote progress write conflict returned an invalid response");
+    }
     throw new Error(`remote progress write failed: ${response.status}`);
   }
   const payload = (await response.json()) as unknown;

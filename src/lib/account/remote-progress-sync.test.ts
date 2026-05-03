@@ -87,6 +87,7 @@ describe("remote progress auto sync", () => {
         ok: true,
         json: async () => ({
           schemaVersion: 1,
+          revision: 0,
           lastUpdatedAt: "1970-01-01T00:00:00.000Z",
           sessionHistory: [],
           learningPathProgress: [],
@@ -96,6 +97,7 @@ describe("remote progress auto sync", () => {
         ok: true,
         json: async () => ({
           schemaVersion: 1,
+          revision: 1,
           lastUpdatedAt: "2026-04-29T10:00:01.000Z",
           sessionHistory: [
             {
@@ -134,6 +136,7 @@ describe("remote progress auto sync", () => {
         ok: true,
         json: async () => ({
           schemaVersion: 1,
+          revision: 3,
           lastUpdatedAt: "2026-04-29T09:00:00.000Z",
           sessionHistory: [
             {
@@ -155,6 +158,7 @@ describe("remote progress auto sync", () => {
         ok: true,
         json: async () => ({
           schemaVersion: 1,
+          revision: 4,
           lastUpdatedAt: "2026-04-29T10:00:01.000Z",
           sessionHistory: [
             {
@@ -195,5 +199,113 @@ describe("remote progress auto sync", () => {
       expect(result.mode).toBe("merge");
       expect(result.state.sessionHistory).toHaveLength(2);
     }
+  });
+
+  it("reloads, merges, and retries once when the server rejects a stale revision", async () => {
+    seedLocalSession("bundled-one-note", "2026-04-29T10:00:00.000Z");
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          schemaVersion: 1,
+          revision: 2,
+          lastUpdatedAt: "2026-04-29T09:00:00.000Z",
+          sessionHistory: [
+            {
+              schemaVersion: 1,
+              at: "2026-04-29T09:00:00.000Z",
+              chartTitle: "bundled-chromatic",
+              practiceTrackId: "bundled-chromatic",
+              scoringMode: "practice",
+              hits: 16,
+              misses: 4,
+              accuracyPercent: 80,
+              maxCombo: 8,
+            },
+          ],
+          learningPathProgress: [],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 409,
+        json: async () => ({
+          schemaVersion: 1,
+          revision: 3,
+          lastUpdatedAt: "2026-04-29T10:00:30.000Z",
+          sessionHistory: [
+            {
+              schemaVersion: 1,
+              at: "2026-04-29T10:00:15.000Z",
+              chartTitle: "bundled-interval-leaps",
+              practiceTrackId: "bundled-interval-leaps",
+              scoringMode: "practice",
+              hits: 15,
+              misses: 5,
+              accuracyPercent: 75,
+              maxCombo: 7,
+            },
+          ],
+          learningPathProgress: [],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          schemaVersion: 1,
+          revision: 4,
+          lastUpdatedAt: "2026-04-29T10:00:31.000Z",
+          sessionHistory: [
+            {
+              schemaVersion: 1,
+              at: "2026-04-29T10:00:15.000Z",
+              chartTitle: "bundled-interval-leaps",
+              practiceTrackId: "bundled-interval-leaps",
+              scoringMode: "practice",
+              hits: 15,
+              misses: 5,
+              accuracyPercent: 75,
+              maxCombo: 7,
+            },
+            {
+              schemaVersion: 1,
+              at: "2026-04-29T10:00:00.000Z",
+              chartTitle: "bundled-one-note",
+              practiceTrackId: "bundled-one-note",
+              scoringMode: "practice",
+              hits: 18,
+              misses: 2,
+              accuracyPercent: 90,
+              maxCombo: 10,
+            },
+            {
+              schemaVersion: 1,
+              at: "2026-04-29T09:00:00.000Z",
+              chartTitle: "bundled-chromatic",
+              practiceTrackId: "bundled-chromatic",
+              scoringMode: "practice",
+              hits: 16,
+              misses: 4,
+              accuracyPercent: 80,
+              maxCombo: 8,
+            },
+          ],
+          learningPathProgress: [],
+        }),
+      }) as unknown as typeof fetch;
+
+    const result = await syncRemoteProgressAfterPracticeSession({
+      session,
+      subscription,
+      fetchImpl,
+    });
+
+    expect(result.status).toBe("synced");
+    if (result.status === "synced") {
+      expect(result.state.revision).toBe(4);
+      expect(result.state.sessionHistory).toHaveLength(3);
+    }
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
   });
 });
