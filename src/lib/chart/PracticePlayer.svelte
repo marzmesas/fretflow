@@ -43,6 +43,8 @@
     applyRemoteProgressState,
     type RemoteProgressStateV1,
   } from "$lib/account/remote-progress";
+  import { getPracticeProgressSourcePolicy } from "$lib/account/remote-progress-practice-policy";
+  import { getRemoteProfileRole } from "$lib/account/remote-profile-gate";
   import {
     syncRemoteProgressAfterPracticeSession,
   } from "$lib/account/remote-progress-sync";
@@ -165,6 +167,7 @@
   let practiceGoals = $state<PracticeGoalsSnapshot>(readGoalsSnapshot());
   let activeCatalogSnapshot = $state<CatalogSnapshot>(getCatalogSnapshot());
   let activeCatalogSubscription = $state<SubscriptionState | null>(null);
+  let practiceSession = $state<AppSession | null>(null);
   const chartInsight = $derived.by(() =>
     getChartSessionStats(sessionHistory, { chartTitle: chart.title, practiceTrackId: trackId }),
   );
@@ -179,6 +182,12 @@
   });
   const postSessionCoaching = $derived(
     getPostSessionCoaching(currentCatalogTrack, chartInsight, pathContinuation),
+  );
+  const practiceProgressPolicy = $derived(
+    getPracticeProgressSourcePolicy({
+      apiBaseUrl: activeCatalogSubscription?.apiBaseUrl ?? "",
+      remoteProfileRole: getRemoteProfileRole(practiceSession),
+    }),
   );
 
   /** From Settings → Latency; applied to hit/miss only (highway unchanged). */
@@ -497,6 +506,8 @@
     try {
       const session = await invoke<AppSession>("get_session");
       const subscription = await invoke<SubscriptionState>("get_subscription_state");
+      practiceSession = session;
+      activeCatalogSubscription = subscription;
       const result = await syncRemoteProgressAfterPracticeSession({
         session,
         subscription,
@@ -1063,12 +1074,14 @@
         try {
           const session = await invoke<AppSession>("get_session");
           const subscription = await invoke<SubscriptionState>("get_subscription_state");
+          practiceSession = session;
           activeCatalogSubscription = subscription;
           activeCatalogSnapshot = await loadActiveCatalogSnapshot({
             session,
             subscription,
           });
         } catch {
+          practiceSession = null;
           activeCatalogSubscription = null;
           activeCatalogSnapshot = getCatalogSnapshot();
         }
@@ -1352,6 +1365,14 @@
               <span>top combo <strong>{stats.bestCombo}</strong></span>
             </div>
           {/if}
+          <div class="chart-insight">
+            <div class="chart-insight__title">Progress source</div>
+            <p class="chart-insight__note">{practiceProgressPolicy.summary}</p>
+            <p class="chart-insight__delta muted">{practiceProgressPolicy.detail}</p>
+            {#if remoteProgressSyncStatus}
+              <p class="chart-insight__delta muted">{remoteProgressSyncStatus}</p>
+            {/if}
+          </div>
           {#if chartInsight.totalSessions > 0}
             <div class="chart-insight">
               <div class="chart-insight__title">This chart</div>
@@ -1376,9 +1397,6 @@
               {/if}
               {#if practiceRecommendation}
                 <p class="chart-insight__note">{practiceRecommendation}</p>
-              {/if}
-              {#if remoteProgressSyncStatus}
-                <p class="chart-insight__delta muted">{remoteProgressSyncStatus}</p>
               {/if}
               {#if postSessionCoaching.length > 0}
                 <div class="coaching-notes">
