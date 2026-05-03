@@ -9,9 +9,20 @@ import {
 
 export type RemoteLibraryStateV1 = {
   schemaVersion: 1;
+  revision: number;
   favorites: string[];
   collections: StoredLibraryCollection[];
 };
+
+export type SaveRemoteLibraryStateResult =
+  | {
+      status: "saved";
+      state: RemoteLibraryStateV1;
+    }
+  | {
+      status: "conflict";
+      currentState: RemoteLibraryStateV1;
+    };
 
 type RemoteLibraryIdentity = {
   accountId?: string;
@@ -69,6 +80,7 @@ export function isRemoteLibraryStatePayload(value: unknown): value is RemoteLibr
   const payload = value as Partial<RemoteLibraryStateV1>;
   return (
     payload.schemaVersion === 1 &&
+    typeof payload.revision === "number" &&
     Array.isArray(payload.favorites) &&
     payload.favorites.every((trackId) => typeof trackId === "string") &&
     Array.isArray(payload.collections) &&
@@ -83,12 +95,13 @@ export function getCurrentRemoteLibraryState(identity: RemoteLibraryIdentity): R
   }
   return {
     schemaVersion: 1,
+    revision: 0,
     favorites: getStoredFavoriteTrackIds(account.accountId),
     collections: getStoredCollections(account.accountId),
   };
 }
 
-export function saveRemoteLibraryState(request: unknown): RemoteLibraryStateV1 | null {
+export function saveRemoteLibraryState(request: unknown): SaveRemoteLibraryStateResult | null {
   if (request == null || typeof request !== "object") {
     return null;
   }
@@ -97,6 +110,16 @@ export function saveRemoteLibraryState(request: unknown): RemoteLibraryStateV1 |
   if (account == null || !isRemoteLibraryStatePayload(payload.state)) {
     return null;
   }
+  const currentState = getCurrentRemoteLibraryState(payload);
+  if (currentState == null) {
+    return null;
+  }
+  if (payload.state.revision !== currentState.revision) {
+    return {
+      status: "conflict",
+      currentState,
+    };
+  }
   const favorites = normalizeFavorites(payload.state.favorites);
   const collections = normalizeCollections(payload.state.collections).filter(
     (collection) => collection.id !== "" && collection.name !== "",
@@ -104,8 +127,12 @@ export function saveRemoteLibraryState(request: unknown): RemoteLibraryStateV1 |
   saveStoredFavoriteTrackIds(account.accountId, favorites);
   saveStoredCollections(account.accountId, collections);
   return {
-    schemaVersion: 1,
-    favorites,
-    collections,
+    status: "saved",
+    state: {
+      schemaVersion: 1,
+      revision: currentState.revision + 1,
+      favorites,
+      collections,
+    },
   };
 }

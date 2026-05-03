@@ -113,7 +113,10 @@ app.put("/api/v1/library-state", express.json({ limit: "64kb" }), (req, res) => 
   if (payload == null) {
     return res.status(400).json({ error: "Invalid remote library payload" });
   }
-  return res.json(payload);
+  if (payload.status === "conflict") {
+    return res.status(409).json(payload.currentState);
+  }
+  return res.json(payload.state);
 });
 
 app.get("/api/v1/progress-state", (req, res) => {

@@ -52,6 +52,7 @@
     applyRemoteLibraryState,
     buildLocalRemoteLibraryState,
     loadRemoteLibraryState,
+    RemoteLibraryWriteConflictError,
     saveRemoteLibraryState,
     type RemoteLibraryStateV1,
   } from "$lib/catalog/remote-library";
@@ -373,10 +374,20 @@
         apiBaseUrl,
         accountId: session.accountId,
         email: session.email,
-        state: buildLocalRemoteLibraryState(),
+        state: {
+          ...buildLocalRemoteLibraryState(),
+          revision: remoteLibrary?.revision ?? 0,
+        },
       });
       remoteLibraryStatus = "Saved favorites and collections to the signed-in cloud library.";
     } catch (e) {
+      if (e instanceof RemoteLibraryWriteConflictError) {
+        remoteLibrary = e.currentState;
+        remoteLibraryError = null;
+        remoteLibraryStatus =
+          "Cloud library changed on another device. Review the latest cloud snapshot before saving again.";
+        return;
+      }
       remoteLibraryError = e instanceof Error ? e.message : String(e);
     } finally {
       savingRemoteLibrary = false;
@@ -1439,6 +1450,7 @@
                     <p class="account-error">{remoteLibraryError}</p>
                   {:else if remoteLibrary}
                     <p class="muted">
+                      Cloud revision: <strong>{remoteLibrary.revision}</strong><br />
                       Cloud favorites: <strong>{remoteLibrary.favorites.length}</strong><br />
                       Cloud collections: <strong>{remoteLibrary.collections.length}</strong>
                     </p>

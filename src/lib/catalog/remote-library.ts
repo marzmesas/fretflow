@@ -11,6 +11,7 @@ import {
 
 export type RemoteLibraryStateV1 = {
   schemaVersion: 1;
+  revision: number;
   favorites: string[];
   collections: ChartCollectionV1[];
 };
@@ -31,6 +32,16 @@ export type SaveRemoteLibraryStateOptions = RemoteLibraryApiOptions &
   RemoteLibraryIdentity & {
     state: RemoteLibraryStateV1;
   };
+
+export class RemoteLibraryWriteConflictError extends Error {
+  readonly currentState: RemoteLibraryStateV1;
+
+  constructor(currentState: RemoteLibraryStateV1) {
+    super("remote library write conflict");
+    this.name = "RemoteLibraryWriteConflictError";
+    this.currentState = currentState;
+  }
+}
 
 function normalizeApiBaseUrl(apiBaseUrl: string): string {
   const normalized = apiBaseUrl.trim().replace(/\/+$/, "");
@@ -73,6 +84,7 @@ export function isRemoteLibraryState(value: unknown): value is RemoteLibraryStat
   const state = value as Partial<RemoteLibraryStateV1>;
   return (
     state.schemaVersion === 1 &&
+    typeof state.revision === "number" &&
     Array.isArray(state.favorites) &&
     state.favorites.every((trackId) => typeof trackId === "string") &&
     Array.isArray(state.collections) &&
@@ -83,6 +95,7 @@ export function isRemoteLibraryState(value: unknown): value is RemoteLibraryStat
 export function buildLocalRemoteLibraryState(): RemoteLibraryStateV1 {
   return {
     schemaVersion: 1,
+    revision: 0,
     favorites: getFavoriteTrackIds(),
     collections: getCollections(),
   };
@@ -91,6 +104,7 @@ export function buildLocalRemoteLibraryState(): RemoteLibraryStateV1 {
 export function applyRemoteLibraryState(state: RemoteLibraryStateV1): RemoteLibraryStateV1 {
   const normalized: RemoteLibraryStateV1 = {
     schemaVersion: 1,
+    revision: state.revision,
     favorites: normalizeFavorites(state.favorites),
     collections: normalizeCollections(state.collections),
   };
@@ -134,6 +148,13 @@ export async function saveRemoteLibraryState(
     }),
   });
   if (!response.ok) {
+    if (response.status === 409) {
+      const payload = (await response.json()) as unknown;
+      if (isRemoteLibraryState(payload)) {
+        throw new RemoteLibraryWriteConflictError(payload);
+      }
+      throw new Error("remote library write conflict returned an invalid response");
+    }
     throw new Error(`remote library write failed: ${response.status}`);
   }
   const payload = (await response.json()) as unknown;

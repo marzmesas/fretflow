@@ -3,6 +3,7 @@ import {
   applyRemoteLibraryState,
   buildLocalRemoteLibraryState,
   loadRemoteLibraryState,
+  RemoteLibraryWriteConflictError,
   saveRemoteLibraryState,
 } from "./remote-library";
 
@@ -37,6 +38,7 @@ describe("remote library state", () => {
   it("builds the current local library snapshot", () => {
     applyRemoteLibraryState({
       schemaVersion: 1,
+      revision: 0,
       favorites: ["track-a"],
       collections: [
         {
@@ -50,6 +52,7 @@ describe("remote library state", () => {
 
     expect(buildLocalRemoteLibraryState()).toEqual({
       schemaVersion: 1,
+      revision: 0,
       favorites: ["track-a"],
       collections: [
         {
@@ -66,6 +69,7 @@ describe("remote library state", () => {
     expect(
       applyRemoteLibraryState({
         schemaVersion: 1,
+        revision: 2,
         favorites: [" track-a ", "track-a", "track-b"],
         collections: [
           {
@@ -78,6 +82,7 @@ describe("remote library state", () => {
       }),
     ).toEqual({
       schemaVersion: 1,
+      revision: 2,
       favorites: ["track-a", "track-b"],
       collections: [
         {
@@ -95,6 +100,7 @@ describe("remote library state", () => {
       ok: true,
       json: async () => ({
         schemaVersion: 1,
+        revision: 3,
         favorites: ["track-a"],
         collections: [],
       }),
@@ -118,6 +124,7 @@ describe("remote library state", () => {
       ok: true,
       json: async () => ({
         schemaVersion: 1,
+        revision: 4,
         favorites: ["track-a"],
         collections: [],
       }),
@@ -129,6 +136,7 @@ describe("remote library state", () => {
       email: "player@example.com",
       state: {
         schemaVersion: 1,
+        revision: 0,
         favorites: ["track-a"],
         collections: [],
       },
@@ -144,11 +152,46 @@ describe("remote library state", () => {
           email: "player@example.com",
           state: {
             schemaVersion: 1,
+            revision: 0,
             favorites: ["track-a"],
             collections: [],
           },
         }),
       }),
     );
+  });
+
+  it("surfaces the latest cloud snapshot on a stale library write", async () => {
+    const fetchImpl = vi.fn(async () => ({
+      ok: false,
+      status: 409,
+      json: async () => ({
+        schemaVersion: 1,
+        revision: 7,
+        favorites: ["track-a"],
+        collections: [],
+      }),
+    })) as unknown as typeof fetch;
+
+    let thrown: unknown = null;
+    try {
+      await saveRemoteLibraryState({
+        apiBaseUrl: "http://127.0.0.1:8787",
+        accountId: "acct_123",
+        email: "player@example.com",
+        state: {
+          schemaVersion: 1,
+          revision: 6,
+          favorites: ["track-b"],
+          collections: [],
+        },
+        fetchImpl,
+      });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(RemoteLibraryWriteConflictError);
+    expect((thrown as RemoteLibraryWriteConflictError).currentState.revision).toBe(7);
   });
 });
