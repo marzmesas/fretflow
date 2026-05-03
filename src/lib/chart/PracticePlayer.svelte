@@ -40,6 +40,13 @@
     type TimingGrade,
   } from "./scoring-modes";
   import {
+    applyRemoteProgressState,
+    type RemoteProgressStateV1,
+  } from "$lib/account/remote-progress";
+  import {
+    syncRemoteProgressAfterPracticeSession,
+  } from "$lib/account/remote-progress-sync";
+  import {
     clearSessionHistory,
     getChartSessionStats,
     getPracticeRecommendation,
@@ -141,6 +148,7 @@
 
   let lastSessionSnapshot = $state<SessionSummaryV1 | null>(null);
   let sessionHistory = $state<SessionSummaryV1[]>([]);
+  let remoteProgressSyncStatus = $state<string | null>(null);
   let showHistory = $state(false);
   function readGoalsSnapshot(): PracticeGoalsSnapshot {
     if (typeof window === "undefined") {
@@ -467,6 +475,8 @@
     lastSessionSnapshot = summary;
     sessionHistory = loadSessionHistory();
     practiceGoals = recordCompletedPracticeSession();
+    remoteProgressSyncStatus = null;
+    void syncRemoteProgressAfterRun();
     if (autoDensityBump && accuracyPercent >= 85) {
       const nextTier = nextDensityTier(densityTier);
       if (nextTier) {
@@ -474,6 +484,32 @@
       }
     }
     lastFeedback = `Run complete · ${accuracyPercent}% · ${hits}/${total} hits · max combo ${maxComboEver}`;
+  }
+
+  function applySyncedRemoteProgress(state: RemoteProgressStateV1): void {
+    const applied = applyRemoteProgressState(state);
+    sessionHistory = applied.sessionHistory;
+    lastSessionSnapshot = applied.sessionHistory[0] ?? lastSessionSnapshot;
+  }
+
+  async function syncRemoteProgressAfterRun() {
+    if (!isTauri()) return;
+    try {
+      const session = await invoke<AppSession>("get_session");
+      const subscription = await invoke<SubscriptionState>("get_subscription_state");
+      const result = await syncRemoteProgressAfterPracticeSession({
+        session,
+        subscription,
+      });
+      if (result.status === "synced") {
+        applySyncedRemoteProgress(result.state);
+        remoteProgressSyncStatus = result.mode === "merge" ? "Cloud progress merged." : "Cloud progress saved.";
+      } else {
+        remoteProgressSyncStatus = null;
+      }
+    } catch {
+      remoteProgressSyncStatus = null;
+    }
   }
 
   function normalizeLoopBeats() {
@@ -1340,6 +1376,9 @@
               {/if}
               {#if practiceRecommendation}
                 <p class="chart-insight__note">{practiceRecommendation}</p>
+              {/if}
+              {#if remoteProgressSyncStatus}
+                <p class="chart-insight__delta muted">{remoteProgressSyncStatus}</p>
               {/if}
               {#if postSessionCoaching.length > 0}
                 <div class="coaching-notes">
