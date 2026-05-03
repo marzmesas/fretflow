@@ -140,16 +140,23 @@ function summarizeLearningPathProgress(
   }));
 }
 
-export function buildLocalRemoteProgressState(
-  history: SessionSummaryV1[] = loadSessionHistory(),
+export function buildRemoteProgressStateFromHistory(
+  history: SessionSummaryV1[],
+  lastUpdatedAt = new Date().toISOString(),
 ): RemoteProgressStateV1 {
   const sessionHistory = normalizeSessionHistory(history);
   return {
     schemaVersion: 1,
-    lastUpdatedAt: new Date().toISOString(),
+    lastUpdatedAt,
     sessionHistory,
     learningPathProgress: summarizeLearningPathProgress(getLearningPathProgress(sessionHistory)),
   };
+}
+
+export function buildLocalRemoteProgressState(
+  history: SessionSummaryV1[] = loadSessionHistory(),
+): RemoteProgressStateV1 {
+  return buildRemoteProgressStateFromHistory(history);
 }
 
 export function applyRemoteProgressState(
