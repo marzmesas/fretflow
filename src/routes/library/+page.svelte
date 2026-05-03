@@ -8,6 +8,7 @@
     describeTrackPremiumAccess,
   } from "$lib/account/plan-offers";
   import { loadRemoteProgressState } from "$lib/account/remote-progress";
+  import { selectRemoteProgressSurfaceHistory } from "$lib/account/remote-progress-surface-source";
   import { getRemoteProgressSurfaceRollout } from "$lib/account/remote-progress-surface-rollout";
   import { getSubscriptionLifecycle } from "$lib/account/subscription-lifecycle";
   import {
@@ -66,7 +67,7 @@
   const initialHistory = loadSessionHistory();
   let latestSessionByTrackId = $state<Record<string, SessionSummaryV1>>(getLatestSessionsByTrackId(initialHistory));
   let recommendedTracks = $state<RecommendedTrack[]>(getRecommendedTracks(initialHistory, 3));
-  let progressSource = $state<"local" | "cloud">("local");
+  let progressSource = $state<"local" | "cloud" | "merged">("local");
   let collections = $state<ChartCollectionV1[]>(initialCollections);
   let subscription = $state<SubscriptionState | null>(null);
   let activeCollectionId = $state<string | null>(initialCollections[0]?.id ?? null);
@@ -195,7 +196,7 @@
     updateLibraryUrl({ techniqueTag: next });
   }
 
-  function applyHistorySurface(history: SessionSummaryV1[], source: "local" | "cloud"): void {
+  function applyHistorySurface(history: SessionSummaryV1[], source: "local" | "cloud" | "merged"): void {
     latestSessionByTrackId = getLatestSessionsByTrackId(history);
     recommendedTracks = getRecommendedTracks(
       history,
@@ -203,6 +204,17 @@
       catalogTracks.filter((track) => track.practiceChartKey === "bundled"),
     );
     progressSource = source;
+  }
+
+  function progressSourceLabel(): string {
+    switch (progressSource) {
+      case "cloud":
+        return "Using cloud progress.";
+      case "merged":
+        return "Using a merged local + cloud view.";
+      case "local":
+        return "Using this device's local history.";
+    }
   }
 
   const filtered = $derived.by(() => {
@@ -455,7 +467,9 @@
           accountId: session.accountId,
           email: session.email,
         });
-        applyHistorySurface(remoteProgress.sessionHistory, "cloud");
+        const localHistory = loadSessionHistory();
+        const selection = selectRemoteProgressSurfaceHistory(localHistory, remoteProgress);
+        applyHistorySurface(selection.history, selection.source);
       } catch {
         applyHistorySurface(loadSessionHistory(), "local");
       }
@@ -630,7 +644,8 @@
           <h3>Suggested for you</h3>
           <p class="muted">
             Quick picks based on your recent bundled-chart runs.
-            {progressSource === "cloud" ? " Using cloud progress." : " Using this device's local history."}
+            {" "}
+            {progressSourceLabel()}
           </p>
         </div>
       </div>

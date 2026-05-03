@@ -7,6 +7,7 @@
   import { loadRemoteProgressState } from "$lib/account/remote-progress";
   import { getRemoteProfileRole } from "$lib/account/remote-profile-gate";
   import { getRemoteProfileSurfaceRollout } from "$lib/account/remote-profile-surface-rollout";
+  import { selectRemoteProgressSurfaceHistory } from "$lib/account/remote-progress-surface-source";
   import { getRemoteProgressSurfaceRollout } from "$lib/account/remote-progress-surface-rollout";
   import {
     findTrackInSnapshot,
@@ -48,7 +49,7 @@
   let learningPaths = $state<LearningPathProgress[]>([]);
   let practiceGoals = $state<PracticeGoalsSnapshot>(toPracticeGoalsSnapshot(loadPracticeGoals()));
   let remoteProfile = $state<RemoteUserProfileV1 | null>(null);
-  let progressSource = $state<"local" | "cloud">("local");
+  let progressSource = $state<"local" | "cloud" | "merged">("local");
   let catalogSnapshot = $state<CatalogSnapshot>(getCatalogSnapshot());
   let assessmentExperience = $state<OnboardingExperienceLevel>("brand_new");
   let assessmentGoal = $state<OnboardingPracticeGoal>("fundamentals");
@@ -173,6 +174,17 @@
     return when.toLocaleDateString();
   }
 
+  function progressSourceLabel(): string {
+    switch (progressSource) {
+      case "cloud":
+        return "cloud progress";
+      case "merged":
+        return "a merged local + cloud view";
+      case "local":
+        return "this device";
+    }
+  }
+
   function openLearningPathStep(path: LearningPathProgress) {
     const trackId =
       onboarding?.assessment?.recommendedPathId === path.path.id && onboarding.assessment.recommendedTrackId
@@ -245,8 +257,9 @@
         accountId: session.accountId ?? "",
         email: session.email ?? "",
       });
-      progressSource = "cloud";
-      refreshHomeState(remoteProgress.sessionHistory);
+      const selection = selectRemoteProgressSurfaceHistory(localHistory, remoteProgress);
+      progressSource = selection.source;
+      refreshHomeState(selection.history);
     } catch {
       refreshHomeState(localHistory);
     }
@@ -322,7 +335,7 @@
         <strong>{recentSessions.length > 0 ? `${recentSessions.length} charts tracked` : "No sessions yet"}</strong>
         <span class="home-hero__stat-detail">
           {recentSessions.length > 0
-            ? `Resume from the queue or pivot into a recommendation. Source: ${progressSource === "cloud" ? "cloud progress" : "this device"}.`
+            ? `Resume from the queue or pivot into a recommendation. Source: ${progressSourceLabel()}.`
             : "Complete one full run to seed your queue."}
         </span>
       </div>
