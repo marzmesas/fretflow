@@ -1321,7 +1321,7 @@
               <div class="policy-group">
                 <h3>First online profile fields</h3>
                 <p class="muted ff-section-intro account-panel__intro">
-                  These are the first non-billing profile fields that should move online once real auth exists.
+                  These are the only cloud-editable profile fields for now. The online profile is intentionally staying narrow while auth, billing, and conflict handling continue to settle.
                 </p>
                 <ul class="policy-list">
                   <li class="policy-item policy-item--compact">
