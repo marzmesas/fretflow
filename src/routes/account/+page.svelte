@@ -56,6 +56,7 @@
     saveRemoteLibraryState,
     type RemoteLibraryStateV1,
   } from "$lib/catalog/remote-library";
+  import { getRemoteLibrarySyncPolicy } from "$lib/catalog/remote-library-sync-policy";
   import {
     getCatalogMigrationTarget,
     getCatalogSnapshot,
@@ -119,6 +120,7 @@
       ? null
       : compareRemoteProgressStates(localProgressSnapshot, remoteProgress),
   );
+  const remoteLibrarySyncPolicy = getRemoteLibrarySyncPolicy();
   const practiceProgressPolicy = $derived(
     getPracticeProgressSourcePolicy({
       apiBaseUrl: subscription?.apiBaseUrl ?? "",
@@ -1442,6 +1444,11 @@
                   </div>
                   <p class="muted account-panel__intro">
                     Favorites and collections are the first account-backed library fields. Saving pushes the current device state to the server; applying pulls the cloud snapshot back onto this device.
+                  </p>
+                  <p class="muted account-footnote">
+                    <strong>{remoteLibrarySyncPolicy.summary}</strong><br />
+                    {remoteLibrarySyncPolicy.detail}<br />
+                    Next: {remoteLibrarySyncPolicy.nextRequirement}
                   </p>
                   {#if remoteLibraryStatus}
                     <p class="muted account-footnote">{remoteLibraryStatus}</p>

@@ -2,8 +2,8 @@ import {
   getStoredAccount,
   getStoredCollections,
   getStoredFavoriteTrackIds,
-  saveStoredCollections,
-  saveStoredFavoriteTrackIds,
+  getStoredLibraryRevision,
+  saveStoredLibraryState,
   type StoredLibraryCollection,
 } from "./account-store.js";
 
@@ -95,7 +95,7 @@ export function getCurrentRemoteLibraryState(identity: RemoteLibraryIdentity): R
   }
   return {
     schemaVersion: 1,
-    revision: 0,
+    revision: getStoredLibraryRevision(account.accountId),
     favorites: getStoredFavoriteTrackIds(account.accountId),
     collections: getStoredCollections(account.accountId),
   };
@@ -124,8 +124,11 @@ export function saveRemoteLibraryState(request: unknown): SaveRemoteLibraryState
   const collections = normalizeCollections(payload.state.collections).filter(
     (collection) => collection.id !== "" && collection.name !== "",
   );
-  saveStoredFavoriteTrackIds(account.accountId, favorites);
-  saveStoredCollections(account.accountId, collections);
+  saveStoredLibraryState(account.accountId, {
+    revision: currentState.revision + 1,
+    favoriteTrackIds: favorites,
+    collections,
+  });
   return {
     status: "saved",
     state: {

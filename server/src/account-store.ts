@@ -17,6 +17,7 @@ export type StoredAccountRecord = {
   lastSignedInAtUnixMs: number;
   stripeCustomerId: string | null;
   remoteProfile: Record<string, unknown> | null;
+  libraryRevision: number;
   favoriteTrackIds: string[];
   collections: StoredLibraryCollection[];
   remoteProgress: Record<string, unknown> | null;
@@ -85,6 +86,7 @@ function isStoredAccountRecord(value: unknown): value is StoredAccountRecord {
     ((record.remoteProfile != null && typeof record.remoteProfile === "object") ||
       record.remoteProfile === null ||
       record.remoteProfile === undefined) &&
+    (record.libraryRevision === undefined || typeof record.libraryRevision === "number") &&
     (record.favoriteTrackIds === undefined ||
       (Array.isArray(record.favoriteTrackIds) &&
         record.favoriteTrackIds.every((trackId) => typeof trackId === "string"))) &&
@@ -127,6 +129,7 @@ export function recordSignedInAccount(input: {
     lastSignedInAtUnixMs: input.signedInAtUnixMs,
     stripeCustomerId: existing?.stripeCustomerId ?? null,
     remoteProfile: existing?.remoteProfile ?? null,
+    libraryRevision: existing?.libraryRevision ?? 0,
     favoriteTrackIds: existing?.favoriteTrackIds ?? [],
     collections: existing?.collections ?? [],
     remoteProgress: existing?.remoteProgress ?? null,
@@ -182,6 +185,10 @@ export function getStoredFavoriteTrackIds(accountId: string): string[] {
   return [...(getStoredAccount(accountId)?.favoriteTrackIds ?? [])];
 }
 
+export function getStoredLibraryRevision(accountId: string): number {
+  return getStoredAccount(accountId)?.libraryRevision ?? 0;
+}
+
 export function saveStoredFavoriteTrackIds(
   accountId: string,
   favoriteTrackIds: string[],
@@ -212,6 +219,31 @@ export function saveStoredCollections(
   const updated: StoredAccountRecord = {
     ...existing,
     collections: collections.map((collection) => ({
+      ...collection,
+      trackIds: [...collection.trackIds],
+    })),
+  };
+  cache.set(accountId, updated);
+  persistAccountCache(cache);
+  return updated;
+}
+
+export function saveStoredLibraryState(
+  accountId: string,
+  input: {
+    revision: number;
+    favoriteTrackIds: string[];
+    collections: StoredLibraryCollection[];
+  },
+): StoredAccountRecord | null {
+  const cache = getAccountCache();
+  const existing = cache.get(accountId);
+  if (existing == null) return null;
+  const updated: StoredAccountRecord = {
+    ...existing,
+    libraryRevision: input.revision,
+    favoriteTrackIds: [...input.favoriteTrackIds],
+    collections: input.collections.map((collection) => ({
       ...collection,
       trackIds: [...collection.trackIds],
     })),
