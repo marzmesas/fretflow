@@ -58,6 +58,7 @@
     type RemoteLibraryStateV1,
   } from "$lib/catalog/remote-library";
   import { getRemoteLibrarySyncPolicy } from "$lib/catalog/remote-library-sync-policy";
+  import { getRemoteLibraryRecoveryPolicy } from "$lib/catalog/remote-library-recovery-policy";
   import {
     getCatalogMigrationTarget,
     getCatalogSnapshot,
@@ -122,6 +123,7 @@
       : compareRemoteProgressStates(localProgressSnapshot, remoteProgress),
   );
   const remoteLibrarySyncPolicy = getRemoteLibrarySyncPolicy();
+  const remoteLibraryRecoveryPolicy = getRemoteLibraryRecoveryPolicy();
   const practiceProgressPolicy = $derived(
     getPracticeProgressSourcePolicy({
       apiBaseUrl: subscription?.apiBaseUrl ?? "",
@@ -1421,41 +1423,20 @@
               <div class="policy-group">
                 <div class="policy-item">
                   <div class="policy-item__header">
-                    <strong>Cloud library state</strong>
-                    <div class="account-actions">
-                      <button
-                        type="button"
-                        class="btn"
-                        onclick={refreshRemoteLibrary}
-                        disabled={loadingRemoteLibrary || savingRemoteLibrary}
-                      >
-                        {loadingRemoteLibrary ? "Loading…" : "Load cloud library"}
-                      </button>
-                      <button
-                        type="button"
-                        class="btn"
-                        onclick={() => void saveRemoteLibraryNow()}
-                        disabled={savingRemoteLibrary || loadingRemoteLibrary}
-                      >
-                        {savingRemoteLibrary ? "Saving…" : "Save cloud library"}
-                      </button>
-                      <button
-                        type="button"
-                        class="btn"
-                        onclick={applyRemoteLibraryNow}
-                        disabled={remoteLibrary == null || loadingRemoteLibrary || savingRemoteLibrary}
-                      >
-                        Apply to this device
-                      </button>
-                    </div>
+                    <strong>Cloud library sync</strong>
                   </div>
                   <p class="muted account-panel__intro">
-                    Favorites and collections are the first account-backed library fields. Saving pushes the current device state to the server; applying pulls the cloud snapshot back onto this device.
+                    Favorites and collections now sync automatically from Library when a real signed-in cloud identity is active. Imported-chart organization stays local to this device.
                   </p>
                   <p class="muted account-footnote">
                     <strong>{remoteLibrarySyncPolicy.summary}</strong><br />
                     {remoteLibrarySyncPolicy.detail}<br />
                     Next: {remoteLibrarySyncPolicy.nextRequirement}
+                  </p>
+                  <p class="muted account-footnote">
+                    <strong>{remoteLibraryRecoveryPolicy.summary}</strong><br />
+                    {remoteLibraryRecoveryPolicy.detail}<br />
+                    Use when: {remoteLibraryRecoveryPolicy.whenToUse}
                   </p>
                   {#if remoteLibraryStatus}
                     <p class="muted account-footnote">{remoteLibraryStatus}</p>
@@ -1471,6 +1452,40 @@
                   {:else}
                     <p class="muted">No cloud library snapshot loaded yet.</p>
                   {/if}
+                  <details class="account-disclosure ff-disclosure" style="margin-top: 1rem">
+                    <summary>Manual recovery tools</summary>
+                    <div class="account-disclosure__body ff-disclosure__body">
+                      <div class="account-actions">
+                        <button
+                          type="button"
+                          class="btn"
+                          onclick={refreshRemoteLibrary}
+                          disabled={loadingRemoteLibrary || savingRemoteLibrary}
+                        >
+                          {loadingRemoteLibrary ? "Loading…" : "Load cloud snapshot"}
+                        </button>
+                        <button
+                          type="button"
+                          class="btn"
+                          onclick={() => void saveRemoteLibraryNow()}
+                          disabled={savingRemoteLibrary || loadingRemoteLibrary}
+                        >
+                          {savingRemoteLibrary ? "Saving…" : "Save this device snapshot"}
+                        </button>
+                        <button
+                          type="button"
+                          class="btn"
+                          onclick={applyRemoteLibraryNow}
+                          disabled={remoteLibrary == null || loadingRemoteLibrary || savingRemoteLibrary}
+                        >
+                          Restore cloud snapshot here
+                        </button>
+                      </div>
+                      <p class="muted account-panel__intro">
+                        These controls are intentionally secondary now. Use them to inspect the server copy, force-push the current device state, or restore the latest cloud snapshot after a conflict.
+                      </p>
+                    </div>
+                  </details>
                 </div>
               </div>
 
