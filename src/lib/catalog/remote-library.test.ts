@@ -39,12 +39,12 @@ describe("remote library state", () => {
     applyRemoteLibraryState({
       schemaVersion: 1,
       revision: 0,
-      favorites: ["track-a"],
+      favorites: ["track-a", "user-123"],
       collections: [
         {
           id: "set-a",
           name: "Set A",
-          trackIds: ["track-a"],
+          trackIds: ["track-a", "user-123"],
           createdAt: "2026-01-01T00:00:00.000Z",
         },
       ],

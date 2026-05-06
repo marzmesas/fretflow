@@ -39,6 +39,9 @@
     removeFavoriteTrackId,
     toggleFavoriteTrackId,
   } from "$lib/catalog/favorites";
+  import { autoSyncRemoteLibraryMutations } from "$lib/catalog/remote-library-auto-sync";
+  import { getRemoteLibrarySyncRollout } from "$lib/catalog/remote-library-sync-rollout";
+  import type { RemoteLibraryStateV1 } from "$lib/catalog/remote-library";
   import { midiBufferToChart } from "$lib/catalog/midi-import";
   import { getRecommendedTracks, type RecommendedTrack } from "$lib/catalog/recommendations";
   import { addUserChart, getUserCharts, removeUserChart, type UserChartEntry } from "$lib/catalog/user-charts";
@@ -69,7 +72,11 @@
   let recommendedTracks = $state<RecommendedTrack[]>(getRecommendedTracks(initialHistory, 3));
   let progressSource = $state<"local" | "cloud" | "merged">("local");
   let collections = $state<ChartCollectionV1[]>(initialCollections);
+  let session = $state<AppSession | null>(null);
   let subscription = $state<SubscriptionState | null>(null);
+  let remoteLibraryState = $state<RemoteLibraryStateV1 | null>(null);
+  let remoteLibraryStatus = $state<string | null>(null);
+  let remoteLibraryError = $state<string | null>(null);
   let activeCollectionId = $state<string | null>(initialCollections[0]?.id ?? null);
   let activePathId = $state<PathFilter>("all");
   let activeSkillTag = $state<CatalogSkillTag | null>(null);
@@ -83,6 +90,12 @@
   let catalogMigrationLabel = $state(initialCatalog.migrationTarget.label);
   let onlinePremiumPlayable = $state(initialCatalog.migrationTarget.includesPlayablePremiumTracks);
   const premiumPreviewTrackCount = initialCatalog.tracks.filter((track) => track.tier === "premium").length;
+  const remoteLibrarySyncRollout = $derived(
+    getRemoteLibrarySyncRollout({
+      apiBaseUrl: subscription?.apiBaseUrl ?? "",
+      remoteProfileRole: getRemoteProfileRole(session),
+    }),
+  );
 
   function isFilter(value: string | null): value is Filter {
     return value != null && (FILTERS as readonly string[]).includes(value);
@@ -371,8 +384,52 @@
     collections = removeTrackFromCollections(entry.id);
   }
 
+  async function syncCloudLibraryMutation(options: {
+    mutations: Parameters<typeof autoSyncRemoteLibraryMutations>[0]["mutations"];
+    successStatus: string;
+    conflictStatus?: string;
+    localOnlyStatus?: string;
+  }) {
+    if (
+      !remoteLibrarySyncRollout.ready ||
+      session?.accountId == null ||
+      session.email == null
+    ) {
+      return;
+    }
+    remoteLibraryError = null;
+    try {
+      const result = await autoSyncRemoteLibraryMutations({
+        apiBaseUrl: subscription?.apiBaseUrl ?? "",
+        accountId: session.accountId,
+        email: session.email,
+        currentRemoteState: remoteLibraryState,
+        mutations: options.mutations,
+      });
+      remoteLibraryState = result.state;
+      if (result.status === "skipped_local_only") {
+        remoteLibraryStatus =
+          options.localOnlyStatus ?? "Imported-chart library changes stay on this device.";
+        return;
+      }
+      remoteLibraryStatus =
+        result.status === "replayed_after_conflict"
+          ? options.conflictStatus ?? "Cloud library was refreshed and your latest change was replayed."
+          : options.successStatus;
+    } catch (error) {
+      remoteLibraryError = error instanceof Error ? error.message : String(error);
+    }
+  }
+
   function toggleFavorite(trackId: string) {
     favoriteTrackIds = toggleFavoriteTrackId(trackId);
+    const nextValue = favoriteTrackIds.includes(trackId);
+    void syncCloudLibraryMutation({
+      mutations: [{ kind: "favorite_set", trackId, value: nextValue }],
+      successStatus: nextValue
+        ? "Favorite synced to your cloud library."
+        : "Favorite removal synced to your cloud library.",
+    });
   }
 
   function isFavorite(trackId: string): boolean {
@@ -422,7 +479,6 @@
       catalogSourceMode = snapshot.sourceMode;
       catalogMigrationLabel = snapshot.migrationTarget.label;
       onlinePremiumPlayable = snapshot.migrationTarget.includesPlayablePremiumTracks;
-      let session: AppSession | null = null;
       if (isTauri()) {
         try {
           subscription = await invoke<SubscriptionState>("get_subscription_state");
@@ -483,21 +539,48 @@
   function toggleTrackInActiveCollection(trackId: string) {
     if (activeCollectionId == null) return;
     collections = toggleTrackInCollection(activeCollectionId, trackId);
+    const collection = collections.find((entry) => entry.id === activeCollectionId);
+    const nextValue = collection?.trackIds.includes(trackId) ?? false;
+    void syncCloudLibraryMutation({
+      mutations: [{ kind: "collection_track_set", collectionId: activeCollectionId, trackId, value: nextValue }],
+      successStatus: nextValue
+        ? "Collection change synced to your cloud library."
+        : "Collection removal synced to your cloud library.",
+    });
   }
 
   function createCollectionFromInput() {
     if (newCollectionName.trim() === "") return;
     const nextCollections = createCollection(newCollectionName);
+    const createdCollection = nextCollections[0] ?? null;
     collections = nextCollections;
     setActiveCollection(nextCollections[0]?.id ?? null);
+    if (createdCollection) {
+      void syncCloudLibraryMutation({
+        mutations: [
+          {
+            kind: "collection_create",
+            collectionId: createdCollection.id,
+            name: createdCollection.name,
+            createdAt: createdCollection.createdAt,
+          },
+        ],
+        successStatus: "Collection synced to your cloud library.",
+      });
+    }
     newCollectionName = "";
   }
 
   function removeActiveCollection() {
     if (activeCollectionId == null) return;
+    const collectionId = activeCollectionId;
     const nextCollections = deleteCollection(activeCollectionId);
     collections = nextCollections;
     setActiveCollection(nextCollections[0]?.id ?? null);
+    void syncCloudLibraryMutation({
+      mutations: [{ kind: "collection_delete", collectionId }],
+      successStatus: "Collection removal synced to your cloud library.",
+    });
   }
 
   function formatSessionRecency(at: string): string {
@@ -738,6 +821,15 @@
         </p>
       {:else}
         <p class="muted collection-toolbar__summary">Select a collection to make row-level add/remove actions predictable.</p>
+      {/if}
+      {#if remoteLibraryError}
+        <p class="account-error" style="margin: 0.75rem 0 0">{remoteLibraryError}</p>
+      {:else if remoteLibraryStatus}
+        <p class="muted collection-toolbar__summary" style="margin-top: 0.75rem">{remoteLibraryStatus}</p>
+      {:else if remoteLibrarySyncRollout.ready}
+        <p class="muted collection-toolbar__summary" style="margin-top: 0.75rem">
+          Signed-in favorite and collection edits sync automatically. Imported-chart organization stays on this device.
+        </p>
       {/if}
     </section>
 

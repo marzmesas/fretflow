@@ -1,7 +1,7 @@
 export type RemoteLibrarySyncPolicy =
   | {
-      mode: "manual_snapshot_sync";
-      autoSyncReady: false;
+      mode: "mutation_auto_sync";
+      autoSyncReady: true;
       summary: string;
       detail: string;
       nextRequirement: string;
@@ -9,12 +9,12 @@ export type RemoteLibrarySyncPolicy =
 
 export function getRemoteLibrarySyncPolicy(): RemoteLibrarySyncPolicy {
   return {
-    mode: "manual_snapshot_sync",
-    autoSyncReady: false,
-    summary: "Cloud library stays on explicit snapshot save/load for now.",
+    mode: "mutation_auto_sync",
+    autoSyncReady: true,
+    summary: "Cloud library can auto-sync favorites and collections through mutation writes.",
     detail:
-      "Favorites and collections currently sync as whole-library snapshots. That is safe for manual review in Account, but not safe enough for background auto-sync because deletes and reorder changes can overwrite another device's intent.",
+      "Bundled and catalog-backed favorite or collection edits now sync with revisioned mutation batches instead of whole-library snapshot overwrites. Imported-chart IDs stay device-local and are stripped from cloud writes.",
     nextRequirement:
-      "Add mutation-style endpoints for favorite add/remove and collection create/update/delete before enabling automatic cloud library sync.",
+      "Decide whether Account should keep explicit snapshot save/load as a recovery tool, or whether the mutation path should become the only cloud-library write surface.",
   };
 }

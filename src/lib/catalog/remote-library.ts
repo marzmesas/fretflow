@@ -8,6 +8,7 @@ import {
   getFavoriteTrackIds,
   replaceFavoriteTrackIds,
 } from "./favorites";
+import { filterCloudEligibleRemoteLibraryState } from "./remote-library-cloud-eligibility";
 
 export type RemoteLibraryStateV1 = {
   schemaVersion: 1;
@@ -93,21 +94,21 @@ export function isRemoteLibraryState(value: unknown): value is RemoteLibraryStat
 }
 
 export function buildLocalRemoteLibraryState(): RemoteLibraryStateV1 {
-  return {
+  return filterCloudEligibleRemoteLibraryState({
     schemaVersion: 1,
     revision: 0,
     favorites: getFavoriteTrackIds(),
     collections: getCollections(),
-  };
+  });
 }
 
 export function applyRemoteLibraryState(state: RemoteLibraryStateV1): RemoteLibraryStateV1 {
-  const normalized: RemoteLibraryStateV1 = {
+  const normalized = filterCloudEligibleRemoteLibraryState({
     schemaVersion: 1,
     revision: state.revision,
     favorites: normalizeFavorites(state.favorites),
     collections: normalizeCollections(state.collections),
-  };
+  });
   replaceFavoriteTrackIds(normalized.favorites);
   replaceCollections(normalized.collections);
   return normalized;
