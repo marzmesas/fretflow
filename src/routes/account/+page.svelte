@@ -25,6 +25,7 @@
     type RemoteUserProfileV1,
   } from "$lib/account/remote-profile";
   import { getRemoteProfileRole } from "$lib/account/remote-profile-gate";
+  import { getRemoteProfileWritePolicy } from "$lib/account/remote-profile-write-policy";
   import { getProfileWriteRollout } from "$lib/account/profile-write-rollout";
   import {
     compareRemoteProgressStates,
@@ -127,6 +128,7 @@
       remoteProfileRole: getRemoteProfileRole(session),
     }),
   );
+  const remoteProfileWritePolicy = getRemoteProfileWritePolicy();
   const catalogMigrationTarget = getCatalogMigrationTarget();
   const catalogSnapshot = getCatalogSnapshot();
   const premiumPreviewTrackCount = catalogSnapshot.tracks.filter((track) => track.tier === "premium").length;
@@ -1391,6 +1393,11 @@
                       apiBaseUrl: subscriptionApiBase,
                       remoteProfileRole: getRemoteProfileRole(session),
                     }).detail}
+                  </p>
+                  <p class="muted account-footnote">
+                    <strong>{remoteProfileWritePolicy.summary}</strong><br />
+                    {remoteProfileWritePolicy.detail}<br />
+                    Next: {remoteProfileWritePolicy.nextRequirement}
                   </p>
                   {#if remoteProfileWriteStatus}
                     <p class="muted account-footnote">{remoteProfileWriteStatus}</p>
