@@ -21,6 +21,7 @@ import {
   getCurrentRemoteLibraryState,
   saveRemoteLibraryState,
 } from "./library-state.js";
+import { applyRemoteLibraryMutationBatch } from "./library-mutations.js";
 import {
   getCurrentRemoteProgressState,
   saveRemoteProgressState,
@@ -112,6 +113,17 @@ app.put("/api/v1/library-state", express.json({ limit: "64kb" }), (req, res) => 
   const payload = saveRemoteLibraryState(req.body);
   if (payload == null) {
     return res.status(400).json({ error: "Invalid remote library payload" });
+  }
+  if (payload.status === "conflict") {
+    return res.status(409).json(payload.currentState);
+  }
+  return res.json(payload.state);
+});
+
+app.post("/api/v1/library-state/mutations", express.json({ limit: "64kb" }), (req, res) => {
+  const payload = applyRemoteLibraryMutationBatch(req.body);
+  if (payload == null) {
+    return res.status(400).json({ error: "Invalid remote library mutation payload" });
   }
   if (payload.status === "conflict") {
     return res.status(409).json(payload.currentState);

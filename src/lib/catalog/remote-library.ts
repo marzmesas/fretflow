@@ -43,7 +43,7 @@ export class RemoteLibraryWriteConflictError extends Error {
   }
 }
 
-function normalizeApiBaseUrl(apiBaseUrl: string): string {
+export function normalizeApiBaseUrlForRemoteLibrary(apiBaseUrl: string): string {
   const normalized = apiBaseUrl.trim().replace(/\/+$/, "");
   if (normalized === "") {
     throw new Error("remote library requests require an API base URL");
@@ -51,7 +51,7 @@ function normalizeApiBaseUrl(apiBaseUrl: string): string {
   return normalized;
 }
 
-function normalizeIdentity(identity: RemoteLibraryIdentity): RemoteLibraryIdentity {
+export function normalizeRemoteLibraryIdentity(identity: RemoteLibraryIdentity): RemoteLibraryIdentity {
   const accountId = identity.accountId.trim();
   const email = identity.email.trim().toLowerCase();
   if (accountId === "" || email === "") {
@@ -116,8 +116,8 @@ export function applyRemoteLibraryState(state: RemoteLibraryStateV1): RemoteLibr
 export async function loadRemoteLibraryState(
   options: LoadRemoteLibraryStateOptions,
 ): Promise<RemoteLibraryStateV1> {
-  const apiBaseUrl = normalizeApiBaseUrl(options.apiBaseUrl);
-  const identity = normalizeIdentity(options);
+  const apiBaseUrl = normalizeApiBaseUrlForRemoteLibrary(options.apiBaseUrl);
+  const identity = normalizeRemoteLibraryIdentity(options);
   const fetchImpl = options.fetchImpl ?? fetch;
   const params = new URLSearchParams(identity);
   const response = await fetchImpl(`${apiBaseUrl}/api/v1/library-state?${params.toString()}`);
@@ -134,8 +134,8 @@ export async function loadRemoteLibraryState(
 export async function saveRemoteLibraryState(
   options: SaveRemoteLibraryStateOptions,
 ): Promise<RemoteLibraryStateV1> {
-  const apiBaseUrl = normalizeApiBaseUrl(options.apiBaseUrl);
-  const identity = normalizeIdentity(options);
+  const apiBaseUrl = normalizeApiBaseUrlForRemoteLibrary(options.apiBaseUrl);
+  const identity = normalizeRemoteLibraryIdentity(options);
   const fetchImpl = options.fetchImpl ?? fetch;
   const response = await fetchImpl(`${apiBaseUrl}/api/v1/library-state`, {
     method: "PUT",
