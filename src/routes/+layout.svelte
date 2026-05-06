@@ -18,14 +18,14 @@
   let { children } = $props();
 
   const nav = [
-    { href: "/", label: "Home", eyebrow: "Overview" },
-    { href: "/library", label: "Library", eyebrow: "Browse" },
-    { href: "/practice", label: "Practice", eyebrow: "Play" },
-    { href: "/settings", label: "Settings", eyebrow: "Setup" },
+    { href: "/", label: "Home" },
+    { href: "/library", label: "Library" },
+    { href: "/practice", label: "Practice" },
+    { href: "/settings", label: "Settings" },
   ];
 
   type ShellMeta = {
-    kicker: string;
+    section: string;
     title: string;
     subtitle: string;
     wide: boolean;
@@ -47,25 +47,25 @@
   function getShellMeta(pathname: string): ShellMeta {
     if (pathname.startsWith("/library")) {
       return {
-        kicker: "Catalog and routing",
-        title: "Shape your next set list",
+        section: "Library",
+        title: "Find the next chart fast",
         subtitle:
-          "Browse bundled drills, collections, imports, and recommendations without losing the thread of what to practice next.",
+          "Browse drills, collections, imports, and recommendations without losing the thread of what to practice next.",
         wide: true,
       };
     }
     if (pathname.startsWith("/practice")) {
       return {
-        kicker: "Deliberate repetition",
+        section: "Practice",
         title: "Keep the chart in the spotlight",
         subtitle:
-          "Use looping, scoring, coaching, and saved presets as support systems around the playing surface, not distractions from it.",
+          "Let loops, scoring, and coaching support the run without stealing focus from the playing surface.",
         wide: true,
       };
     }
     if (pathname.startsWith("/settings")) {
       return {
-        kicker: "Studio setup",
+        section: "Settings",
         title: "Tune the room before the run",
         subtitle:
           "Input monitoring, tuning, and calibration should feel like a guided soundcheck instead of a diagnostic console.",
@@ -74,18 +74,18 @@
     }
     if (pathname.startsWith("/account")) {
       return {
-        kicker: "Profile and access",
-        title: "Keep identity separate from plumbing",
+        section: "Account",
+        title: "Keep account and access in one place",
         subtitle:
-          "Subscription, profile, and continuity should read like product value, while rollout diagnostics stay secondary.",
+          "Subscription, sync, and profile state should read like product value, while diagnostics stay secondary.",
         wide: true,
       };
     }
     return {
-      kicker: "Desktop practice studio",
-      title: "Build momentum, not menu fatigue",
+      section: "Home",
+      title: "Start the next useful session",
       subtitle:
-        "Fretflow should feel like a rehearsal environment with clear next actions, expressive visual rhythm, and a stronger sense of flow.",
+        "Use Home to set up, resume, or choose the next chart without digging through the full app first.",
       wide: false,
     };
   }
@@ -183,9 +183,10 @@
         </a>
 
         <p class="app-sidebar__tagline">
-          A desktop-first rehearsal space for guitar players who want stronger timing, repeatable loops, and guided momentum.
+          Desktop-first guitar practice built around timing, repeatability, and clear next actions.
         </p>
 
+        <div class="app-sidebar__section-label">Navigate</div>
         <nav class="app-nav" aria-label="Main">
           {#each nav as item}
             <a
@@ -193,7 +194,6 @@
               href={item.href}
               aria-current={isActivePath(pathname, item.href) ? "page" : undefined}
             >
-              <span class="app-nav__eyebrow">{item.eyebrow}</span>
               <span class="app-nav__label">{item.label}</span>
             </a>
           {/each}
@@ -201,18 +201,16 @@
       </div>
 
       <div class="app-sidebar__footer">
-        <span class="app-sidebar__footer-label">Design direction</span>
-        <p class="app-sidebar__footer-copy">
-          The shell now prioritizes musical atmosphere, clearer hierarchy, and stronger separation between primary workflow and supporting diagnostics.
-        </p>
+        <a href="/account" class="btn app-sidebar__footer-action">Open Account</a>
+        <p class="app-sidebar__footer-copy">Use Account for sign-in, sync, and plan details.</p>
       </div>
     </div>
   </aside>
 
   <div class="app-frame">
     <header class="app-masthead">
-      <div>
-        <p class="app-kicker">{shell.kicker}</p>
+      <div class="app-masthead__copy">
+        <p class="app-kicker">{shell.section}</p>
         <h1>{shell.title}</h1>
         <p>{shell.subtitle}</p>
       </div>
@@ -221,9 +219,7 @@
         {#if isTauri()}
           {@const shellIdentity = getShellIdentityRollout(session)}
           <div class="app-utility-card">
-            <span class="app-utility-card__label">
-              {shellIdentity.source === "remote_auth" ? "Connected account" : "Shell identity"}
-            </span>
+            <span class="app-utility-card__label">Account</span>
             <a
               href="/account"
               class="session-account-pill"
@@ -234,18 +230,18 @@
               {#if profile?.auth.signedIn}
                 {shellAccountLabel()}
               {:else}
-                Sign in to sync later
+                Sign in
               {/if}
             </a>
-            <span class="app-sidebar__footer-copy">
-              {remoteProfile != null ? "Connected profile is now active in the shell." : shellIdentity.summary}
+            <span class="app-utility-card__hint">
+              {remoteProfile != null ? "Synced profile active" : shellIdentity.summary}
             </span>
           </div>
         {/if}
 
         {#if isTauri() && connectionStatus}
           <div class="app-utility-card" role="status" aria-label="Input connections">
-            <span class="app-utility-card__label">Studio status</span>
+            <span class="app-utility-card__label">Inputs</span>
             <div class="app-connection-status">
               <span
                 class="connection-pill"
@@ -264,6 +260,7 @@
                 MIDI
               </span>
             </div>
+            <span class="app-utility-card__hint">Check levels and calibration in Settings.</span>
           </div>
         {/if}
       </div>

@@ -54,6 +54,11 @@
   let assessmentExperience = $state<OnboardingExperienceLevel>("brand_new");
   let assessmentGoal = $state<OnboardingPracticeGoal>("fundamentals");
   let heroPath = $derived(activeRecommendedPath());
+  let activationMode = $derived(isActivationMode());
+  let currentNextStep = $derived(nextOnboardingStep());
+  let currentSeededTrack = $derived(activeRecommendedTrack());
+  let currentSeededPath = $derived(activeRecommendedPath());
+  let currentSetupAction = $derived(recommendedSetupAction());
 
   const STEP_COPY: Record<OnboardingStepId, { title: string; detail: string; href: string }> = {
     settings: {
@@ -174,15 +179,17 @@
     return when.toLocaleDateString();
   }
 
-  function progressSourceLabel(): string {
-    switch (progressSource) {
-      case "cloud":
-        return "cloud progress";
-      case "merged":
-        return "a merged local + cloud view";
-      case "local":
-        return "this device";
-    }
+  function momentumLabel(): string {
+    return practiceGoals.streakDays > 0 ? `${practiceGoals.streakDays}-day streak` : "First streak starts today";
+  }
+
+  function historySummaryLabel(): string {
+    if (recentSessions.length === 0) return "No recent runs yet";
+    return recentSessions.length === 1 ? "1 recent chart" : `${recentSessions.length} recent charts`;
+  }
+
+  function seededPathLabel(): string {
+    return heroPath?.title ?? "Path recommendation waiting";
   }
 
   function openLearningPathStep(path: LearningPathProgress) {
@@ -309,41 +316,99 @@
 </script>
 
 <div class="home">
-  <section class="panel home-hero ff-page-hero">
-    <div class="home-hero__copy">
-      <p class="ff-page-hero__eyebrow">Stage-ready practice flow</p>
-      <h2 class="home-title ff-page-hero__title">Train with the feel of a rehearsal room, not a spreadsheet dashboard.</h2>
-      <p class="home-subtitle ff-page-hero__body">
-        Play-along practice with scrolling tab, real-time scoring, loopable repetition, and mic or MIDI input that feels guided instead of clinical.
-      </p>
-      <div class="home-actions">
-        <a href="/library" class="btn btn-primary btn-lg">Browse Library</a>
-        <a href="/practice" class="btn btn-lg">Open Practice</a>
-      </div>
+  <section class="panel home-hero home-entry">
+    <div class="home-entry__copy">
+      {#if activationMode}
+        <p class="ff-page-hero__eyebrow">First session</p>
+        <h2 class="home-title ff-page-hero__title">Get one clean run on the board.</h2>
+        <p class="home-subtitle ff-page-hero__body">
+          Set up your input, pick a starter chart, and finish one full run. Once that happens, Home gets much better at guiding what comes next.
+        </p>
+        <div class="home-actions">
+          {#if currentNextStep}
+            <a href={currentNextStep.href} class="btn btn-primary btn-lg">{currentNextStep.title}</a>
+          {/if}
+          {#if onboarding?.assessment && currentSeededTrack}
+            <button type="button" class="btn btn-lg" onclick={openAssessmentRecommendation}>
+              Open recommended chart
+            </button>
+          {:else}
+            <a href="/library" class="btn btn-lg">Browse starter charts</a>
+          {/if}
+        </div>
+      {:else}
+        <p class="ff-page-hero__eyebrow">Returning session</p>
+        <h2 class="home-title ff-page-hero__title">
+          {#if lastSession}
+            Resume the next useful run.
+          {:else if recommendedTracks[0]}
+            Keep momentum without digging.
+          {:else}
+            Start the next chart fast.
+          {/if}
+        </h2>
+        <p class="home-subtitle ff-page-hero__body">
+          {#if lastSession}
+            Jump back into <strong>{lastSession.chartTitle}</strong>, review the recent queue, or pivot into a smarter next-chart recommendation.
+          {:else if recommendedTracks[0]}
+            Home is tuned to point you toward the next chart, path step, or daily target instead of making you browse every option equally.
+          {:else}
+            Open Practice directly or browse Library with a clearer sense of what deserves attention next.
+          {/if}
+        </p>
+        <div class="home-actions">
+          {#if lastSession}
+            <button type="button" class="btn btn-primary btn-lg" onclick={openLastSession}>Resume last chart</button>
+          {:else if recommendedTracks[0]}
+            <button
+              type="button"
+              class="btn btn-primary btn-lg"
+              onclick={() => void goto(`/practice?track=${encodeURIComponent(recommendedTracks[0]!.track.id)}`)}
+            >
+              Practice recommended chart
+            </button>
+          {:else}
+            <a href="/practice" class="btn btn-primary btn-lg">Open Practice</a>
+          {/if}
+          <a href="/library" class="btn btn-lg">Browse Library</a>
+        </div>
+      {/if}
     </div>
 
-    <div class="ff-page-hero__stats" aria-label="Practice overview">
-      <div class="ff-page-hero__stat">
-        <span class="ff-page-hero__stat-label">Momentum</span>
-        <strong>{practiceGoals.streakDays > 0 ? `${practiceGoals.streakDays}-day streak` : "Start your streak"}</strong>
-        <span class="home-hero__stat-detail">
+    <div class="home-entry__rail" aria-label="Home overview">
+      <div class="home-entry__tile">
+        <span class="home-entry__tile-label">Momentum</span>
+        <strong>{momentumLabel()}</strong>
+        <span class="home-entry__tile-copy">
           {practiceGoals.goalMetToday ? "Today's target is already cleared." : "Today's goal is still in reach."}
         </span>
       </div>
-      <div class="ff-page-hero__stat">
-        <span class="ff-page-hero__stat-label">Recent runs</span>
-        <strong>{recentSessions.length > 0 ? `${recentSessions.length} charts tracked` : "No sessions yet"}</strong>
-        <span class="home-hero__stat-detail">
-          {recentSessions.length > 0
-            ? `Resume from the queue or pivot into a recommendation. Source: ${progressSourceLabel()}.`
-            : "Complete one full run to seed your queue."}
+      <div class="home-entry__tile">
+        <span class="home-entry__tile-label">{activationMode ? "Next move" : "Recent history"}</span>
+        <strong>{activationMode ? (currentNextStep?.title ?? "Open Settings") : historySummaryLabel()}</strong>
+        <span class="home-entry__tile-copy">
+          {#if activationMode}
+            {currentNextStep?.detail ?? "Configure input first so the first scored run feels trustworthy."}
+          {:else if recentSessions.length > 0}
+            Resume from the queue or move into the next recommendation.
+          {:else}
+            Finish one full run to seed queue, goals, and recommendations.
+          {/if}
         </span>
       </div>
-      <div class="ff-page-hero__stat">
-        <span class="ff-page-hero__stat-label">Seeded path</span>
-        <strong>{heroPath?.title ?? "Assessment not set"}</strong>
-        <span class="home-hero__stat-detail">
-          {heroPath ? "Your onboarding recommendation can drive the next chart automatically." : "Answer the two onboarding questions to seed the right first path."}
+      <div class="home-entry__tile">
+        <span class="home-entry__tile-label">{activationMode ? "Recommended start" : "Current path"}</span>
+        <strong>{activationMode ? (currentSeededTrack?.title ?? "Assessment can seed your first chart") : seededPathLabel()}</strong>
+        <span class="home-entry__tile-copy">
+          {#if activationMode}
+            {currentSetupAction
+              ? `${currentSetupAction.title} first, then open the recommended chart.`
+              : "Answer the two onboarding questions to get a first path and chart recommendation."}
+          {:else if heroPath}
+            Your path recommendation is still available whenever you want guided structure.
+          {:else}
+            Answer the onboarding questions to seed a path instead of browsing cold.
+          {/if}
         </span>
       </div>
     </div>
@@ -356,21 +421,17 @@
   {/if}
 
   {#if onboarding && !onboarding.hidden}
-    {@const nextStep = nextOnboardingStep()}
-    {@const seededTrack = activeRecommendedTrack()}
-    {@const seededPath = activeRecommendedPath()}
-      {@const setupAction = recommendedSetupAction()}
     <section class="home-activation">
       <div class="panel onboarding-panel">
         <div class="ff-section-header onboarding-panel__header">
           <div>
-            <p class="ff-section-eyebrow onboarding-panel__eyebrow">First run</p>
-            <h2>Setup guide</h2>
+            <p class="ff-section-eyebrow onboarding-panel__eyebrow">First session plan</p>
+            <h2>Set up the first useful run</h2>
           </div>
           <button type="button" class="btn" onclick={dismissSetupGuide}>Dismiss</button>
         </div>
         <p class="onboarding-panel__body">
-          Fretflow works best once your input is configured and you have completed one full practice run.
+          Configure input, choose a starting point, and finish one full chart. This panel should answer what to do next without sending you hunting through the app.
         </p>
         <div class="assessment-panel">
           <div class="assessment-panel__copy">
@@ -398,18 +459,18 @@
               {onboarding.assessment ? "Update recommendation" : "Save recommendation"}
             </button>
           </div>
-          {#if onboarding.assessment && seededTrack && seededPath}
+          {#if onboarding.assessment && currentSeededTrack && currentSeededPath}
             <p class="assessment-panel__result">
-              Recommended path: <strong>{seededPath.title}</strong> · Start with <strong>{seededTrack.title}</strong>.
+              Recommended path: <strong>{currentSeededPath.title}</strong> · Start with <strong>{currentSeededTrack.title}</strong>.
             </p>
           {/if}
-          {#if setupAction}
+          {#if currentSetupAction}
             <div class="assessment-setup">
               <div>
-                <strong>{setupAction.title}</strong>
-                <p>{setupAction.detail}</p>
+                <strong>{currentSetupAction.title}</strong>
+                <p>{currentSetupAction.detail}</p>
               </div>
-              <a href={setupAction.href} class="btn">Open in Settings</a>
+              <a href={currentSetupAction.href} class="btn">Open in Settings</a>
             </div>
           {/if}
         </div>
@@ -426,10 +487,10 @@
             </div>
           {/each}
         </div>
-        {#if nextStep}
+        {#if currentNextStep}
           <div class="onboarding-panel__actions">
-            <a href={nextStep.href} class="btn btn-primary">{nextStep.title}</a>
-            {#if onboarding.assessment && seededTrack}
+            <a href={currentNextStep.href} class="btn btn-primary">{currentNextStep.title}</a>
+            {#if onboarding.assessment && currentSeededTrack}
               <button type="button" class="btn" onclick={openAssessmentRecommendation}>
                 Open recommended first chart
               </button>
@@ -440,10 +501,10 @@
 
       <aside class="home-activation__rail">
         <div class="panel home-note-card">
-          <p class="home-note-card__eyebrow">First session target</p>
-          <h2>Get one clean run recorded.</h2>
+          <p class="home-note-card__eyebrow">What unlocks next</p>
+          <h2>One completed run changes the dashboard.</h2>
           <p>
-            The first completed chart unlocks recent practice, smarter recommendations, and a more useful return-to-practice dashboard.
+            Once the first chart is finished, Home switches from setup mode into a returning-player dashboard with recent runs, recommendations, and path continuity.
           </p>
           <ol class="home-steps">
             <li>Verify your mic or MIDI setup in <a href="/settings">Settings</a>.</li>
@@ -452,36 +513,25 @@
           </ol>
         </div>
 
-      {#if seededPath}
+      {#if currentSeededPath}
         <div class="panel home-note-card home-note-card--accent">
             <p class="home-note-card__eyebrow">{remoteProfile ? "Connected profile" : "Seeded recommendation"}</p>
-            <h2>{seededPath.title}</h2>
+            <h2>{currentSeededPath.title}</h2>
             <p>
               {#if remoteProfile?.fields.practiceGoal}
                 Focus: <strong>{remoteProfile.fields.practiceGoal}</strong>.{/if}
-              {seededPath.description}
-              {#if seededTrack}
-                Start with <strong>{seededTrack.title}</strong> for the cleanest first step.
+              {currentSeededPath.description}
+              {#if currentSeededTrack}
+                Start with <strong>{currentSeededTrack.title}</strong> for the cleanest first step.
               {/if}
             </p>
-            {#if seededTrack}
+            {#if currentSeededTrack}
               <button type="button" class="btn btn-primary" onclick={openAssessmentRecommendation}>
                 Open recommended chart
               </button>
             {/if}
           </div>
         {/if}
-
-        <div class="panel home-note-card">
-          <p class="home-note-card__eyebrow">Core tools</p>
-          <h2>Built for repetition that actually compounds.</h2>
-          <ul class="home-features">
-            <li>Scrolling tab with real-time accuracy and combo feedback</li>
-            <li>Loop A-B, metronome, speed control, and saved practice state</li>
-            <li>Mic pitch detection or MIDI input with local scoring</li>
-            <li>Recent runs, path guidance, and recommendation continuity</li>
-          </ul>
-        </div>
       </aside>
     </section>
   {/if}
@@ -680,47 +730,76 @@
   }
   .home-hero {
     display: grid;
-    grid-template-columns: minmax(0, 1.5fr) minmax(18rem, 1fr);
-    gap: 1.25rem;
+    gap: 1.1rem;
     margin-bottom: 0;
-    padding: 1.4rem;
+    padding: 1.25rem 1.35rem;
     background:
-      radial-gradient(circle at top right, rgba(63, 208, 195, 0.18), transparent 30%),
-      radial-gradient(circle at left center, rgba(213, 138, 84, 0.2), transparent 30%),
+      radial-gradient(circle at top right, rgba(63, 208, 195, 0.16), transparent 28%),
+      radial-gradient(circle at left center, rgba(213, 138, 84, 0.16), transparent 26%),
       linear-gradient(145deg, rgba(33, 24, 29, 0.96), rgba(18, 15, 19, 0.96));
   }
-  .home-hero__copy {
+  .home-entry {
+    grid-template-columns: minmax(0, 1.45fr) minmax(18rem, 0.95fr);
+    align-items: stretch;
+  }
+  .home-entry__copy {
     display: grid;
     align-content: start;
   }
   .home-title {
-    max-width: 14ch;
-    font-size: clamp(2rem, 3vw, 3.2rem);
+    max-width: 12ch;
+    font-size: clamp(2rem, 3vw, 3.05rem);
   }
   .home-subtitle {
-    margin-bottom: 1.4rem;
-    max-width: 42rem;
-    font-size: 1.02rem;
+    margin-bottom: 1.2rem;
+    max-width: 36rem;
+    font-size: 1rem;
   }
   .home-actions {
     display: flex;
     flex-wrap: wrap;
     gap: 0.75rem;
   }
+  .home-entry__rail {
+    display: grid;
+    gap: 0.75rem;
+    align-content: start;
+  }
+  .home-entry__tile {
+    display: grid;
+    gap: 0.3rem;
+    padding: 0.95rem 1rem;
+    border-radius: 18px;
+    border: 1px solid var(--ff-border);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 34%),
+      rgba(10, 9, 11, 0.25);
+  }
+  .home-entry__tile-label {
+    color: var(--ff-highlight-strong);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+  .home-entry__tile strong {
+    font-size: 1.05rem;
+    line-height: 1.2;
+  }
+  .home-entry__tile-copy {
+    color: var(--ff-muted);
+    font-size: 0.84rem;
+    line-height: 1.5;
+  }
   .btn-lg {
     min-height: 48px;
     padding: 0.78rem 1.4rem;
     font-size: 0.96rem;
   }
-  .home-hero__stat-detail {
-    color: var(--ff-muted);
-    font-size: 0.84rem;
-    line-height: 1.55;
-  }
   .home-activation {
     display: grid;
     gap: 1rem;
-    grid-template-columns: minmax(0, 1.5fr) minmax(18rem, 0.9fr);
+    grid-template-columns: minmax(0, 1.6fr) minmax(18rem, 0.82fr);
   }
   .home-activation__rail {
     display: grid;
@@ -775,16 +854,8 @@
     color: var(--ff-text);
     line-height: 1.65;
   }
-  .home-steps li + li,
-  .home-features li + li {
+  .home-steps li + li {
     margin-top: 0.35rem;
-  }
-  .home-features {
-    margin: 0;
-    padding-left: 1.3rem;
-    font-size: 0.9rem;
-    color: var(--ff-muted-strong);
-    line-height: 1.65;
   }
   .home-version {
     font-size: 0.8rem;
@@ -1075,9 +1146,7 @@
     margin-top: 1rem;
   }
   @media (max-width: 640px) {
-    .home-hero {
-      grid-template-columns: 1fr;
-    }
+    .home-entry,
     .home-activation,
     .home-dashboard__top,
     .home-dashboard__grid {
