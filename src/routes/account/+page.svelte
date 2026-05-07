@@ -797,7 +797,7 @@
   <div class="account-overview__identity">
     <p class="account-overview__eyebrow">Administration</p>
     <h1>Account, billing, and sync</h1>
-    <p class="muted">Identity, plan state, cloud continuity, and recovery tools live here.</p>
+    <p class="muted">Identity, billing, cloud state, and recovery tools.</p>
   </div>
   <div class="account-overview__stats">
     <div class="account-overview__stat">
@@ -956,7 +956,7 @@
           <div>
             <p class="ff-section-eyebrow">Plan and delivery</p>
             <h2>Subscription</h2>
-            <p class="muted ff-section-intro account-panel__intro">Plan status, billing connectivity, and pending activity delivery.</p>
+            <p class="muted ff-section-intro account-panel__intro">Plan status, billing connectivity, and pending delivery.</p>
           </div>
           <span class={`status-pill status-pill--${subscriptionLifecycle.tone}`}>
             {subscriptionLifecycle.badgeLabel}
@@ -1078,7 +1078,7 @@
               <div>
                 <p class="ff-section-eyebrow">Optional packaging</p>
                 <h3>Optional content packs</h3>
-                <p class="muted ff-section-intro account-panel__intro">One-off packs keep premium from becoming a single all-or-nothing wall.</p>
+                <p class="muted ff-section-intro account-panel__intro">One-off packs keep premium from becoming all-or-nothing.</p>
               </div>
             </div>
             <div class="pack-grid">
@@ -1588,9 +1588,9 @@
   .account-overview {
     display: grid;
     grid-template-columns: minmax(0, 1.15fr) minmax(24rem, 1fr);
-    gap: 1rem;
+    gap: 0.8rem;
     align-items: start;
-    padding: 1rem 1.1rem;
+    padding: 0.9rem 1rem;
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 34%),
       linear-gradient(180deg, rgba(20, 18, 22, 0.96), rgba(12, 10, 13, 0.98));
@@ -1621,12 +1621,12 @@
   .account-overview__stats {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.7rem;
+    gap: 0.55rem;
   }
   .account-overview__stat {
     display: grid;
     gap: 0.22rem;
-    padding: 0.85rem 0.95rem;
+    padding: 0.72rem 0.82rem;
     border-radius: 16px;
     border: 1px solid var(--ff-border);
     background:
@@ -1657,7 +1657,7 @@
   }
   .account-panel {
     display: grid;
-    gap: 0.9rem;
+    gap: 0.72rem;
   }
   .account-panel--diagnostics {
     align-content: start;
@@ -1736,12 +1736,12 @@
   .subscription-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
-    gap: 0.75rem;
+    gap: 0.6rem;
   }
   .subscription-stat {
     display: grid;
     gap: 0.15rem;
-    padding: 0.9rem 1rem;
+    padding: 0.75rem 0.82rem;
     border-radius: 16px;
     border: 1px solid var(--ff-border);
     background:
@@ -1755,12 +1755,12 @@
   .lifecycle-strip {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
-    gap: 0.75rem;
+    gap: 0.6rem;
   }
   .lifecycle-card {
     display: grid;
     gap: 0.35rem;
-    padding: 1rem;
+    padding: 0.82rem 0.9rem;
     border-radius: 18px;
     border: 1px solid var(--ff-border);
     background:
@@ -1794,17 +1794,17 @@
   .plan-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
-    gap: 0.85rem;
+    gap: 0.7rem;
   }
   .pack-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
-    gap: 0.85rem;
+    gap: 0.7rem;
   }
   .plan-card {
     display: grid;
-    gap: 0.8rem;
-    padding: 1rem;
+    gap: 0.68rem;
+    padding: 0.88rem 0.92rem;
     border-radius: 18px;
     border: 1px solid var(--ff-border);
     background:

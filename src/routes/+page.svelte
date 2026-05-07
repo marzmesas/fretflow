@@ -386,11 +386,11 @@
         <strong>{activationMode ? (currentNextStep?.title ?? "Open Settings") : historySummaryLabel()}</strong>
         <span class="home-entry__tile-copy">
           {#if activationMode}
-            {currentNextStep?.detail ?? "Configure input first so the first scored run feels trustworthy."}
+            {currentNextStep?.detail ?? "Configure input first."}
           {:else if recentSessions.length > 0}
-            Resume from the queue or move into the next recommendation.
+            Resume or pivot into the next recommendation.
           {:else}
-            Finish one full run to seed queue, goals, and recommendations.
+            Finish one run to seed queue and goals.
           {/if}
         </span>
       </div>
@@ -422,10 +422,7 @@
     <section class="home-activation">
       <div class="panel panel--workspace onboarding-panel">
         <div class="ff-section-header onboarding-panel__header">
-          <div>
-            <p class="ff-section-eyebrow onboarding-panel__eyebrow">First session plan</p>
-            <h2>Set up the first useful run</h2>
-          </div>
+          <div><h2>Set up the first useful run</h2></div>
           <button type="button" class="btn" onclick={dismissSetupGuide}>Dismiss</button>
         </div>
         <p class="onboarding-panel__body">Configure input, choose a starting point, and finish one full chart.</p>
@@ -497,10 +494,9 @@
 
       <aside class="home-activation__rail">
         <div class="panel panel--utility home-note-card">
-          <p class="home-note-card__eyebrow">What unlocks next</p>
           <h2>One completed run changes the dashboard.</h2>
           <p>
-            Once the first chart is finished, Home switches from setup mode into a returning-player dashboard with recent runs, recommendations, and path continuity.
+            Once the first chart is finished, Home switches into recent runs, recommendations, and path continuity.
           </p>
           <ol class="home-steps">
             <li>Verify your mic or MIDI setup in <a href="/settings">Settings</a>.</li>
@@ -511,7 +507,6 @@
 
       {#if currentSeededPath}
         <div class="panel panel--utility home-note-card home-note-card--accent">
-            <p class="home-note-card__eyebrow">{remoteProfile ? "Connected profile" : "Seeded recommendation"}</p>
             <h2>{currentSeededPath.title}</h2>
             <p>
               {#if remoteProfile?.fields.practiceGoal}
@@ -554,7 +549,6 @@
         <div class="panel panel--utility goal-panel home-dashboard__goal-card">
           <div class="ff-section-header recent-panel__header">
             <div>
-              <p class="ff-section-eyebrow home-note-card__eyebrow">Daily rhythm</p>
               <h2>Daily goal &amp; streak</h2>
               <p class="muted">Consistency is stored locally and updates after each completed chart run.</p>
             </div>
@@ -593,9 +587,8 @@
           <div class="panel panel--utility recent-panel">
             <div class="ff-section-header recent-panel__header">
               <div>
-                <p class="ff-section-eyebrow home-note-card__eyebrow">Quick return</p>
                 <h2>Recent practice queue</h2>
-                <p class="muted">Jump back into recent charts without digging through Library.</p>
+                <p class="muted">Jump back into recent charts fast.</p>
               </div>
               <a href="/library?filter=recent" class="btn">Open recent in Library</a>
             </div>
@@ -617,7 +610,6 @@
           <div class="panel panel--utility recent-panel">
             <div class="ff-section-header recent-panel__header">
               <div>
-                <p class="ff-section-eyebrow home-note-card__eyebrow">Momentum picks</p>
                 <h2>Suggested next charts</h2>
                 <p class="muted">Recommendations follow recent bundled-chart runs and current accuracy.</p>
               </div>
@@ -648,7 +640,6 @@
         <div class="panel panel--workspace path-panel">
           <div class="ff-section-header recent-panel__header">
             <div>
-              <p class="ff-section-eyebrow home-note-card__eyebrow">Structured progression</p>
               <h2>Learning paths</h2>
               <p class="muted">Structured bundled-chart sequences for guided progression.</p>
             </div>
@@ -764,7 +755,7 @@
   .home-entry__tile {
     display: grid;
     gap: 0.3rem;
-    padding: 0.95rem 1rem;
+    padding: 0.82rem 0.9rem;
     border-radius: 18px;
     border: 1px solid var(--ff-border);
     background:
@@ -784,8 +775,8 @@
   }
   .home-entry__tile-copy {
     color: var(--ff-muted);
-    font-size: 0.84rem;
-    line-height: 1.5;
+    font-size: 0.8rem;
+    line-height: 1.42;
   }
   .btn-lg {
     min-height: 48px;
@@ -818,24 +809,16 @@
   }
   .home-note-card {
     display: grid;
-    gap: 0.7rem;
-  }
-  .home-note-card__eyebrow {
-    margin: 0;
-    color: var(--ff-highlight-strong);
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
+    gap: 0.55rem;
   }
   .home-note-card h2 {
     margin: 0;
-    font-size: 1.35rem;
+    font-size: 1.2rem;
   }
   .home-note-card p {
     margin: 0;
     color: var(--ff-muted);
-    line-height: 1.6;
+    line-height: 1.5;
   }
   .home-note-card--accent {
     background:
@@ -1009,7 +992,7 @@
   }
   .goal-panel {
     display: grid;
-    gap: 1rem;
+    gap: 0.75rem;
   }
   .goal-panel__grid {
     display: grid;

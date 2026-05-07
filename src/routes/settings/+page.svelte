@@ -519,9 +519,7 @@
     <div class="settings-command-bar__copy">
       <p class="ff-section-eyebrow">Studio setup</p>
       <h1 class="settings-command-bar__title">Get one reliable signal path, then leave the tool out of the way.</h1>
-      <p class="muted settings-command-bar__body">
-        Start with monitoring, verify one clean note, then align timing. Everything deeper stays available, but secondary.
-      </p>
+      <p class="muted settings-command-bar__body">Start monitoring, verify one clean note, then align timing.</p>
     </div>
     <div class="settings-command-bar__actions">
       <button type="button" class="btn btn-primary" onclick={startMonitor} disabled={monitoring || browserOnly}>
@@ -959,16 +957,16 @@
   .settings-status-pill {
     display: grid;
     gap: 0.18rem;
-    padding: 0.75rem 0.85rem;
+    padding: 0.62rem 0.72rem;
     border-radius: 14px;
     border: 1px solid var(--ff-border);
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 34%),
-      rgba(9, 8, 10, 0.18);
+      linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 34%),
+      rgba(9, 8, 10, 0.12);
   }
   .settings-status-pill__label {
     color: var(--ff-highlight-strong);
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     font-weight: 700;
     letter-spacing: 0.12em;
     text-transform: uppercase;

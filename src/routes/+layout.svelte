@@ -184,15 +184,9 @@
           </a>
         {/each}
       </nav>
-
-      <div class="app-sidebar__status">
-        <span class="app-sidebar__status-label">Current mode</span>
-        <strong>{shell.modeLabel}</strong>
-      </div>
-
       <div class="app-sidebar__footer">
-        <a href="/account" class="btn app-sidebar__footer-action">Open Account</a>
-        <p class="app-sidebar__footer-copy">Billing, sign-in, and recovery tools live there.</p>
+        <a href="/account" class="btn app-sidebar__footer-action">Account &amp; billing</a>
+        <p class="app-sidebar__footer-copy">Sign-in, plans, and recovery.</p>
       </div>
     </div>
   </aside>

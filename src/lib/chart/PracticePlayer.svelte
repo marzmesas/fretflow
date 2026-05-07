@@ -1328,7 +1328,7 @@
   <aside class="practice-sidebar">
     <section class="panel panel--utility practice-card">
       <p class="practice-card__eyebrow">Momentum</p>
-      <h3 class="practice-card__title">Goals and session insight</h3>
+      <h3 class="practice-card__title">Session dock</h3>
 
       <div class="practice-goals">
         <div class="practice-goals__row">
@@ -1337,9 +1337,8 @@
             <span class="practice-goals__met">Daily goal met</span>
           {/if}
         </div>
-        <p class="muted" style="margin: 0.35rem 0 0.5rem; font-size: 0.82rem">
-          Streak: <strong>{practiceGoals.streakDays}</strong> day{practiceGoals.streakDays === 1 ? "" : "s"} with practice
-          (local calendar). Counts when you finish a full chart run.
+        <p class="muted" style="margin: 0.35rem 0 0.5rem; font-size: 0.8rem">
+          Streak: <strong>{practiceGoals.streakDays}</strong> day{practiceGoals.streakDays === 1 ? "" : "s"}.
         </p>
         <label class="row" style="gap: 0.5rem; align-items: center; flex-wrap: wrap">
           <span class="muted" style="font-size: 0.82rem">Sessions per day target</span>
@@ -1435,22 +1434,22 @@
                   <div class="path-continuation__title">{pathContinuation.pathTitle}</div>
                   {#if pathContinuation.state === "advance" && pathContinuation.nextTrackId && pathContinuation.nextTrackTitle}
                     <p class="path-continuation__body">
-                      You cleared this step at the path threshold. Continue with <strong>{pathContinuation.nextTrackTitle}</strong>.
+                      Cleared. Continue with <strong>{pathContinuation.nextTrackTitle}</strong>.
                     </p>
                     <button type="button" class="btn btn-primary" style="margin-top: 0.25rem" onclick={() => openTrack(pathContinuation.nextTrackId)}>
                       Open next path step
                     </button>
                   {:else if pathContinuation.state === "current_step"}
                     <p class="path-continuation__body">
-                      Stay on <strong>{pathContinuation.currentStepTitle}</strong> until you clear <strong>{pathContinuation.currentStepThreshold}%</strong>.
+                      Stay on <strong>{pathContinuation.currentStepTitle}</strong> until <strong>{pathContinuation.currentStepThreshold}%</strong>.
                     </p>
                   {:else if pathContinuation.state === "completed"}
                     <p class="path-continuation__body">
-                      You have completed the current onboarding path. Move into Library recommendations or start a different path.
+                      Path complete. Move into Library recommendations or start a different path.
                     </p>
                   {:else if pathContinuation.state === "not_on_path" && pathContinuation.nextTrackId && pathContinuation.nextTrackTitle}
                     <p class="path-continuation__body">
-                      This chart is outside your seeded path. Return to <strong>{pathContinuation.nextTrackTitle}</strong> to continue the recommended sequence.
+                      Off path. Return to <strong>{pathContinuation.nextTrackTitle}</strong>.
                     </p>
                     <button type="button" class="btn" style="margin-top: 0.25rem" onclick={() => openTrack(pathContinuation.nextTrackId)}>
                       Rejoin recommended path
@@ -1752,15 +1751,15 @@
   }
   .practice-card {
     display: grid;
-    gap: 0.8rem;
-    padding: 0.95rem 1rem;
+    gap: 0.68rem;
+    padding: 0.85rem 0.92rem;
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.026), transparent 34%),
       linear-gradient(180deg, rgba(19, 17, 21, 0.96), rgba(11, 10, 13, 0.98));
   }
   .practice-card__title {
     margin: -0.25rem 0 0;
-    font-size: 1.08rem;
+    font-size: 1rem;
   }
   .loop-block {
     display: grid;
@@ -2084,7 +2083,7 @@
   .chart-insight__delta,
   .chart-insight__note {
     margin: 0.45rem 0 0;
-    font-size: 0.88rem;
+    font-size: 0.84rem;
   }
   .chart-insight__note {
     color: var(--ff-text);
@@ -2109,9 +2108,9 @@
   }
   .coaching-note__body {
     margin: 0.25rem 0 0;
-    font-size: 0.84rem;
+    font-size: 0.8rem;
     color: var(--ff-text);
-    line-height: 1.5;
+    line-height: 1.42;
   }
   .path-continuation {
     margin-top: 0.75rem;
@@ -2127,15 +2126,15 @@
   }
   .path-continuation__body {
     margin: 0.3rem 0 0;
-    font-size: 0.84rem;
+    font-size: 0.8rem;
     color: var(--ff-text);
-    line-height: 1.5;
+    line-height: 1.42;
   }
   .history-stats {
     display: flex;
     flex-wrap: wrap;
     gap: 0.25rem 1rem;
-    font-size: 0.88rem;
+    font-size: 0.82rem;
     color: var(--ff-muted-strong);
     margin-bottom: 0.6rem;
   }

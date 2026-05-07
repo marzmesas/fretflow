@@ -703,8 +703,7 @@
 
 <section class="panel panel--utility library-overview">
   <div class="library-overview__summary">
-    <p class="library-overview__eyebrow">Browse workbench</p>
-    <h1>Find the next chart without fighting the interface.</h1>
+    <h1>Find the next chart fast.</h1>
     <p class="muted">Choose a mode, narrow only when needed, and keep the list itself primary.</p>
   </div>
   <div class="library-overview__stats">
@@ -716,7 +715,7 @@
     <div class="library-overview__stat">
       <span class="library-overview__stat-label">Narrowing</span>
       <strong>{activeNarrowingLabel()}</strong>
-      <span class="muted">Curriculum filters only affect bundled rows.</span>
+      <span class="muted">Bundled rows only</span>
     </div>
     <div class="library-overview__stat">
       <span class="library-overview__stat-label">Catalog</span>
@@ -1367,29 +1366,21 @@
 <style>
   .library-overview {
     display: grid;
-    gap: 1rem;
+    gap: 0.75rem;
     grid-template-columns: minmax(0, 1.1fr) minmax(24rem, 1fr);
     align-items: start;
-    padding: 1rem 1.1rem;
+    padding: 0.85rem 1rem;
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.024), transparent 34%),
       linear-gradient(180deg, rgba(20, 18, 22, 0.96), rgba(12, 10, 13, 0.98));
   }
   .library-overview__summary {
     display: grid;
-    gap: 0.32rem;
-  }
-  .library-overview__eyebrow {
-    margin: 0;
-    color: var(--ff-highlight-strong);
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
+    gap: 0.22rem;
   }
   .library-overview__summary h1 {
     margin: 0;
-    font-size: clamp(1.45rem, 2.3vw, 2rem);
+    font-size: clamp(1.25rem, 2vw, 1.7rem);
     line-height: 1.02;
     letter-spacing: -0.03em;
   }
@@ -1410,7 +1401,7 @@
   .library-overview__stat {
     display: grid;
     gap: 0.2rem;
-    padding: 0.85rem 0.95rem;
+    padding: 0.72rem 0.8rem;
     border-radius: 16px;
     border: 1px solid var(--ff-border);
     background:
