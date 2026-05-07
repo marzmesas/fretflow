@@ -701,13 +701,11 @@
   });
 </script>
 
-<section class="panel library-overview">
+<section class="panel panel--utility library-overview">
   <div class="library-overview__summary">
     <p class="library-overview__eyebrow">Browse workbench</p>
     <h1>Find the next chart without fighting the interface.</h1>
-    <p class="muted">
-      Choose a mode, narrow only when needed, and keep the list itself as the main surface.
-    </p>
+    <p class="muted">Choose a mode, narrow only when needed, and keep the list itself primary.</p>
   </div>
   <div class="library-overview__stats">
     <div class="library-overview__stat">
@@ -730,7 +728,7 @@
 </section>
 
 <section class="library-workbench">
-  <aside class="panel library-rail">
+  <aside class="panel panel--utility library-rail">
     <section class="library-rail__section">
       <p class="ff-section-eyebrow">Mode</p>
       <h3>What are you trying to browse?</h3>
@@ -759,9 +757,7 @@
           </button>
         {/each}
       </div>
-      <p class="muted library-control-card__summary">
-        Current mode: <strong>{filterLabel(filter)}</strong>
-      </p>
+      <p class="muted library-control-card__summary">Current mode: <strong>{filterLabel(filter)}</strong></p>
     </section>
 
     <section class="library-rail__section">
@@ -799,7 +795,7 @@
           Active collection: <strong>{activeCollection.name}</strong> · {activeCollection.trackIds.length} chart{activeCollection.trackIds.length === 1 ? "" : "s"}
         </p>
       {:else}
-        <p class="muted collection-toolbar__summary">Select a collection to make row-level add/remove actions predictable.</p>
+        <p class="muted collection-toolbar__summary">Select a collection to make row actions predictable.</p>
       {/if}
       {#if remoteLibraryError}
         <p class="account-error" style="margin: 0.75rem 0 0">{remoteLibraryError}</p>
@@ -900,7 +896,7 @@
     {/if}
   </aside>
 
-  <div class="panel library-results">
+  <div class="panel panel--workspace library-results">
     <div class="ff-section-header library-results__header">
       <div>
         <p class="ff-section-eyebrow">Results</p>
@@ -910,9 +906,9 @@
           {#if filter === "all" || filter === "free" || filter === "premium"}
             {" "}Use the rail to change mode or narrow the bundled catalog.
           {:else if filter === "collections"}
-            {" "}Work against the active set list instead of the full catalog.
+            {" "}Work against the active set list.
           {:else if filter === "mine"}
-            {" "}Imported charts remain device-local.
+            {" "}Imported charts stay device-local.
           {/if}
         </p>
       </div>
@@ -1344,7 +1340,7 @@
   </div>
 </section>
 
-<div class="panel" id="import-chart">
+<div class="panel panel--utility" id="import-chart">
   <h2>Import chart</h2>
   <p class="muted" style="margin: 0 0 0.75rem">
     Add a <strong>.json</strong> (Fretflow chart v1) or <strong>.mid</strong> (Standard MIDI) file.

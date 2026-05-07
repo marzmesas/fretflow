@@ -1116,7 +1116,7 @@
 </script>
 
 <div class="practice-player">
-  <section class="panel practice-stage">
+  <section class="panel panel--workspace practice-stage">
     <div class="practice-stage__header">
       <div>
         <p class="practice-stage__eyebrow">Live chart stage</p>
@@ -1326,7 +1326,7 @@
   </section>
 
   <aside class="practice-sidebar">
-    <section class="panel practice-card">
+    <section class="panel panel--utility practice-card">
       <p class="practice-card__eyebrow">Momentum</p>
       <h3 class="practice-card__title">Goals and session insight</h3>
 
@@ -1490,7 +1490,7 @@
       {/if}
     </section>
 
-    <section class="panel practice-card">
+    <section class="panel panel--utility practice-card">
       <p class="practice-card__eyebrow">Playback</p>
       <h3 class="practice-card__title">Feel, timing, and backing</h3>
 
@@ -1592,7 +1592,7 @@
     </div>
     </section>
 
-    <section class="panel practice-card">
+    <section class="panel panel--utility practice-card">
       <p class="practice-card__eyebrow">Loop work</p>
       <h3 class="practice-card__title">Target the phrase, then save it</h3>
 
