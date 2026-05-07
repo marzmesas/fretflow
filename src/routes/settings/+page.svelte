@@ -515,7 +515,7 @@
 </script>
 
 <div class="settings-page">
-  <section class="panel settings-command-bar">
+  <section class="panel panel--utility settings-command-bar">
     <div class="settings-command-bar__copy">
       <p class="ff-section-eyebrow">Studio setup</p>
       <h1 class="settings-command-bar__title">Get one reliable signal path, then leave the tool out of the way.</h1>
@@ -551,7 +551,7 @@
 
   <div class="settings-layout">
     <div class="settings-layout__main">
-      <div class="panel settings-card" id="audio-input-section">
+      <div class="panel panel--workspace settings-card" id="audio-input-section">
         <div class="ff-section-header settings-card__header">
           <div>
             <p class="ff-section-eyebrow">Signal path</p>
@@ -739,7 +739,7 @@
         {/if}
       </div>
 
-      <div class="panel settings-card" id="latency-section">
+      <div class="panel panel--workspace settings-card" id="latency-section">
         <div class="ff-section-header settings-card__header">
           <div>
             <p class="ff-section-eyebrow">Timing alignment</p>
@@ -796,7 +796,7 @@
 
     <div class="settings-layout__side">
       {#if !browserOnly && !setupGuideHidden}
-        <div class="panel setup-guide-panel">
+        <div class="panel panel--utility setup-guide-panel">
           <div class="ff-section-header setup-guide-panel__header">
             <div>
               <p class="ff-section-eyebrow setup-guide-panel__eyebrow">Setup path</p>
@@ -831,7 +831,7 @@
         </div>
       {/if}
 
-      <div class="panel settings-card" id="midi-input-section">
+      <div class="panel panel--utility settings-card" id="midi-input-section">
         <div class="ff-section-header settings-card__header">
           <div>
             <p class="ff-section-eyebrow">Direct note input</p>

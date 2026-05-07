@@ -316,14 +316,12 @@
 </script>
 
 <div class="home">
-  <section class="panel home-hero home-entry">
+  <section class="panel panel--workspace home-hero home-entry">
     <div class="home-entry__copy">
       {#if activationMode}
         <p class="ff-page-hero__eyebrow">First session</p>
         <h2 class="home-title ff-page-hero__title">Get one clean run on the board.</h2>
-        <p class="home-subtitle ff-page-hero__body">
-          Set up input, open one starter chart, and finish one full run.
-        </p>
+        <p class="home-subtitle ff-page-hero__body">Set up input, open one starter chart, and finish one full run.</p>
         <div class="home-actions">
           {#if currentNextStep}
             <a href={currentNextStep.href} class="btn btn-primary btn-lg">{currentNextStep.title}</a>
@@ -349,11 +347,11 @@
         </h2>
         <p class="home-subtitle ff-page-hero__body">
           {#if lastSession}
-            Jump back into <strong>{lastSession.chartTitle}</strong> or pivot straight into the next recommendation.
+            Jump back into <strong>{lastSession.chartTitle}</strong> or take the next recommendation.
           {:else if recommendedTracks[0]}
-            Home should point to the next chart, path step, or daily target without making you browse every option equally.
+            Pick up the next chart, path step, or daily target without browsing blind.
           {:else}
-            Open Practice directly or browse Library with a clearer next move.
+            Open Practice directly or move into Library with a clearer next action.
           {/if}
         </p>
         <div class="home-actions">
@@ -415,14 +413,14 @@
   </section>
 
   {#if loadError}
-    <div class="panel">
+    <div class="panel panel--quiet">
       <p class="muted">{loadError}</p>
     </div>
   {/if}
 
   {#if onboarding && !onboarding.hidden}
     <section class="home-activation">
-      <div class="panel onboarding-panel">
+      <div class="panel panel--workspace onboarding-panel">
         <div class="ff-section-header onboarding-panel__header">
           <div>
             <p class="ff-section-eyebrow onboarding-panel__eyebrow">First session plan</p>
@@ -430,13 +428,11 @@
           </div>
           <button type="button" class="btn" onclick={dismissSetupGuide}>Dismiss</button>
         </div>
-        <p class="onboarding-panel__body">
-          Configure input, choose a starting point, and finish one full chart. This panel should answer what to do next without sending you hunting through the app.
-        </p>
+        <p class="onboarding-panel__body">Configure input, choose a starting point, and finish one full chart.</p>
         <div class="assessment-panel">
           <div class="assessment-panel__copy">
             <strong>Starting point</strong>
-            <p>Answer two questions so Fretflow can seed the right path and first chart instead of dropping you into the full catalog.</p>
+            <p>Answer two questions so Fretflow can seed the right path and first chart.</p>
           </div>
           <div class="assessment-panel__controls">
             <label class="assessment-field">
@@ -500,7 +496,7 @@
       </div>
 
       <aside class="home-activation__rail">
-        <div class="panel home-note-card">
+        <div class="panel panel--utility home-note-card">
           <p class="home-note-card__eyebrow">What unlocks next</p>
           <h2>One completed run changes the dashboard.</h2>
           <p>
@@ -514,7 +510,7 @@
         </div>
 
       {#if currentSeededPath}
-        <div class="panel home-note-card home-note-card--accent">
+        <div class="panel panel--utility home-note-card home-note-card--accent">
             <p class="home-note-card__eyebrow">{remoteProfile ? "Connected profile" : "Seeded recommendation"}</p>
             <h2>{currentSeededPath.title}</h2>
             <p>
@@ -540,7 +536,7 @@
     <section class="home-dashboard">
       <div class="home-dashboard__top">
         {#if lastSession}
-          <div class="panel continue-panel home-dashboard__hero-card">
+          <div class="panel panel--workspace continue-panel home-dashboard__hero-card">
             <div>
               <p class="home-note-card__eyebrow">Continue practicing</p>
               <h2>Pick up where the last run ended.</h2>
@@ -555,7 +551,7 @@
           </div>
         {/if}
 
-        <div class="panel goal-panel home-dashboard__goal-card">
+        <div class="panel panel--utility goal-panel home-dashboard__goal-card">
           <div class="ff-section-header recent-panel__header">
             <div>
               <p class="ff-section-eyebrow home-note-card__eyebrow">Daily rhythm</p>
@@ -594,12 +590,12 @@
 
       <div class="home-dashboard__grid">
         {#if recentSessions.length > 1}
-          <div class="panel recent-panel">
+          <div class="panel panel--utility recent-panel">
             <div class="ff-section-header recent-panel__header">
               <div>
                 <p class="ff-section-eyebrow home-note-card__eyebrow">Quick return</p>
                 <h2>Recent practice queue</h2>
-                <p class="muted">Jump back into charts you have touched recently without digging through Library.</p>
+                <p class="muted">Jump back into recent charts without digging through Library.</p>
               </div>
               <a href="/library?filter=recent" class="btn">Open recent in Library</a>
             </div>
@@ -618,12 +614,12 @@
         {/if}
 
         {#if recommendedTracks.length > 0}
-          <div class="panel recent-panel">
+          <div class="panel panel--utility recent-panel">
             <div class="ff-section-header recent-panel__header">
               <div>
                 <p class="ff-section-eyebrow home-note-card__eyebrow">Momentum picks</p>
                 <h2>Suggested next charts</h2>
-                <p class="muted">Recommendations are based on your recent bundled-chart runs and current accuracy.</p>
+                <p class="muted">Recommendations follow recent bundled-chart runs and current accuracy.</p>
               </div>
               <a href="/library" class="btn">Browse all charts</a>
             </div>
@@ -649,12 +645,12 @@
       </div>
 
       {#if learningPaths.length > 0}
-        <div class="panel path-panel">
+        <div class="panel panel--workspace path-panel">
           <div class="ff-section-header recent-panel__header">
             <div>
               <p class="ff-section-eyebrow home-note-card__eyebrow">Structured progression</p>
               <h2>Learning paths</h2>
-              <p class="muted">Structured bundled-chart sequences that give the app a clearer progression than free browsing alone.</p>
+              <p class="muted">Structured bundled-chart sequences for guided progression.</p>
             </div>
             <a href="/library" class="btn">Browse Library</a>
           </div>

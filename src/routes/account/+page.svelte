@@ -793,13 +793,11 @@
     void refreshRemoteProfile();
   });
 </script>
-<section class="panel account-overview">
+<section class="panel panel--admin account-overview">
   <div class="account-overview__identity">
     <p class="account-overview__eyebrow">Administration</p>
     <h1>Account, billing, and sync</h1>
-    <p class="muted">
-      Identity, plan state, cloud continuity, and recovery tools live here. This screen should feel operational, not like another dashboard landing page.
-    </p>
+    <p class="muted">Identity, plan state, cloud continuity, and recovery tools live here.</p>
   </div>
   <div class="account-overview__stats">
     <div class="account-overview__stat">
@@ -834,14 +832,12 @@
 
   <div class="account-layout">
     <div class="account-layout__main">
-      <div class="panel account-panel">
+      <div class="panel panel--admin account-panel">
         <div class="ff-section-header account-panel__header">
           <div>
             <p class="ff-section-eyebrow">Player profile</p>
             <h2>Profile</h2>
-            <p class="muted ff-section-intro account-panel__intro">
-              The stable user-facing summary: identity, recommended path, and current daily-goal context.
-            </p>
+            <p class="muted ff-section-intro account-panel__intro">Identity, recommended path, and daily-goal context.</p>
           </div>
         </div>
 
@@ -878,14 +874,12 @@
         {/if}
       </div>
 
-      <div class="panel account-panel">
+      <div class="panel panel--admin account-panel">
         <div class="ff-section-header account-panel__header">
           <div>
             <p class="ff-section-eyebrow">Sign-in</p>
             <h2>Session</h2>
-            <p class="muted ff-section-intro account-panel__intro">
-              Sign in, sign out, and confirm which identity is currently active on this device.
-            </p>
+            <p class="muted ff-section-intro account-panel__intro">Sign in, sign out, and confirm which identity is active on this device.</p>
           </div>
         </div>
 
@@ -957,14 +951,12 @@
         {/if}
       </div>
 
-      <div class="panel account-panel">
+      <div class="panel panel--admin account-panel">
         <div class="ff-section-header account-panel__header">
           <div>
             <p class="ff-section-eyebrow">Plan and delivery</p>
             <h2>Subscription</h2>
-            <p class="muted ff-section-intro account-panel__intro">
-              Plan status, billing connectivity, and pending activity delivery all live here because they affect the real account experience.
-            </p>
+            <p class="muted ff-section-intro account-panel__intro">Plan status, billing connectivity, and pending activity delivery.</p>
           </div>
           <span class={`status-pill status-pill--${subscriptionLifecycle.tone}`}>
             {subscriptionLifecycle.badgeLabel}
@@ -1086,9 +1078,7 @@
               <div>
                 <p class="ff-section-eyebrow">Optional packaging</p>
                 <h3>Optional content packs</h3>
-                <p class="muted ff-section-intro account-panel__intro">
-                  These one-off packs keep premium from being a single all-or-nothing wall. Pro stays the broadest offer, while packs target focused techniques or styles.
-                </p>
+                <p class="muted ff-section-intro account-panel__intro">One-off packs keep premium from becoming a single all-or-nothing wall.</p>
               </div>
             </div>
             <div class="pack-grid">
@@ -1198,14 +1188,12 @@
     </div>
 
     <aside class="account-layout__side">
-      <div class="panel account-panel account-panel--diagnostics">
+      <div class="panel panel--quiet account-panel account-panel--diagnostics">
         <div class="ff-section-header account-panel__header">
           <div>
             <p class="ff-section-eyebrow">Diagnostics</p>
             <h2>Rollout preview</h2>
-            <p class="muted ff-section-intro account-panel__intro">
-              These controls still matter while the product is taking shape, but they are intentionally kept behind a secondary layer now.
-            </p>
+            <p class="muted ff-section-intro account-panel__intro">Secondary rollout and recovery controls stay here.</p>
           </div>
         </div>
 

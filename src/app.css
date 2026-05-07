@@ -508,6 +508,54 @@ a.session-account-pill.connection-pill--on {
   overflow: hidden;
 }
 
+.panel--workspace {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), transparent 24%),
+    linear-gradient(180deg, rgba(34, 24, 28, 0.96), rgba(18, 15, 19, 0.96));
+  border-color: color-mix(in srgb, var(--ff-border) 88%, rgba(213, 138, 84, 0.22));
+}
+
+.panel--workspace::before {
+  opacity: 0.88;
+}
+
+.panel--utility {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.024), transparent 34%),
+    linear-gradient(180deg, rgba(22, 19, 24, 0.96), rgba(13, 11, 15, 0.96));
+  border-color: color-mix(in srgb, var(--ff-border) 78%, transparent);
+}
+
+.panel--utility::before {
+  opacity: 0.46;
+}
+
+.panel--admin {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 34%),
+    linear-gradient(180deg, rgba(18, 19, 23, 0.98), rgba(11, 12, 15, 0.98));
+  border-color: color-mix(in srgb, var(--ff-border) 68%, rgba(63, 208, 195, 0.2));
+  box-shadow: none;
+}
+
+.panel--admin::before {
+  background: linear-gradient(90deg, rgba(63, 208, 195, 0.34), transparent 70%);
+  opacity: 0.62;
+}
+
+.panel--quiet {
+  padding: 0.95rem 1rem;
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 36%),
+    rgba(14, 12, 16, 0.82);
+  box-shadow: none;
+}
+
+.panel--quiet::before {
+  opacity: 0.32;
+}
+
 .panel::before {
   content: "";
   position: absolute;
