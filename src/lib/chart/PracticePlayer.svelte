@@ -1180,112 +1180,133 @@
     {/if}
 
     <div class="scoring-block">
-      <label class="row" style="gap: 0.5rem; cursor: pointer; margin-bottom: 0.5rem"
-        title="When on, incoming notes are matched against the chart. MIDI works out of the box; mic modes are optional betas below."
-      >
-      <input type="checkbox" bind:checked={scoringEnabled} />
-      <span>Scoring</span>
-      <span class="muted" style="font-size: 0.85rem">MIDI by default; optional mic modes below</span>
-    </label>
-    {#if isTauri()}
-      <p class="muted" style="margin: 0 0 0.5rem; font-size: 0.82rem">
-        Latency offset: <strong>{latencyOffsetMs} ms</strong> (Settings → Latency). Shifts hit/miss timing only; highway is unchanged.
-      </p>
-    {/if}
-    <div class="scoring-stats">
-      <div class="scoring-stats__row">
-        <span>Hits <strong>{hitIndicesDisplay.length}</strong></span>
-        <span>Misses <strong>{missIndicesDisplay.length}</strong></span>
-        <span>Combo <strong>{combo}</strong></span>
+      <div class="stage-dock__header">
+        <div>
+          <p class="stage-dock__eyebrow">Stage tools</p>
+          <h3 class="stage-dock__title">Keep the feel, tighten the read</h3>
+        </div>
+        <div class="stage-dock__stats">
+          <span class="stage-dock__stat">Hits <strong>{hitIndicesDisplay.length}</strong></span>
+          <span class="stage-dock__stat">Misses <strong>{missIndicesDisplay.length}</strong></span>
+          <span class="stage-dock__stat">Combo <strong>{combo}</strong></span>
+          {#if liveAccuracy != null}
+            <span class="stage-dock__stat stage-dock__stat--accent">{liveAccuracy}%</span>
+          {/if}
+        </div>
+      </div>
+
+      <div class="scoring-stats">
         {#if liveAccuracy != null}
-          <span class="scoring-accuracy">{liveAccuracy}%</span>
+          <div class="accuracy-bar">
+            <div
+              class="accuracy-bar__fill"
+              style="width: {liveAccuracy}%; background: {liveAccuracy >= 90 ? '#3dd68c' : liveAccuracy >= 70 ? '#3d8bfd' : liveAccuracy >= 50 ? '#fbbf24' : '#f87171'}"
+            ></div>
+          </div>
+        {/if}
+        {#if lastGrade && lastFeedback && !lastFeedback.startsWith("Miss") && !lastFeedback.startsWith("Loop") && !lastFeedback.startsWith("Run") && !lastFeedback.startsWith("Hold") && !lastFeedback.startsWith("Density")}
+          {#key lastGradeKey}
+            <div class="grade-flash" style="color: {GRADE_COLOR[lastGrade]}">
+              {GRADE_LABEL[lastGrade]}!
+            </div>
+          {/key}
+        {/if}
+        {#if lastFeedback}
+          <p
+            class="last-feedback"
+            class:last-feedback--hit={!lastFeedback.startsWith("Miss") && !lastFeedback.startsWith("Loop") && !lastFeedback.startsWith("Run") && !lastFeedback.startsWith("Density")}
+            class:last-feedback--miss={lastFeedback.startsWith("Miss")}
+            class:last-feedback--loop={lastFeedback.startsWith("Loop")}
+            class:last-feedback--summary={lastFeedback.startsWith("Run complete")}
+          >
+            {lastFeedback}
+          </p>
         {/if}
       </div>
-      {#if liveAccuracy != null}
-        <div class="accuracy-bar">
-          <div
-            class="accuracy-bar__fill"
-            style="width: {liveAccuracy}%; background: {liveAccuracy >= 90 ? '#3dd68c' : liveAccuracy >= 70 ? '#3d8bfd' : liveAccuracy >= 50 ? '#fbbf24' : '#f87171'}"
-          ></div>
-        </div>
-      {/if}
-    </div>
-    {#if lastGrade && lastFeedback && !lastFeedback.startsWith("Miss") && !lastFeedback.startsWith("Loop") && !lastFeedback.startsWith("Run") && !lastFeedback.startsWith("Hold") && !lastFeedback.startsWith("Density")}
-      {#key lastGradeKey}
-        <div class="grade-flash" style="color: {GRADE_COLOR[lastGrade]}">
-          {GRADE_LABEL[lastGrade]}!
-        </div>
-      {/key}
-    {/if}
-    {#if lastFeedback}
-      <p
-        class="last-feedback"
-        class:last-feedback--hit={!lastFeedback.startsWith("Miss") && !lastFeedback.startsWith("Loop") && !lastFeedback.startsWith("Run") && !lastFeedback.startsWith("Density")}
-        class:last-feedback--miss={lastFeedback.startsWith("Miss")}
-        class:last-feedback--loop={lastFeedback.startsWith("Loop")}
-        class:last-feedback--summary={lastFeedback.startsWith("Run complete")}
-        style="margin: 0 0 0.5rem"
-      >
-        {lastFeedback}
-      </p>
-    {/if}
-    <div class="mode-row" style="margin-bottom: 0.65rem">
-      <span class="muted" style="margin-right: 0.5rem">Accuracy</span>
-      {#each (["practice", "performance"] as ScoringModeId[]) as m (m)}
-        <label class="row" style="gap: 0.35rem; margin-right: 1rem; cursor: pointer">
-          <input type="radio" name="scoring-mode" value={m} bind:group={scoringMode} />
-          <span>{m === "practice" ? "Practice" : "Performance"}</span>
-        </label>
-      {/each}
-      <span class="muted" style="font-size: 0.8rem">{SCORING_MODE_LABEL[scoringMode]}</span>
-    </div>
-    {#if isTauri()}
-      <label class="row" style="gap: 0.5rem; cursor: pointer; margin-bottom: 0.5rem"
-        title="Triggers hits on audio level peaks (timing only, no pitch). Needs input monitor running in Settings."
-      >
-        <input type="checkbox" bind:checked={micRhythmBeta} disabled={micPitchBeta} />
-        <span>Mic rhythm (beta)</span>
-        <span class="muted" style="font-size: 0.8rem">level peaks only; disabled when mic pitch is on</span>
-      </label>
-      <label class="row" style="gap: 0.5rem; cursor: pointer; margin-bottom: 0.5rem"
-        title="Uses YIN pitch detection on the mic input to match MIDI notes in the chart. Needs input monitor running in Settings."
-      >
-        <input type="checkbox" bind:checked={micPitchBeta} disabled={micRhythmBeta} />
-        <span>Mic pitch (beta)</span>
-        <span class="muted" style="font-size: 0.8rem">monitor + YIN pitch detection → same scoring as MIDI</span>
-      </label>
-    {/if}
-    <label
-      class="row"
-      style="gap: 0.5rem; cursor: pointer; margin-bottom: 0.5rem"
-      title="Chart time and backing pause when the next note reaches the play line, until the correct string(s) register. Chords need each string. Turn scoring on."
-    >
-      <input type="checkbox" bind:checked={waitToPlay} disabled={!scoringEnabled} />
-      <span>Wait to play</span>
-      <span class="muted" style="font-size: 0.8rem">unfreezes after you hit the note(s) at the line (no time pressure on new licks)</span>
-    </label>
-    <div class="density-block">
-      <p class="muted" style="margin: 0 0 0.35rem; font-size: 0.82rem">
-        <strong>Adaptive density</strong> — hear the same groove with fewer notes while you learn the shape, then step back up to the full chart.
-      </p>
-      <div class="row" style="flex-wrap: wrap; gap: 0.35rem 1.1rem; align-items: center">
-        {#each (["full", "three_quarters", "half"] as const) as tier (tier)}
-          <label class="row" style="gap: 0.35rem; cursor: pointer">
-            <input
-              type="radio"
-              name="density-tier"
-              checked={densityTier === tier}
-              onchange={() => setDensityTierUser(tier)}
-            />
-            <span>{DENSITY_TIER_LABEL[tier]}</span>
+
+      <div class="stage-dock__grid">
+        <section class="stage-dock__section">
+          <p class="stage-dock__section-title">Scoring</p>
+          <label
+            class="stage-toggle"
+            title="When on, incoming notes are matched against the chart. MIDI works out of the box; mic modes are optional betas below."
+          >
+            <input type="checkbox" bind:checked={scoringEnabled} />
+            <span class="stage-toggle__label">Scoring on</span>
+            <span class="stage-toggle__meta">MIDI by default; optional mic modes below.</span>
           </label>
-        {/each}
+          <div class="mode-row">
+            <span class="stage-inline-label">Accuracy mode</span>
+            {#each (["practice", "performance"] as ScoringModeId[]) as m (m)}
+              <label class="stage-inline-choice">
+                <input type="radio" name="scoring-mode" value={m} bind:group={scoringMode} />
+                <span>{m === "practice" ? "Practice" : "Performance"}</span>
+              </label>
+            {/each}
+          </div>
+          <p class="stage-support-copy">{SCORING_MODE_LABEL[scoringMode]}</p>
+          {#if isTauri()}
+            <p class="stage-support-copy">
+              Latency offset: <strong>{latencyOffsetMs} ms</strong>. Timing shifts for hit and miss only; the highway stays unchanged.
+            </p>
+          {/if}
+        </section>
+
+        <section class="stage-dock__section">
+          <p class="stage-dock__section-title">Input and flow</p>
+          {#if isTauri()}
+            <label
+              class="stage-toggle"
+              title="Triggers hits on audio level peaks (timing only, no pitch). Needs input monitor running in Settings."
+            >
+              <input type="checkbox" bind:checked={micRhythmBeta} disabled={micPitchBeta} />
+              <span class="stage-toggle__label">Mic rhythm (beta)</span>
+              <span class="stage-toggle__meta">Uses level peaks only. Disabled when mic pitch is on.</span>
+            </label>
+            <label
+              class="stage-toggle"
+              title="Uses YIN pitch detection on the mic input to match MIDI notes in the chart. Needs input monitor running in Settings."
+            >
+              <input type="checkbox" bind:checked={micPitchBeta} disabled={micRhythmBeta} />
+              <span class="stage-toggle__label">Mic pitch (beta)</span>
+              <span class="stage-toggle__meta">Runs YIN pitch detection and scores like MIDI.</span>
+            </label>
+          {/if}
+          <label
+            class="stage-toggle"
+            title="Chart time and backing pause when the next note reaches the play line, until the correct string(s) register. Chords need each string. Turn scoring on."
+          >
+            <input type="checkbox" bind:checked={waitToPlay} disabled={!scoringEnabled} />
+            <span class="stage-toggle__label">Wait to play</span>
+            <span class="stage-toggle__meta">Freezes the line until you land the next note or chord cleanly.</span>
+          </label>
+        </section>
+
+        <section class="stage-dock__section stage-dock__section--wide">
+          <p class="stage-dock__section-title">Adaptive density</p>
+          <p class="stage-support-copy">
+            Strip the phrase back while you learn the shape, then climb back to the full chart.
+          </p>
+          <div class="stage-choice-row">
+            {#each (["full", "three_quarters", "half"] as const) as tier (tier)}
+              <label class="stage-inline-choice">
+                <input
+                  type="radio"
+                  name="density-tier"
+                  checked={densityTier === tier}
+                  onchange={() => setDensityTierUser(tier)}
+                />
+                <span>{DENSITY_TIER_LABEL[tier]}</span>
+              </label>
+            {/each}
+          </div>
+          <label class="stage-toggle stage-toggle--inline">
+            <input type="checkbox" bind:checked={autoDensityBump} disabled={densityTier === "full"} />
+            <span class="stage-toggle__meta">After a strong run at 85% or better, step up one level automatically.</span>
+          </label>
+        </section>
       </div>
-      <label class="row" style="gap: 0.5rem; margin-top: 0.45rem; cursor: pointer">
-        <input type="checkbox" bind:checked={autoDensityBump} disabled={densityTier === "full"} />
-        <span class="muted" style="font-size: 0.8rem">After a strong full run at ≥85%, step up one level automatically</span>
-      </label>
-    </div>
+
     {#if waitFrozen && waitGroupIndices.length > 0}
       <p class="wait-hold-banner" role="status">
         Paused: play <strong>{waitGroupIndices.length}</strong> more note{waitGroupIndices.length === 1
@@ -1293,13 +1314,14 @@
           : "s"} on the string(s) at the line, then the chart continues.
       </p>
     {/if}
-    <p class="muted" style="margin: 0; font-size: 0.85rem">
+
+      <p class="stage-support-copy stage-support-copy--footer">
       {#if isTauri()}
-        MIDI: <strong>Settings → MIDI → Start listening</strong>. Mic: <strong>Settings → Audio input → Start monitoring</strong>.
+          MIDI: <strong>Settings → MIDI → Start listening</strong>. Mic: <strong>Settings → Audio input → Start monitoring</strong>.
       {:else}
-        Scoring is available in the desktop app only.
+          Scoring is available in the desktop app only.
       {/if}
-    </p>
+      </p>
     </div>
   </section>
 
@@ -1654,7 +1676,7 @@
 <style>
   .practice-player {
     display: grid;
-    grid-template-columns: minmax(0, 1.5fr) minmax(20rem, 0.95fr);
+    grid-template-columns: minmax(0, 1fr) minmax(19.5rem, 22rem);
     gap: 1rem;
     margin-bottom: 1rem;
   }
@@ -1664,8 +1686,8 @@
   }
   .practice-stage {
     display: grid;
-    gap: 1rem;
-    padding: 1.2rem;
+    gap: 1.1rem;
+    padding: 1.3rem 1.35rem;
     background:
       radial-gradient(circle at top right, rgba(63, 208, 195, 0.14), transparent 28%),
       radial-gradient(circle at left center, rgba(213, 138, 84, 0.16), transparent 24%),
@@ -1689,8 +1711,8 @@
   }
   .practice-stage__title {
     margin: 0;
-    font-size: 1.8rem;
-    line-height: 1;
+    font-size: clamp(1.65rem, 2.4vw, 2.15rem);
+    line-height: 0.98;
   }
   .practice-stage__meta {
     display: flex;
@@ -1725,15 +1747,20 @@
     display: grid;
     gap: 1rem;
     align-content: start;
+    position: sticky;
+    top: 0.9rem;
   }
   .practice-card {
     display: grid;
-    gap: 0.9rem;
-    padding: 1.05rem 1.1rem;
+    gap: 0.8rem;
+    padding: 0.95rem 1rem;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.026), transparent 34%),
+      linear-gradient(180deg, rgba(19, 17, 21, 0.96), rgba(11, 10, 13, 0.98));
   }
   .practice-card__title {
     margin: -0.25rem 0 0;
-    font-size: 1.2rem;
+    font-size: 1.08rem;
   }
   .loop-block {
     display: grid;
@@ -1797,12 +1824,130 @@
     flex-wrap: wrap;
   }
   .scoring-block {
-    padding: 1rem;
-    border-radius: 18px;
-    border: 1px solid var(--ff-border);
+    display: grid;
+    gap: 0.9rem;
+    padding: 0.95rem 1rem;
+    border-radius: 16px;
+    border: 1px solid color-mix(in srgb, var(--ff-border) 82%, transparent);
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 30%),
-      rgba(9, 8, 10, 0.22);
+      rgba(9, 8, 10, 0.2);
+  }
+  .stage-dock__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    gap: 0.75rem 1rem;
+    flex-wrap: wrap;
+  }
+  .stage-dock__eyebrow {
+    margin: 0 0 0.25rem;
+    color: var(--ff-highlight-strong);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+  .stage-dock__title {
+    margin: 0;
+    font-size: 1rem;
+  }
+  .stage-dock__stats {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.4rem;
+  }
+  .stage-dock__stat {
+    display: inline-flex;
+    min-height: 30px;
+    align-items: center;
+    padding: 0.28rem 0.58rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--ff-border) 82%, transparent);
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--ff-muted-strong);
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .stage-dock__stat--accent {
+    color: var(--ff-text);
+    border-color: color-mix(in srgb, var(--ff-accent) 45%, var(--ff-border));
+    background: color-mix(in srgb, var(--ff-accent) 11%, rgba(255, 255, 255, 0.03));
+    font-weight: 700;
+  }
+  .stage-dock__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.8rem;
+  }
+  .stage-dock__section {
+    display: grid;
+    gap: 0.55rem;
+    padding: 0.85rem 0.9rem;
+    border-radius: 14px;
+    border: 1px solid color-mix(in srgb, var(--ff-border) 72%, transparent);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0));
+  }
+  .stage-dock__section--wide {
+    grid-column: 1 / -1;
+  }
+  .stage-dock__section-title {
+    margin: 0;
+    color: var(--ff-text);
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .stage-toggle {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.2rem 0.55rem;
+    align-items: start;
+    cursor: pointer;
+  }
+  .stage-toggle input {
+    margin-top: 0.18rem;
+  }
+  .stage-toggle__label {
+    color: var(--ff-text);
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+  .stage-toggle__meta,
+  .stage-support-copy {
+    margin: 0;
+    color: var(--ff-muted-strong);
+    font-size: 0.82rem;
+    line-height: 1.45;
+  }
+  .stage-toggle__meta {
+    grid-column: 2;
+  }
+  .stage-support-copy--footer {
+    padding-top: 0.15rem;
+  }
+  .stage-inline-label {
+    color: var(--ff-muted-strong);
+    font-size: 0.82rem;
+  }
+  .stage-inline-choice,
+  .stage-choice-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem 0.95rem;
+  }
+  .stage-inline-choice {
+    cursor: pointer;
+  }
+  .stage-inline-choice span {
+    color: var(--ff-text);
+    font-size: 0.86rem;
+  }
+  .stage-toggle--inline {
+    grid-template-columns: auto 1fr;
   }
   .wait-hold-banner {
     margin: 0.35rem 0 0.5rem;
@@ -1817,6 +1962,7 @@
   .last-feedback {
     font-size: 0.9rem;
     color: var(--ff-muted);
+    margin: 0;
   }
   .last-feedback--hit {
     color: var(--ff-success);
@@ -1834,7 +1980,7 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.25rem;
+    gap: 0.4rem 0.9rem;
   }
   .practice-readiness {
     padding: 0.75rem 1rem;
@@ -1885,20 +2031,9 @@
     font-size: 0.86rem;
   }
   .scoring-stats {
-    margin: 0 0 0.5rem;
-  }
-  .scoring-stats__row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.35rem 1rem;
-    font-variant-numeric: tabular-nums;
-    font-size: 0.95rem;
-    align-items: center;
-  }
-  .scoring-accuracy {
-    font-weight: 700;
-    font-size: 1.05rem;
-    color: var(--ff-text);
+    display: grid;
+    gap: 0.45rem;
+    margin: 0;
   }
   .accuracy-bar {
     margin-top: 0.4rem;
@@ -1924,11 +2059,6 @@
     0% { transform: scale(1.5); opacity: 0.5; }
     50% { transform: scale(1.1); opacity: 1; }
     100% { transform: scale(1); opacity: 1; }
-  }
-  .density-block {
-    margin-top: 0.65rem;
-    padding-top: 0.65rem;
-    border-top: 1px solid color-mix(in srgb, var(--ff-border) 70%, transparent);
   }
   .session-history {
     padding-top: 0.2rem;
@@ -2061,10 +2191,5 @@
     border: 1px solid var(--ff-border);
     background: var(--ff-bg);
     color: var(--ff-text);
-  }
-  @media (max-width: 960px) {
-    .practice-player {
-      grid-template-columns: 1fr;
-    }
   }
 </style>

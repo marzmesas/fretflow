@@ -306,6 +306,34 @@
                 : "My charts";
   }
 
+  function activeNarrowingLabel(): string {
+    if (activePathId !== "all") {
+      return getLearningPathById(activePathId)?.title ?? "Path filter";
+    }
+    if (activeSkillTag != null) {
+      return `Skill: ${formatTagLabel(activeSkillTag)}`;
+    }
+    if (activeTechniqueTag != null) {
+      return `Technique: ${formatTagLabel(activeTechniqueTag)}`;
+    }
+    return "No curriculum narrowing";
+  }
+
+  function visibleResultCount(): number {
+    switch (filter) {
+      case "recent":
+        return recentRows.length;
+      case "favorites":
+        return favoriteRows.length;
+      case "collections":
+        return collectionRows.length;
+      case "mine":
+        return userCharts.length;
+      default:
+        return filtered.length;
+    }
+  }
+
   const collectionRows = $derived.by<CollectionRow[]>(() => {
     const collection = activeCollection;
     if (collection == null) return [];
@@ -673,86 +701,37 @@
   });
 </script>
 
-<section class="panel library-hero ff-page-hero">
-  <div class="library-hero__copy">
-    <p class="ff-page-hero__eyebrow">Browse without clutter</p>
-    <h1 class="ff-page-hero__title">Pick a mode first, then choose the right chart.</h1>
-    <p class="muted ff-page-hero__body">
-      Bundled drills, recommended next steps, collections, and imported charts all stay here, but the screen should stop asking you to manage every dimension at once.
+<section class="panel library-overview">
+  <div class="library-overview__summary">
+    <p class="library-overview__eyebrow">Browse workbench</p>
+    <h1>Find the next chart without fighting the interface.</h1>
+    <p class="muted">
+      Choose a mode, narrow only when needed, and keep the list itself as the main surface.
     </p>
   </div>
-  <div class="ff-page-hero__stats">
-    <div class="ff-page-hero__stat">
-      <span class="ff-page-hero__stat-label">Bundled</span>
-      <strong>{catalogTracks.length}</strong>
-      <span class="muted">charts in the local catalog</span>
-    </div>
-    <div class="ff-page-hero__stat">
-      <span class="ff-page-hero__stat-label">Imported</span>
-      <strong>{userCharts.length}</strong>
-      <span class="muted">personal charts on this device</span>
-    </div>
-    <div class="ff-page-hero__stat">
-      <span class="ff-page-hero__stat-label">Current view</span>
+  <div class="library-overview__stats">
+    <div class="library-overview__stat">
+      <span class="library-overview__stat-label">Mode</span>
       <strong>{filterLabel(filter)}</strong>
-      <span class="muted">
-        {#if activePathId !== "all"}
-          Filtered by {getLearningPathById(activePathId)?.title}
-        {:else if activeSkillTag}
-          Skill: {formatTagLabel(activeSkillTag)}
-        {:else if activeTechniqueTag}
-          Technique: {formatTagLabel(activeTechniqueTag)}
-        {:else}
-          No path or technique narrowing active
-        {/if}
-      </span>
+      <span class="muted">{visibleResultCount()} visible</span>
     </div>
+    <div class="library-overview__stat">
+      <span class="library-overview__stat-label">Narrowing</span>
+      <strong>{activeNarrowingLabel()}</strong>
+      <span class="muted">Curriculum filters only affect bundled rows.</span>
+    </div>
+    <div class="library-overview__stat">
+      <span class="library-overview__stat-label">Catalog</span>
+      <strong>{catalogTracks.length} bundled</strong>
+      <span class="muted">{userCharts.length} imported on this device</span>
+    </div>
+    <a href="#import-chart" class="btn btn-primary library-overview__action">Import chart</a>
   </div>
 </section>
 
-<div class="panel">
-  <div class="ff-section-header library-panel__header">
-    <div>
-      <p class="ff-section-eyebrow">Library modes</p>
-      <h2>Catalog</h2>
-      <p class="muted">Choose a browsing mode first. Secondary controls appear only when they help the current task.</p>
-    </div>
-    <a href="#import-chart" class="btn">Import chart</a>
-  </div>
-
-  {#if recommendedTracks.length > 0}
-    <div class="recommended-strip">
-      <div class="recommended-strip__header">
-        <div>
-          <h3>Suggested for you</h3>
-          <p class="muted">
-            Quick picks based on your recent bundled-chart runs.
-            {" "}
-            {progressSourceLabel()}
-          </p>
-        </div>
-      </div>
-      <div class="recommended-strip__grid">
-        {#each recommendedTracks as item (item.track.id)}
-          <button
-            type="button"
-            class="recommended-card"
-            onclick={() => openInPractice(item.track)}
-          >
-            <span class="recommended-card__title">{item.track.title}</span>
-            <span class="recommended-card__meta">
-              {item.track.artist}
-              {#if item.track.difficulty} · {item.track.difficulty}{/if}
-            </span>
-            <span class="recommended-card__reason">{item.reason}</span>
-          </button>
-        {/each}
-      </div>
-    </div>
-  {/if}
-
-  <div class="library-toolbar-grid">
-    <section class="library-control-card">
+<section class="library-workbench">
+  <aside class="panel library-rail">
+    <section class="library-rail__section">
       <p class="ff-section-eyebrow">Mode</p>
       <h3>What are you trying to browse?</h3>
       <div class="catalog-filters">
@@ -785,7 +764,7 @@
       </p>
     </section>
 
-    <section class="library-control-card">
+    <section class="library-rail__section">
       <p class="ff-section-eyebrow">Collections</p>
       <h3>Keep one active set list.</h3>
       <div class="collection-toolbar__controls">
@@ -834,7 +813,7 @@
     </section>
 
     {#if isBrowseFilter(filter)}
-      <section class="library-control-card">
+      <section class="library-rail__section">
         <p class="ff-section-eyebrow">Curriculum filters</p>
         <h3>Narrow the bundled catalog only when you need guidance.</h3>
         <div class="path-toolbar__group">
@@ -902,20 +881,57 @@
         {/if}
       </section>
     {/if}
-  </div>
+    {#if recommendedTracks.length > 0}
+      <section class="library-rail__section library-rail__section--accent">
+        <p class="ff-section-eyebrow">Suggested next</p>
+        <h3>Fast picks</h3>
+        <p class="muted library-control-card__summary">
+          Quick picks based on recent bundled-chart runs. {progressSourceLabel()}
+        </p>
+        <div class="library-rail__recommendations">
+          {#each recommendedTracks.slice(0, 3) as item (item.track.id)}
+            <button type="button" class="library-rail__recommendation" onclick={() => openInPractice(item.track)}>
+              <strong>{item.track.title}</strong>
+              <span>{item.reason}</span>
+            </button>
+          {/each}
+        </div>
+      </section>
+    {/if}
+  </aside>
 
-  {#if filter === "premium"}
-    <div class="premium-note">
-      <strong>Premium songs are still a preview in this version.</strong>
-      <span class="muted">
-        {premiumPreviewSummary()} {premiumPreviewTrackCount} preview row{premiumPreviewTrackCount === 1 ? "" : "s"} currently map to {CONTENT_PACK_OFFERS.length} optional pack{CONTENT_PACK_OFFERS.length === 1 ? "" : "s"} plus Pro.
-        Source: {catalogMigrationLabel}.
-      </span>
-      <button type="button" class="btn" onclick={openAccount}>View plans</button>
+  <div class="panel library-results">
+    <div class="ff-section-header library-results__header">
+      <div>
+        <p class="ff-section-eyebrow">Results</p>
+        <h2>{filterLabel(filter)}</h2>
+        <p class="muted">
+          {visibleResultCount()} visible row{visibleResultCount() === 1 ? "" : "s"}.
+          {#if filter === "all" || filter === "free" || filter === "premium"}
+            {" "}Use the rail to change mode or narrow the bundled catalog.
+          {:else if filter === "collections"}
+            {" "}Work against the active set list instead of the full catalog.
+          {:else if filter === "mine"}
+            {" "}Imported charts remain device-local.
+          {/if}
+        </p>
+      </div>
+      {#if filter === "premium"}
+        <button type="button" class="btn" onclick={openAccount}>View plans</button>
+      {/if}
     </div>
-  {/if}
 
-  {#if filter === "recent"}
+    {#if filter === "premium"}
+      <div class="premium-note">
+        <strong>Premium songs are still a preview in this version.</strong>
+        <span class="muted">
+          {premiumPreviewSummary()} {premiumPreviewTrackCount} preview row{premiumPreviewTrackCount === 1 ? "" : "s"} currently map to {CONTENT_PACK_OFFERS.length} optional pack{CONTENT_PACK_OFFERS.length === 1 ? "" : "s"} plus Pro.
+          Source: {catalogMigrationLabel}.
+        </span>
+      </div>
+    {/if}
+
+    {#if filter === "recent"}
     {#if recentRows.length === 0}
       <p class="muted" style="margin: 0 0 1rem">No recent practice yet. Finish a chart in Practice and it will show up here.</p>
     {:else}
@@ -1324,8 +1340,9 @@
         </li>
       {/each}
     </ul>
-  {/if}
-</div>
+    {/if}
+  </div>
+</section>
 
 <div class="panel" id="import-chart">
   <h2>Import chart</h2>
@@ -1352,95 +1369,145 @@
 </div>
 
 <style>
-  .library-hero {
-    background:
-      radial-gradient(circle at top right, rgba(63, 208, 195, 0.16), transparent 32%),
-      radial-gradient(circle at left center, rgba(213, 138, 84, 0.18), transparent 28%),
-      linear-gradient(145deg, rgba(33, 24, 29, 0.96), rgba(18, 15, 19, 0.96));
-  }
-  .library-hero .ff-page-hero__title {
-    max-width: 12ch;
-  }
-  .library-panel__header {
-    margin-bottom: 1rem;
-  }
-  .library-toolbar-grid {
+  .library-overview {
     display: grid;
     gap: 1rem;
-    grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
-    margin-bottom: 1rem;
+    grid-template-columns: minmax(0, 1.1fr) minmax(24rem, 1fr);
+    align-items: start;
+    padding: 1rem 1.1rem;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.024), transparent 34%),
+      linear-gradient(180deg, rgba(20, 18, 22, 0.96), rgba(12, 10, 13, 0.98));
   }
-  .library-control-card {
+  .library-overview__summary {
+    display: grid;
+    gap: 0.32rem;
+  }
+  .library-overview__eyebrow {
+    margin: 0;
+    color: var(--ff-highlight-strong);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+  .library-overview__summary h1 {
+    margin: 0;
+    font-size: clamp(1.45rem, 2.3vw, 2rem);
+    line-height: 1.02;
+    letter-spacing: -0.03em;
+  }
+  .library-overview__summary p {
+    margin: 0;
+    max-width: 40rem;
+  }
+  .library-overview__stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.7rem;
+    align-items: stretch;
+  }
+  .library-overview__stat,
+  .library-overview__action {
+    min-height: 100%;
+  }
+  .library-overview__stat {
+    display: grid;
+    gap: 0.2rem;
+    padding: 0.85rem 0.95rem;
+    border-radius: 16px;
+    border: 1px solid var(--ff-border);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 36%),
+      rgba(7, 7, 9, 0.22);
+  }
+  .library-overview__stat-label {
+    color: var(--ff-muted);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  .library-overview__stat strong {
+    font-size: 0.98rem;
+    line-height: 1.25;
+  }
+  .library-overview__action {
+    align-self: stretch;
+  }
+  .library-workbench {
+    display: grid;
+    grid-template-columns: minmax(18.5rem, 21rem) minmax(0, 1fr);
+    gap: 1rem;
+    align-items: start;
+  }
+  .library-rail {
+    display: grid;
+    gap: 0.9rem;
+    align-content: start;
+    position: sticky;
+    top: 0.9rem;
+  }
+  .library-rail__section {
     display: grid;
     gap: 0.8rem;
-    padding: 1rem;
+    padding: 0.95rem 1rem;
     border-radius: 18px;
     border: 1px solid var(--ff-border);
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 36%),
-      rgba(9, 8, 10, 0.24);
+      rgba(9, 8, 10, 0.22);
   }
-  .library-control-card h3 {
+  .library-rail__section--accent {
+    background:
+      radial-gradient(circle at top right, rgba(63, 208, 195, 0.1), transparent 38%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 36%),
+      rgba(9, 8, 10, 0.22);
+  }
+  .library-rail__section h3 {
     margin: 0;
     font-size: 1rem;
+  }
+  .library-results {
+    min-width: 0;
+  }
+  .library-results__header {
+    margin-bottom: 1rem;
   }
   .library-control-card__summary {
     margin: 0;
     line-height: 1.55;
   }
-  .recommended-strip {
-    margin-bottom: 1rem;
-    padding: 1rem;
-    border: 1px solid var(--ff-border);
-    border-radius: 18px;
-    background:
-      radial-gradient(circle at top right, rgba(63, 208, 195, 0.1), transparent 36%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 30%),
-      rgba(9, 8, 10, 0.22);
-  }
-  .recommended-strip__header h3 {
-    margin: 0 0 0.2rem;
-    font-size: 1rem;
-  }
-  .recommended-strip__header p {
-    margin: 0 0 0.75rem;
-    font-size: 0.84rem;
-  }
-  .recommended-strip__grid {
+  .library-rail__recommendations {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
-    gap: 0.75rem;
+    gap: 0.65rem;
   }
-  .recommended-card {
+  .library-rail__recommendation {
     display: grid;
-    gap: 0.28rem;
+    gap: 0.25rem;
     text-align: left;
-    padding: 0.9rem 0.95rem;
+    padding: 0.8rem 0.9rem;
     border-radius: 16px;
     border: 1px solid var(--ff-border);
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 30%),
-      rgba(9, 8, 10, 0.26);
+      rgba(9, 8, 10, 0.28);
     color: var(--ff-text);
     cursor: pointer;
   }
-  .recommended-card:hover {
+  .library-rail__recommendation:hover {
     border-color: color-mix(in srgb, var(--ff-accent) 55%, var(--ff-border));
     background:
       linear-gradient(180deg, rgba(63, 208, 195, 0.08), transparent 30%),
       rgba(9, 8, 10, 0.3);
   }
-  .recommended-card__title {
+  .library-rail__recommendation strong {
     font-size: 0.92rem;
     font-weight: 600;
   }
-  .recommended-card__meta {
-    font-size: 0.84rem;
-    color: var(--ff-muted-strong);
-  }
-  .recommended-card__reason {
-    font-size: 0.86rem;
-    color: var(--ff-muted-strong);
+  .library-rail__recommendation span {
+    font-size: 0.82rem;
+    color: var(--ff-muted);
     line-height: 1.45;
   }
   .collection-toolbar__controls {
@@ -1484,6 +1551,8 @@
     list-style: none;
     margin: 0;
     padding: 0;
+    display: grid;
+    gap: 0.75rem;
   }
   .premium-note {
     display: flex;
@@ -1492,13 +1561,9 @@
     flex-wrap: wrap;
     margin: 0 0 1rem;
     padding: 0.8rem 0.9rem;
-    border-radius: 10px;
+    border-radius: 14px;
     border: 1px solid color-mix(in srgb, var(--ff-accent) 40%, var(--ff-border));
     background: color-mix(in srgb, var(--ff-accent) 8%, var(--ff-bg));
-  }
-  .catalog-list {
-    display: grid;
-    gap: 0.75rem;
   }
   .catalog-row {
     display: grid;
@@ -1751,8 +1816,15 @@
     color: #fbbf24;
   }
   @media (max-width: 720px) {
-    .library-hero {
+    .library-overview,
+    .library-workbench {
       grid-template-columns: 1fr;
+    }
+    .library-overview__stats {
+      grid-template-columns: 1fr;
+    }
+    .library-rail {
+      position: static;
     }
     .path-toolbar__selectors {
       grid-template-columns: 1fr;

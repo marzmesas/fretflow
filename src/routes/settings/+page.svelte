@@ -515,68 +515,39 @@
 </script>
 
 <div class="settings-page">
-  <section class="panel settings-hero ff-page-hero">
-    <div class="settings-hero__copy">
-      <p class="ff-page-hero__eyebrow">Studio setup</p>
-      <h1 class="ff-page-hero__title">Turn setup into a soundcheck, not a debugging session.</h1>
-      <p class="muted ff-page-hero__body">
-        Configure audio input, MIDI, and latency for Practice scoring. The goal is simple: get one reliable signal path working quickly, then hide the lower-level details unless you need them.
+  <section class="panel settings-command-bar">
+    <div class="settings-command-bar__copy">
+      <p class="ff-section-eyebrow">Studio setup</p>
+      <h1 class="settings-command-bar__title">Get one reliable signal path, then leave the tool out of the way.</h1>
+      <p class="muted settings-command-bar__body">
+        Start with monitoring, verify one clean note, then align timing. Everything deeper stays available, but secondary.
       </p>
     </div>
-    <div class="ff-page-hero__stats">
-      <div class="ff-page-hero__stat">
-        <span class="ff-page-hero__stat-label">Monitor</span>
+    <div class="settings-command-bar__actions">
+      <button type="button" class="btn btn-primary" onclick={startMonitor} disabled={monitoring || browserOnly}>
+        {monitoring ? "Monitor live" : "Start monitoring"}
+      </button>
+      <a href="/practice" class="btn">Open Practice</a>
+    </div>
+    <div class="settings-status-strip">
+      <div class="settings-status-pill">
+        <span class="settings-status-pill__label">Monitor</span>
         <strong>{monitoring ? "Live" : "Off"}</strong>
-        <span class="muted">{monitoring ? "Mic input is flowing into the app." : "Start monitoring to unlock tuner and mic scoring."}</span>
       </div>
-      <div class="ff-page-hero__stat">
-        <span class="ff-page-hero__stat-label">Tuner</span>
+      <div class="settings-status-pill">
+        <span class="settings-status-pill__label">Tuner</span>
         <strong>{tunerReading?.label ?? "Waiting"}</strong>
-        <span class="muted">{tunerReading ? `${tunerReading.cents >= 0 ? "+" : ""}${tunerReading.cents.toFixed(1)} cents` : "Play one clean note after monitoring starts."}</span>
       </div>
-      <div class="ff-page-hero__stat">
-        <span class="ff-page-hero__stat-label">MIDI</span>
+      <div class="settings-status-pill">
+        <span class="settings-status-pill__label">Latency</span>
+        <strong>{latencyMs} ms</strong>
+      </div>
+      <div class="settings-status-pill">
+        <span class="settings-status-pill__label">MIDI</span>
         <strong>{midiListening ? "Ready" : "Idle"}</strong>
-        <span class="muted">{midiListening ? "A controller is actively feeding note input." : selectedMidiPortId ? "A port is selected but not listening yet." : "Choose a port if you prefer direct note scoring."}</span>
       </div>
     </div>
   </section>
-
-  {#if !browserOnly && !setupGuideHidden}
-    <div class="panel setup-guide-panel">
-      <div class="ff-section-header setup-guide-panel__header">
-        <div>
-          <p class="ff-section-eyebrow setup-guide-panel__eyebrow">Setup wizard</p>
-          <h2>Get ready for your first scored session</h2>
-        </div>
-        <button type="button" class="btn" onclick={() => (setupGuideDismissed = true)}>Dismiss</button>
-      </div>
-      <p class="muted" style="margin: 0 0 0.85rem">
-        {setupCompletedCount} of {setupSteps.length} steps complete. Finish the basics here, then switch to Practice.
-      </p>
-      <div class="setup-guide-steps" role="list" aria-label="Settings setup steps">
-        {#each setupSteps as step (step.id)}
-          <div class="setup-step" role="listitem">
-            <div class="setup-step__status" class:setup-step__status--done={step.complete}>
-              {step.complete ? "Done" : "Next"}
-            </div>
-            <div class="setup-step__body">
-              <div class="setup-step__title">{step.title}</div>
-              <p class="setup-step__detail">{step.detail}</p>
-            </div>
-            <button
-              type="button"
-              class="btn"
-              class:btn-primary={!step.complete}
-              onclick={() => void runSetupStep(step.id)}
-            >
-              {step.ctaLabel}
-            </button>
-          </div>
-        {/each}
-      </div>
-    </div>
-  {/if}
 
   <div class="settings-layout">
     <div class="settings-layout__main">
@@ -824,6 +795,42 @@
     </div>
 
     <div class="settings-layout__side">
+      {#if !browserOnly && !setupGuideHidden}
+        <div class="panel setup-guide-panel">
+          <div class="ff-section-header setup-guide-panel__header">
+            <div>
+              <p class="ff-section-eyebrow setup-guide-panel__eyebrow">Setup path</p>
+              <h2>First scored run</h2>
+            </div>
+            <button type="button" class="btn" onclick={() => (setupGuideDismissed = true)}>Dismiss</button>
+          </div>
+          <p class="muted setup-guide-panel__summary">
+            {setupCompletedCount} of {setupSteps.length} steps complete. Finish these basics, then move into Practice.
+          </p>
+          <div class="setup-guide-steps" role="list" aria-label="Settings setup steps">
+            {#each setupSteps as step (step.id)}
+              <div class="setup-step" role="listitem">
+                <div class="setup-step__status" class:setup-step__status--done={step.complete}>
+                  {step.complete ? "Done" : "Next"}
+                </div>
+                <div class="setup-step__body">
+                  <div class="setup-step__title">{step.title}</div>
+                  <p class="setup-step__detail">{step.detail}</p>
+                </div>
+                <button
+                  type="button"
+                  class="btn"
+                  class:btn-primary={!step.complete}
+                  onclick={() => void runSetupStep(step.id)}
+                >
+                  {step.ctaLabel}
+                </button>
+              </div>
+            {/each}
+          </div>
+        </div>
+      {/if}
+
       <div class="panel settings-card" id="midi-input-section">
         <div class="ff-section-header settings-card__header">
           <div>
@@ -916,14 +923,55 @@
     display: grid;
     gap: 1rem;
   }
-  .settings-hero {
+  .settings-command-bar {
+    display: grid;
+    gap: 0.9rem;
+    grid-template-columns: minmax(0, 1.2fr) auto;
+    align-items: center;
     background:
       radial-gradient(circle at top right, rgba(63, 208, 195, 0.14), transparent 28%),
       radial-gradient(circle at left center, rgba(213, 138, 84, 0.18), transparent 24%),
       linear-gradient(145deg, rgba(33, 24, 29, 0.96), rgba(18, 15, 19, 0.96));
   }
-  .settings-hero .ff-page-hero__title {
-    max-width: 14ch;
+  .settings-command-bar__title {
+    margin: 0;
+    max-width: 18ch;
+    font-size: clamp(1.6rem, 2.2vw, 2.2rem);
+    line-height: 1.02;
+  }
+  .settings-command-bar__body {
+    margin: 0.35rem 0 0;
+    max-width: 52rem;
+  }
+  .settings-command-bar__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    justify-content: flex-end;
+    align-items: center;
+  }
+  .settings-status-strip {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.7rem;
+  }
+  .settings-status-pill {
+    display: grid;
+    gap: 0.18rem;
+    padding: 0.75rem 0.85rem;
+    border-radius: 14px;
+    border: 1px solid var(--ff-border);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 34%),
+      rgba(9, 8, 10, 0.18);
+  }
+  .settings-status-pill__label {
+    color: var(--ff-highlight-strong);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
   }
   .settings-layout {
     display: grid;
@@ -1051,6 +1099,9 @@
     background:
       radial-gradient(circle at top right, color-mix(in srgb, var(--ff-success) 12%, transparent), transparent 36%),
       linear-gradient(180deg, rgba(31, 24, 29, 0.96), rgba(18, 15, 19, 0.96));
+  }
+  .setup-guide-panel__summary {
+    margin: 0 0 0.85rem;
   }
   .setup-guide-panel__eyebrow {
     color: var(--ff-success);
@@ -1197,9 +1248,13 @@
     background: color-mix(in srgb, #f87171 10%, var(--ff-surface));
   }
   @media (max-width: 900px) {
-    .settings-hero,
+    .settings-command-bar,
+    .settings-status-strip,
     .settings-layout {
       grid-template-columns: 1fr;
+    }
+    .settings-command-bar__actions {
+      justify-content: flex-start;
     }
   }
   @media (max-width: 720px) {
