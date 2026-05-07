@@ -793,29 +793,34 @@
     void refreshRemoteProfile();
   });
 </script>
-<section class="panel account-hero ff-page-hero">
-  <div class="account-hero__copy">
-    <p class="ff-page-hero__eyebrow">Your account</p>
-    <h1 class="ff-page-hero__title">See your profile, plan, and continuity without digging through diagnostics.</h1>
-    <p class="muted ff-page-hero__body">
-      Account should feel like a player summary first: who is signed in, which plan is active, what should happen next, and which device-side activity is still waiting to sync.
+<section class="panel account-overview">
+  <div class="account-overview__identity">
+    <p class="account-overview__eyebrow">Administration</p>
+    <h1>Account, billing, and sync</h1>
+    <p class="muted">
+      Identity, plan state, cloud continuity, and recovery tools live here. This screen should feel operational, not like another dashboard landing page.
     </p>
   </div>
-  <div class="ff-page-hero__stats">
-    <div class="ff-page-hero__stat">
-      <span class="ff-page-hero__stat-label">Identity</span>
+  <div class="account-overview__stats">
+    <div class="account-overview__stat">
+      <span class="account-overview__stat-label">Identity</span>
       <strong>{profile?.auth.accountLabel ?? "Loading"}</strong>
       <span class="muted">{getShellIdentityRollout(session).summary}</span>
     </div>
-    <div class="ff-page-hero__stat">
-      <span class="ff-page-hero__stat-label">Plan</span>
+    <div class="account-overview__stat">
+      <span class="account-overview__stat-label">Plan</span>
       <strong>{profile?.subscription.tier ?? subscription?.tier ?? "Unknown"}</strong>
       <span class="muted">{subscriptionLifecycle.badgeLabel} · {subscriptionLifecycle.billingMomentValue}</span>
     </div>
-    <div class="ff-page-hero__stat">
-      <span class="ff-page-hero__stat-label">Queued activity</span>
+    <div class="account-overview__stat">
+      <span class="account-overview__stat-label">Queued activity</span>
       <strong>{profile?.analytics.pendingEvents ?? pendingAnalyticsEvents}</strong>
       <span class="muted">Local activity still waiting for delivery.</span>
+    </div>
+    <div class="account-overview__stat">
+      <span class="account-overview__stat-label">Cloud role</span>
+      <strong>{getRemoteProfileRole(session) === "primary_profile_source" ? "Primary" : "Preview"}</strong>
+      <span class="muted">{getRemoteProfileRole(session) === "primary_profile_source" ? "Remote profile can drive product surfaces." : "Cloud profile remains secondary until auth is authoritative."}</span>
     </div>
   </div>
 </section>
@@ -1592,15 +1597,68 @@
 {/if}
 
 <style>
-  .account-hero {
+  .account-overview {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(24rem, 1fr);
+    gap: 1rem;
+    align-items: start;
+    padding: 1rem 1.1rem;
     background:
-      radial-gradient(circle at top right, rgba(63, 208, 195, 0.14), transparent 28%),
-      radial-gradient(circle at left center, rgba(213, 138, 84, 0.18), transparent 24%),
-      linear-gradient(145deg, rgba(33, 24, 29, 0.96), rgba(18, 15, 19, 0.96));
+      linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 34%),
+      linear-gradient(180deg, rgba(20, 18, 22, 0.96), rgba(12, 10, 13, 0.98));
+  }
+  .account-overview__identity {
+    display: grid;
+    gap: 0.3rem;
+    align-content: start;
+  }
+  .account-overview__eyebrow {
+    margin: 0;
+    color: var(--ff-highlight-strong);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+  .account-overview__identity h1 {
+    margin: 0;
+    font-size: clamp(1.4rem, 2.2vw, 1.9rem);
+    line-height: 1.02;
+    letter-spacing: -0.03em;
+  }
+  .account-overview__identity p {
+    margin: 0;
+    max-width: 42rem;
+  }
+  .account-overview__stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.7rem;
+  }
+  .account-overview__stat {
+    display: grid;
+    gap: 0.22rem;
+    padding: 0.85rem 0.95rem;
+    border-radius: 16px;
+    border: 1px solid var(--ff-border);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 36%),
+      rgba(7, 7, 9, 0.22);
+  }
+  .account-overview__stat-label {
+    color: var(--ff-muted);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  .account-overview__stat strong {
+    font-size: 0.98rem;
+    line-height: 1.25;
   }
   .account-layout {
     display: grid;
-    grid-template-columns: minmax(0, 1.15fr) minmax(20rem, 0.85fr);
+    grid-template-columns: minmax(0, 1.2fr) minmax(19rem, 0.78fr);
     gap: 1rem;
     align-items: start;
   }
@@ -1615,6 +1673,9 @@
   }
   .account-panel--diagnostics {
     align-content: start;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.022), transparent 34%),
+      linear-gradient(180deg, rgba(18, 16, 20, 0.96), rgba(11, 10, 13, 0.98));
   }
   .account-panel h2 {
     margin: 0;
@@ -1686,7 +1747,7 @@
   }
   .subscription-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
     gap: 0.75rem;
   }
   .subscription-stat {
@@ -1851,8 +1912,11 @@
     gap: 0.85rem;
   }
   @media (max-width: 900px) {
-    .account-hero,
+    .account-overview,
     .account-layout {
+      grid-template-columns: 1fr;
+    }
+    .account-overview__stats {
       grid-template-columns: 1fr;
     }
   }

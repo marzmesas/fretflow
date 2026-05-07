@@ -18,16 +18,16 @@
   let { children } = $props();
 
   const nav = [
-    { href: "/", label: "Home" },
-    { href: "/library", label: "Library" },
-    { href: "/practice", label: "Practice" },
-    { href: "/settings", label: "Settings" },
+    { href: "/", label: "Home", hint: "Launch pad" },
+    { href: "/library", label: "Library", hint: "Charts & sets" },
+    { href: "/practice", label: "Practice", hint: "Play view" },
+    { href: "/settings", label: "Settings", hint: "Inputs & tuning" },
+    { href: "/account", label: "Account", hint: "Plan & sync" },
   ];
 
   type ShellMeta = {
-    section: string;
     title: string;
-    subtitle: string;
+    modeLabel: string;
     wide: boolean;
   };
 
@@ -47,45 +47,35 @@
   function getShellMeta(pathname: string): ShellMeta {
     if (pathname.startsWith("/library")) {
       return {
-        section: "Library",
-        title: "Find the next chart fast",
-        subtitle:
-          "Browse drills, collections, imports, and recommendations without losing the thread of what to practice next.",
+        title: "Library",
+        modeLabel: "Browse workbench",
         wide: true,
       };
     }
     if (pathname.startsWith("/practice")) {
       return {
-        section: "Practice",
-        title: "Keep the chart in the spotlight",
-        subtitle:
-          "Let loops, scoring, and coaching support the run without stealing focus from the playing surface.",
+        title: "Practice",
+        modeLabel: "Stage view",
         wide: true,
       };
     }
     if (pathname.startsWith("/settings")) {
       return {
-        section: "Settings",
-        title: "Tune the room before the run",
-        subtitle:
-          "Input monitoring, tuning, and calibration should feel like a guided soundcheck instead of a diagnostic console.",
+        title: "Settings",
+        modeLabel: "Setup utility",
         wide: true,
       };
     }
     if (pathname.startsWith("/account")) {
       return {
-        section: "Account",
-        title: "Keep account and access in one place",
-        subtitle:
-          "Subscription, sync, and profile state should read like product value, while diagnostics stay secondary.",
+        title: "Account",
+        modeLabel: "Plan & sync",
         wide: true,
       };
     }
     return {
-      section: "Home",
-      title: "Start the next useful session",
-      subtitle:
-        "Use Home to set up, resume, or choose the next chart without digging through the full app first.",
+      title: "Home",
+      modeLabel: "Launch pad",
       wide: false,
     };
   }
@@ -173,56 +163,55 @@
 <div class="app-shell">
   <aside class="app-sidebar">
     <div class="app-sidebar__inner">
-      <div class="app-sidebar__content">
-        <a class="app-brand" href="/">
-          <span class="app-brand__mark" aria-hidden="true">FF</span>
-          <span>
-            <span class="app-brand__eyebrow">Practice Studio</span>
-            <span class="app-brand__name">Fretflow</span>
-          </span>
-        </a>
+      <a class="app-brand" href="/">
+        <span class="app-brand__mark" aria-hidden="true">FF</span>
+        <span>
+          <span class="app-brand__eyebrow">Desktop Practice</span>
+          <span class="app-brand__name">Fretflow</span>
+        </span>
+      </a>
 
-        <p class="app-sidebar__tagline">
-          Desktop-first guitar practice built around timing, repeatability, and clear next actions.
-        </p>
+      <div class="app-sidebar__section-label">Workspace</div>
+      <nav class="app-nav" aria-label="Main">
+        {#each nav as item}
+          <a
+            class="app-nav__link"
+            href={item.href}
+            aria-current={isActivePath(pathname, item.href) ? "page" : undefined}
+          >
+            <span class="app-nav__label">{item.label}</span>
+            <span class="app-nav__hint">{item.hint}</span>
+          </a>
+        {/each}
+      </nav>
 
-        <div class="app-sidebar__section-label">Navigate</div>
-        <nav class="app-nav" aria-label="Main">
-          {#each nav as item}
-            <a
-              class="app-nav__link"
-              href={item.href}
-              aria-current={isActivePath(pathname, item.href) ? "page" : undefined}
-            >
-              <span class="app-nav__label">{item.label}</span>
-            </a>
-          {/each}
-        </nav>
+      <div class="app-sidebar__status">
+        <span class="app-sidebar__status-label">Current mode</span>
+        <strong>{shell.modeLabel}</strong>
       </div>
 
       <div class="app-sidebar__footer">
         <a href="/account" class="btn app-sidebar__footer-action">Open Account</a>
-        <p class="app-sidebar__footer-copy">Use Account for sign-in, sync, and plan details.</p>
+        <p class="app-sidebar__footer-copy">Billing, sign-in, and recovery tools live there.</p>
       </div>
     </div>
   </aside>
 
   <div class="app-frame">
-    <header class="app-masthead">
-      <div class="app-masthead__copy">
-        <p class="app-kicker">{shell.section}</p>
+    <header class="app-toolbar">
+      <div class="app-toolbar__route">
+        <span class="app-toolbar__mode">{shell.modeLabel}</span>
         <h1>{shell.title}</h1>
-        <p>{shell.subtitle}</p>
       </div>
 
-      <div class="app-masthead__utilities">
+      <div class="app-toolbar__utilities">
         {#if isTauri()}
           {@const shellIdentity = getShellIdentityRollout(session)}
-          <div class="app-utility-card">
-            <span class="app-utility-card__label">Account</span>
+          <div class="app-toolbar-chip-group">
+            <span class="app-toolbar-chip-label">Account</span>
             <a
               href="/account"
-              class="session-account-pill"
+              class="app-toolbar-chip session-account-pill"
               class:connection-pill--on={profile?.auth.signedIn ?? false}
               aria-current={pathname === "/account" ? "page" : undefined}
               title={shellIdentity.detail}
@@ -233,18 +222,18 @@
                 Sign in
               {/if}
             </a>
-            <span class="app-utility-card__hint">
+            <span class="app-toolbar-chip-hint">
               {remoteProfile != null ? "Synced profile active" : shellIdentity.summary}
             </span>
           </div>
         {/if}
 
         {#if isTauri() && connectionStatus}
-          <div class="app-utility-card" role="status" aria-label="Input connections">
-            <span class="app-utility-card__label">Inputs</span>
+          <div class="app-toolbar-chip-group" role="status" aria-label="Input connections">
+            <span class="app-toolbar-chip-label">Inputs</span>
             <div class="app-connection-status">
               <span
-                class="connection-pill"
+                class="app-toolbar-chip connection-pill"
                 class:connection-pill--on={connectionStatus.inputMonitorActive}
                 title="Input monitor (Settings → Start monitoring)"
               >
@@ -252,7 +241,7 @@
                 Mic
               </span>
               <span
-                class="connection-pill"
+                class="app-toolbar-chip connection-pill"
                 class:connection-pill--on={connectionStatus.midiListenActive}
                 title="MIDI listener (Settings → Start listening)"
               >
@@ -260,7 +249,7 @@
                 MIDI
               </span>
             </div>
-            <span class="app-utility-card__hint">Check levels and calibration in Settings.</span>
+            <span class="app-toolbar-chip-hint">Check levels and calibration in Settings.</span>
           </div>
         {/if}
       </div>

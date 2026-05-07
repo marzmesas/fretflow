@@ -322,7 +322,7 @@
         <p class="ff-page-hero__eyebrow">First session</p>
         <h2 class="home-title ff-page-hero__title">Get one clean run on the board.</h2>
         <p class="home-subtitle ff-page-hero__body">
-          Set up your input, pick a starter chart, and finish one full run. Once that happens, Home gets much better at guiding what comes next.
+          Set up input, open one starter chart, and finish one full run.
         </p>
         <div class="home-actions">
           {#if currentNextStep}
@@ -349,11 +349,11 @@
         </h2>
         <p class="home-subtitle ff-page-hero__body">
           {#if lastSession}
-            Jump back into <strong>{lastSession.chartTitle}</strong>, review the recent queue, or pivot into a smarter next-chart recommendation.
+            Jump back into <strong>{lastSession.chartTitle}</strong> or pivot straight into the next recommendation.
           {:else if recommendedTracks[0]}
-            Home is tuned to point you toward the next chart, path step, or daily target instead of making you browse every option equally.
+            Home should point to the next chart, path step, or daily target without making you browse every option equally.
           {:else}
-            Open Practice directly or browse Library with a clearer sense of what deserves attention next.
+            Open Practice directly or browse Library with a clearer next move.
           {/if}
         </p>
         <div class="home-actions">
@@ -377,7 +377,7 @@
 
     <div class="home-entry__rail" aria-label="Home overview">
       <div class="home-entry__tile">
-        <span class="home-entry__tile-label">Momentum</span>
+        <span class="home-entry__tile-label">Today</span>
         <strong>{momentumLabel()}</strong>
         <span class="home-entry__tile-copy">
           {practiceGoals.goalMetToday ? "Today's target is already cleared." : "Today's goal is still in reach."}
