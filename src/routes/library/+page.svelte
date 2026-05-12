@@ -40,8 +40,14 @@
     toggleFavoriteTrackId,
   } from "$lib/catalog/favorites";
   import { autoSyncRemoteLibraryMutations } from "$lib/catalog/remote-library-auto-sync";
+  import { getRemoteLibraryHydrationDecision } from "$lib/catalog/remote-library-hydration";
   import { getRemoteLibrarySyncRollout } from "$lib/catalog/remote-library-sync-rollout";
-  import type { RemoteLibraryStateV1 } from "$lib/catalog/remote-library";
+  import {
+    applyRemoteLibraryState,
+    buildLocalRemoteLibraryState,
+    loadRemoteLibraryState,
+    type RemoteLibraryStateV1,
+  } from "$lib/catalog/remote-library";
   import { midiBufferToChart } from "$lib/catalog/midi-import";
   import { getRecommendedTracks, type RecommendedTrack } from "$lib/catalog/recommendations";
   import { addUserChart, getUserCharts, removeUserChart, type UserChartEntry } from "$lib/catalog/user-charts";
@@ -77,6 +83,7 @@
   let remoteLibraryState = $state<RemoteLibraryStateV1 | null>(null);
   let remoteLibraryStatus = $state<string | null>(null);
   let remoteLibraryError = $state<string | null>(null);
+  let hydratedRemoteLibraryAccountKey = $state<string | null>(null);
   let activeCollectionId = $state<string | null>(initialCollections[0]?.id ?? null);
   let activePathId = $state<PathFilter>("all");
   let activeSkillTag = $state<CatalogSkillTag | null>(null);
@@ -228,6 +235,11 @@
       case "local":
         return "Using this device's local history.";
     }
+  }
+
+  function currentRemoteLibraryAccountKey(): string | null {
+    if (session?.accountId == null || session.email == null) return null;
+    return `${session.accountId}:${session.email.trim().toLowerCase()}`;
   }
 
   const filtered = $derived.by(() => {
@@ -449,6 +461,47 @@
     }
   }
 
+  async function hydrateRemoteLibraryOnReady(): Promise<void> {
+    if (
+      !remoteLibrarySyncRollout.ready ||
+      session?.accountId == null ||
+      session.email == null
+    ) {
+      hydratedRemoteLibraryAccountKey = null;
+      return;
+    }
+    const accountKey = currentRemoteLibraryAccountKey();
+    if (accountKey == null || hydratedRemoteLibraryAccountKey === accountKey) {
+      return;
+    }
+    hydratedRemoteLibraryAccountKey = accountKey;
+    remoteLibraryError = null;
+    try {
+      const remoteState = await loadRemoteLibraryState({
+        apiBaseUrl: subscription?.apiBaseUrl ?? "",
+        accountId: session.accountId,
+        email: session.email,
+      });
+      remoteLibraryState = remoteState;
+      const decision = getRemoteLibraryHydrationDecision({
+        localState: buildLocalRemoteLibraryState(),
+        remoteState,
+      });
+      if (decision.action === "apply_remote") {
+        const applied = applyRemoteLibraryState(remoteState);
+        favoriteTrackIds = getFavoriteTrackIds();
+        collections = getCollections();
+        remoteLibraryState = applied;
+        if (activeCollectionId != null && !collections.some((collection) => collection.id === activeCollectionId)) {
+          setActiveCollection(collections[0]?.id ?? null);
+        }
+      }
+      remoteLibraryStatus = decision.status;
+    } catch (error) {
+      remoteLibraryError = error instanceof Error ? error.message : String(error);
+    }
+  }
+
   function toggleFavorite(trackId: string) {
     favoriteTrackIds = toggleFavoriteTrackId(trackId);
     const nextValue = favoriteTrackIds.includes(trackId);
@@ -558,6 +611,18 @@
         applyHistorySurface(loadSessionHistory(), "local");
       }
     })();
+  });
+
+  $effect(() => {
+    if (
+      !remoteLibrarySyncRollout.ready ||
+      session?.accountId == null ||
+      session.email == null
+    ) {
+      hydratedRemoteLibraryAccountKey = null;
+      return;
+    }
+    void hydrateRemoteLibraryOnReady();
   });
 
   function trackIsInActiveCollection(trackId: string): boolean {
