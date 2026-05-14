@@ -1,4 +1,4 @@
-import { MOCK_CATALOG } from "./mock-catalog";
+import { STATIC_REMOTE_CATALOG_SEED } from "./catalog-seed";
 import type {
   CatalogDifficulty,
   CatalogPremiumAccessId,
@@ -120,25 +120,11 @@ export function normalizeRemoteCatalogPayload(
 
 export function buildMockRemoteCatalogPayload(): RemoteCatalogPayloadV1 {
   return {
-    schemaVersion: 1,
-    generatedAt: new Date(0).toISOString(),
-    migrationTarget: DEFAULT_REMOTE_CATALOG_MIGRATION_TARGET,
-    tracks: MOCK_CATALOG.map((track) => ({
-      id: track.id,
-      title: track.title,
-      artist: track.artist,
-      tier: track.tier,
-      locked: track.locked,
-      practiceChartKey: track.practiceChartKey,
-      bundledChartFile: track.bundledChartFile,
-      difficulty: track.difficulty,
-      durationSec: track.durationSec,
-      skillTags: track.skillTags,
-      techniqueTags: track.techniqueTags,
-      prerequisiteTrackIds: track.prerequisiteTrackIds,
-      targetBpm: track.targetBpm,
-      masteryAccuracyThreshold: track.masteryAccuracyThreshold,
-      premiumAccessIds: track.premiumAccessIds,
-    })),
+    ...STATIC_REMOTE_CATALOG_SEED,
+    migrationTarget: {
+      ...DEFAULT_REMOTE_CATALOG_MIGRATION_TARGET,
+      ...STATIC_REMOTE_CATALOG_SEED.migrationTarget,
+    },
+    tracks: STATIC_REMOTE_CATALOG_SEED.tracks.map((track) => ({ ...track })),
   };
 }
