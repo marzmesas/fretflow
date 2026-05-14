@@ -8,10 +8,12 @@
     loadLocalFrontendUserProfile,
     type FrontendUserProfile,
   } from "$lib/account/profile";
+  import { getRemoteProfileHydrationDecision } from "$lib/account/remote-profile-hydration";
   import { loadRemoteUserProfile, type RemoteUserProfileV1 } from "$lib/account/remote-profile";
   import { getRemoteProfileRole } from "$lib/account/remote-profile-gate";
   import { getRemoteProfileSurfaceRollout } from "$lib/account/remote-profile-surface-rollout";
   import { getShellIdentityRollout } from "$lib/account/shell-identity";
+  import { setDailyGoalSessions } from "$lib/practice-goals-storage";
   import type { AppSession, InputConnectionStatus, SubscriptionState } from "$lib/ipc";
   import { isTauri } from "$lib/tauri-env";
 
@@ -36,6 +38,7 @@
   let subscription = $state<SubscriptionState | null>(null);
   let profile = $state<FrontendUserProfile | null>(null);
   let remoteProfile = $state<RemoteUserProfileV1 | null>(null);
+  let hydratedRemoteProfileAccountKey = $state<string | null>(null);
   let pollId: ReturnType<typeof setInterval> | null = null;
   let pathname = $derived($page.url.pathname);
   let shell = $derived(getShellMeta(pathname));
@@ -95,6 +98,16 @@
     return profile?.auth.accountLabel ?? "Guest";
   }
 
+  function currentRemoteProfileAccountKey(nextSession: AppSession | null): string | null {
+    const apiBaseUrl = subscription?.apiBaseUrl?.trim() ?? "";
+    const accountId = nextSession?.accountId?.trim() ?? "";
+    const email = nextSession?.email?.trim().toLowerCase() ?? "";
+    if (apiBaseUrl === "" || accountId === "" || email === "") {
+      return null;
+    }
+    return `${apiBaseUrl}::${accountId}::${email}`;
+  }
+
   async function refreshShellState() {
     if (!isTauri()) {
       connectionStatus = null;
@@ -118,6 +131,7 @@
       subscription = null;
     }
     refreshProfile(session);
+    const remoteProfileAccountKey = currentRemoteProfileAccountKey(session);
     const remoteProfileRollout = getRemoteProfileSurfaceRollout({
       apiBaseUrl: subscription?.apiBaseUrl ?? "",
       remoteProfileRole: getRemoteProfileRole(session),
@@ -129,11 +143,27 @@
           accountId: session?.accountId ?? "",
           email: session?.email ?? "",
         });
+        if (
+          profile != null &&
+          remoteProfileAccountKey != null &&
+          hydratedRemoteProfileAccountKey !== remoteProfileAccountKey
+        ) {
+          const decision = getRemoteProfileHydrationDecision({
+            localProfile: profile,
+            remoteProfile,
+          });
+          if (decision.action === "apply_remote") {
+            setDailyGoalSessions(remoteProfile.fields.dailyGoalSessions);
+            refreshProfile(session);
+          }
+          hydratedRemoteProfileAccountKey = remoteProfileAccountKey;
+        }
       } catch {
         remoteProfile = null;
       }
     } else {
       remoteProfile = null;
+      hydratedRemoteProfileAccountKey = null;
     }
   }
 
