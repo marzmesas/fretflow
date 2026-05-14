@@ -25,6 +25,7 @@ export type LoadCatalogSnapshotOptions = {
 
 const cachedSnapshots = new Map<string, CatalogSnapshot>();
 const pendingSnapshots = new Map<string, Promise<CatalogSnapshot>>();
+let currentSnapshotKey = cacheKey("local_seed");
 
 function buildCatalogSnapshot(
   payload: unknown,
@@ -70,7 +71,10 @@ async function loadRemoteCatalogPayload(
 export function getCatalogSnapshot(
   options: Pick<LoadCatalogSnapshotOptions, "sourceMode" | "apiBaseUrl"> = {},
 ): CatalogSnapshot {
-  const sourceMode = options.sourceMode ?? "local_seed";
+  if (options.sourceMode == null) {
+    return cachedSnapshots.get(currentSnapshotKey) ?? buildLocalCatalogSnapshot();
+  }
+  const sourceMode = options.sourceMode;
   if (sourceMode !== "local_seed") {
     const key = cacheKey(sourceMode, options.apiBaseUrl);
     return cachedSnapshots.get(key) ?? buildLocalCatalogSnapshot();
@@ -109,6 +113,7 @@ export async function loadCatalogSnapshot(
     return buildLocalCatalogSnapshot();
   }).then((snapshot) => {
     cachedSnapshots.set(key, snapshot);
+    currentSnapshotKey = key;
     pendingSnapshots.delete(key);
     return snapshot;
   });
@@ -120,10 +125,14 @@ export function invalidateCatalogSnapshot(key?: string): void {
   if (key != null) {
     cachedSnapshots.delete(key);
     pendingSnapshots.delete(key);
+    if (currentSnapshotKey === key) {
+      currentSnapshotKey = cacheKey("local_seed");
+    }
     return;
   }
   cachedSnapshots.clear();
   pendingSnapshots.clear();
+  currentSnapshotKey = cacheKey("local_seed");
 }
 
 export function listCatalogTracks(): CatalogTrackStub[] {

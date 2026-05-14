@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   findTrackInSnapshot,
+  findTrackFromActiveCatalog,
   loadActiveCatalogSnapshot,
   resolveActiveCatalog,
 } from "./active-catalog";
@@ -97,5 +98,6 @@ describe("active-catalog", () => {
 
     expect(snapshot.sourceMode).toBe("remote_api");
     expect(findTrackInSnapshot(snapshot, "bundled-one-note")?.title).toBe("One open low E");
+    expect(findTrackFromActiveCatalog("bundled-one-note")?.title).toBe("One open low E");
   });
 });

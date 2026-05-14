@@ -101,4 +101,45 @@ describe("catalog-service", () => {
     expect(snapshot.tracks[1]?.premiumAccessIds).toEqual(["pro"]);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
+
+  it("promotes the last loaded snapshot into the default shared view", async () => {
+    invalidateCatalogSnapshot();
+    const fetchImpl = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        schemaVersion: 1,
+        generatedAt: new Date(0).toISOString(),
+        migrationTarget: {
+          schemaVersion: 1,
+          key: "bundled_metadata_seed",
+          label: "Remote seed",
+          includesPremiumPreviewRows: true,
+          includesPlayablePremiumTracks: true,
+          includesEntitlements: true,
+          includesImportedCharts: false,
+          includesPracticeAssets: false,
+        },
+        tracks: [
+          {
+            id: "remote-track",
+            title: "Remote Track",
+            artist: "Fretflow",
+            tier: "free",
+            practiceChartKey: "bundled",
+            bundledChartFile: "remote-track.json",
+          },
+        ],
+      }),
+    })) as unknown as typeof fetch;
+
+    const snapshot = await loadCatalogSnapshot({
+      sourceMode: "remote_api",
+      apiBaseUrl: "http://127.0.0.1:8787",
+      fetchImpl,
+      forceRefresh: true,
+    });
+
+    expect(getCatalogSnapshot().sourceMode).toBe("remote_api");
+    expect(getCatalogSnapshot().tracks[0]?.id).toBe(snapshot.tracks[0]?.id);
+  });
 });
