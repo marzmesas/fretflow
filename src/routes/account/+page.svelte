@@ -24,6 +24,7 @@
     saveRemoteUserProfile,
     type RemoteUserProfileV1,
   } from "$lib/account/remote-profile";
+  import { compareRemoteUserProfiles } from "$lib/account/remote-profile-conflicts";
   import { getRemoteProfileRole } from "$lib/account/remote-profile-gate";
   import { getRemoteProfileWritePolicy } from "$lib/account/remote-profile-write-policy";
   import { getProfileWriteRollout } from "$lib/account/profile-write-rollout";
@@ -131,6 +132,10 @@
     }),
   );
   const remoteProfileWritePolicy = getRemoteProfileWritePolicy();
+  const remoteProfileConflict = $derived.by(() => {
+    if (profile == null || remoteProfile == null) return null;
+    return compareRemoteUserProfiles(buildRemoteUserProfileSeed(profile), remoteProfile);
+  });
   const catalogMigrationTarget = getCatalogMigrationTarget();
   const catalogSnapshot = getCatalogSnapshot();
   const premiumPreviewTrackCount = catalogSnapshot.tracks.filter((track) => track.tier === "premium").length;
@@ -1394,6 +1399,44 @@
                     {remoteProfileWritePolicy.detail}<br />
                     Next: {remoteProfileWritePolicy.nextRequirement}
                   </p>
+                  {#if remoteProfileConflict}
+                    <div class="policy-item">
+                      <div class="policy-item__header">
+                        <strong>Profile conflict state</strong>
+                        <span class={`status-pill status-pill--${remoteProfileConflict.status === "in_sync" ? "active" : remoteProfileConflict.status === "diverged" ? "warning" : "inactive"}`}>
+                          {remoteProfileConflict.status === "in_sync"
+                            ? "In sync"
+                            : remoteProfileConflict.status === "diverged"
+                              ? "Diverged"
+                              : remoteProfileConflict.status === "local_only"
+                                ? "Local ahead"
+                                : "Cloud ahead"}
+                        </span>
+                      </div>
+                      <p class="muted">{remoteProfileConflict.summary}</p>
+                      <p class="muted account-panel__intro">{remoteProfileConflict.detail}</p>
+                      <ul class="policy-list">
+                        {#each remoteProfileConflict.fields as field (field.key)}
+                          <li class="policy-item policy-item--compact">
+                            <div class="policy-item__header">
+                              <strong>{field.label}</strong>
+                              <span class={`status-pill status-pill--${field.state === "in_sync" ? "active" : field.state === "diverged" ? "warning" : "inactive"}`}>
+                                {field.state === "in_sync"
+                                  ? "Match"
+                                  : field.state === "local_only"
+                                    ? "Local only"
+                                    : field.state === "remote_only"
+                                      ? "Cloud only"
+                                      : "Different"}
+                              </span>
+                            </div>
+                            <p class="muted">Device: <strong>{field.localValue}</strong></p>
+                            <p class="muted">Cloud: <strong>{field.remoteValue}</strong></p>
+                          </li>
+                        {/each}
+                      </ul>
+                    </div>
+                  {/if}
                   {#if remoteProfileWriteStatus}
                     <p class="muted account-footnote">{remoteProfileWriteStatus}</p>
                   {/if}
