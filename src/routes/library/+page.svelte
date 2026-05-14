@@ -3,6 +3,7 @@
   import { onMount } from "svelte";
   import { page } from "$app/state";
   import { goto } from "$app/navigation";
+  import { loadActiveCatalogSnapshot } from "$lib/catalog/active-catalog";
   import {
     CONTENT_PACK_OFFERS,
     describeTrackPremiumAccess,
@@ -553,13 +554,6 @@
   onMount(() => {
     void (async () => {
       applyHistorySurface(initialHistory, "local");
-      const snapshot = await loadCatalogSnapshot();
-      catalogTracks = snapshot.tracks;
-      skillTags = snapshot.skillTags;
-      techniqueTags = snapshot.techniqueTags;
-      catalogSourceMode = snapshot.sourceMode;
-      catalogMigrationLabel = snapshot.migrationTarget.label;
-      onlinePremiumPlayable = snapshot.migrationTarget.includesPlayablePremiumTracks;
       if (isTauri()) {
         try {
           subscription = await invoke<SubscriptionState>("get_subscription_state");
@@ -572,17 +566,9 @@
           session = null;
         }
       }
-      const sourceMode = resolveCatalogSourceMode(
-        getCatalogSourcePreference(),
-        getCatalogSourceRollout({
-          session,
-          apiBaseUrl: subscription?.apiBaseUrl ?? "",
-          remoteProfileRole: getRemoteProfileRole(session),
-        }),
-      );
-      const refreshedSnapshot = await loadCatalogSnapshot({
-        sourceMode,
-        apiBaseUrl: subscription?.apiBaseUrl ?? "",
+      const refreshedSnapshot = await loadActiveCatalogSnapshot({
+        session,
+        subscription,
       });
       catalogTracks = refreshedSnapshot.tracks;
       skillTags = refreshedSnapshot.skillTags;
