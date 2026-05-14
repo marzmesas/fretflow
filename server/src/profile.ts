@@ -6,6 +6,7 @@ import {
 
 export type RemoteUserProfileV1 = {
   schemaVersion: 1;
+  revision: number;
   seedSource: "mock_seed" | "frontend_preview" | "backend_persisted";
   fields: {
     displayName: string | null;
@@ -24,6 +25,16 @@ type RemoteProfileIdentity = {
 type RemoteProfileWriteRequest = RemoteProfileIdentity & {
   profile?: unknown;
 };
+
+export type SaveRemoteUserProfileResult =
+  | {
+      status: "saved";
+      profile: RemoteUserProfileV1;
+    }
+  | {
+      status: "conflict";
+      currentProfile: RemoteUserProfileV1;
+    };
 
 function normalizeEmail(email: string | null | undefined): string {
   return email?.trim().toLowerCase() ?? "";
@@ -45,6 +56,7 @@ function resolveStoredProfileAccount(identity: RemoteProfileIdentity) {
 export function buildMockUserProfilePayload(displayName: string | null = "Local dev"): RemoteUserProfileV1 {
   return {
     schemaVersion: 1,
+    revision: 0,
     seedSource: "mock_seed",
     fields: {
       displayName,
@@ -61,6 +73,7 @@ export function isRemoteUserProfilePayload(value: unknown): value is RemoteUserP
   const payload = value as Partial<RemoteUserProfileV1>;
   if (
     payload.schemaVersion !== 1 ||
+    typeof payload.revision !== "number" ||
     (payload.seedSource !== "mock_seed" &&
       payload.seedSource !== "frontend_preview" &&
       payload.seedSource !== "backend_persisted") ||
@@ -91,6 +104,7 @@ export function buildPreviewUserProfilePayload(seed: unknown): RemoteUserProfile
   }
   return {
     schemaVersion: 1,
+    revision: seed.revision,
     seedSource: "frontend_preview",
     fields: {
       displayName: seed.fields.displayName,
@@ -114,7 +128,7 @@ export function getCurrentUserProfilePayload(identity: RemoteProfileIdentity): R
   return buildMockUserProfilePayload(account.displayName);
 }
 
-export function saveUserProfilePayload(request: unknown): RemoteUserProfileV1 | null {
+export function saveUserProfilePayload(request: unknown): SaveRemoteUserProfileResult | null {
   if (request == null || typeof request !== "object") {
     return null;
   }
@@ -123,8 +137,16 @@ export function saveUserProfilePayload(request: unknown): RemoteUserProfileV1 | 
   if (account == null || !isRemoteUserProfilePayload(payload.profile)) {
     return null;
   }
+  const currentProfile = getCurrentUserProfilePayload(payload);
+  if (currentProfile != null && payload.profile.revision !== currentProfile.revision) {
+    return {
+      status: "conflict",
+      currentProfile,
+    };
+  }
   const persistedProfilePayload: RemoteUserProfileV1 = {
     schemaVersion: 1,
+    revision: (currentProfile?.revision ?? 0) + 1,
     seedSource: "backend_persisted",
     fields: {
       displayName: payload.profile.fields.displayName,
@@ -135,5 +157,8 @@ export function saveUserProfilePayload(request: unknown): RemoteUserProfileV1 | 
     },
   };
   saveStoredRemoteProfile(account.accountId, persistedProfilePayload as Record<string, unknown>);
-  return persistedProfilePayload;
+  return {
+    status: "saved",
+    profile: persistedProfilePayload,
+  };
 }

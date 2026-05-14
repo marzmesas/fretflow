@@ -21,6 +21,7 @@
     buildRemoteUserProfileSeed,
     loadRemoteUserProfile,
     previewRemoteUserProfileSeed,
+    RemoteProfileWriteConflictError,
     saveRemoteUserProfile,
     type RemoteUserProfileV1,
   } from "$lib/account/remote-profile";
@@ -338,6 +339,13 @@
       });
       remoteProfileWriteStatus = "Saved the current online profile fields to the signed-in cloud profile.";
     } catch (e) {
+      if (e instanceof RemoteProfileWriteConflictError) {
+        remoteProfile = e.currentProfile;
+        remoteProfileError = null;
+        remoteProfileWriteStatus =
+          "Cloud profile changed elsewhere. Review the latest cloud values before saving again.";
+        return;
+      }
       remoteProfileError = e instanceof Error ? e.message : String(e);
     } finally {
       savingRemoteProfile = false;

@@ -2,6 +2,7 @@ import type { FrontendUserProfile } from "./profile";
 
 export type RemoteUserProfileV1 = {
   schemaVersion: 1;
+  revision: number;
   seedSource: "mock_seed" | "frontend_preview" | "backend_persisted";
   fields: {
     displayName: string | null;
@@ -30,11 +31,22 @@ export type SaveRemoteUserProfileOptions = LoadRemoteUserProfileOptions & {
   profile: RemoteUserProfileV1;
 };
 
+export class RemoteProfileWriteConflictError extends Error {
+  readonly currentProfile: RemoteUserProfileV1;
+
+  constructor(currentProfile: RemoteUserProfileV1) {
+    super("remote profile write conflict");
+    this.name = "RemoteProfileWriteConflictError";
+    this.currentProfile = currentProfile;
+  }
+}
+
 export function buildRemoteUserProfileSeed(
   profile: FrontendUserProfile,
 ): RemoteUserProfileV1 {
   return {
     schemaVersion: 1,
+    revision: 0,
     seedSource: "frontend_preview",
     fields: {
       displayName: profile.auth.signedIn ? profile.auth.displayName : null,
@@ -70,6 +82,7 @@ function isRemoteUserProfile(value: unknown): value is RemoteUserProfileV1 {
   const profile = value as Partial<RemoteUserProfileV1>;
   if (
     profile.schemaVersion !== 1 ||
+    typeof profile.revision !== "number" ||
     (profile.seedSource !== "mock_seed" &&
       profile.seedSource !== "frontend_preview" &&
       profile.seedSource !== "backend_persisted") ||
@@ -160,6 +173,13 @@ export async function saveRemoteUserProfile(
     }),
   });
   if (!response.ok) {
+    if (response.status === 409) {
+      const payload = (await response.json()) as unknown;
+      if (isRemoteUserProfile(payload)) {
+        throw new RemoteProfileWriteConflictError(payload);
+      }
+      throw new Error("profile write conflict returned an invalid response");
+    }
     throw new Error(`profile write failed: ${response.status}`);
   }
   const payload = (await response.json()) as unknown;

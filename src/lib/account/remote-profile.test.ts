@@ -3,6 +3,7 @@ import {
   buildRemoteUserProfileSeed,
   loadRemoteUserProfile,
   previewRemoteUserProfileSeed,
+  RemoteProfileWriteConflictError,
   saveRemoteUserProfile,
 } from "./remote-profile";
 import type { FrontendUserProfile } from "./profile";
@@ -90,6 +91,7 @@ describe("remote profile seed", () => {
 
     expect(payload).toEqual({
       schemaVersion: 1,
+      revision: 0,
       seedSource: "frontend_preview",
       fields: {
         displayName: "Mario",
@@ -110,6 +112,7 @@ describe("remote profile seed", () => {
         ok: true,
         json: async () => ({
           schemaVersion: 1,
+          revision: 0,
           seedSource: "mock_seed",
           fields: {
             displayName: "Local dev",
@@ -164,6 +167,7 @@ describe("remote profile seed", () => {
         ok: true,
         json: async () => ({
           ...seed,
+          revision: 0,
           seedSource: "frontend_preview",
         }),
       })) as unknown as typeof fetch,
@@ -197,6 +201,7 @@ describe("remote profile seed", () => {
         ok: true,
         json: async () => ({
           ...seed,
+          revision: 1,
           seedSource: "backend_persisted",
         }),
       })) as unknown as typeof fetch,
@@ -211,6 +216,7 @@ describe("remote profile seed", () => {
       ok: true,
       json: async () => ({
         schemaVersion: 1,
+        revision: 0,
         seedSource: "mock_seed",
         fields: {
           displayName: "Mario",
@@ -234,5 +240,48 @@ describe("remote profile seed", () => {
     expect(fetchSpy).toHaveBeenCalledWith(
       "http://127.0.0.1:8787/api/v1/profile?accountId=acct_123&email=player%40example.com",
     );
+  });
+
+  it("surfaces the latest cloud profile on a stale profile write", async () => {
+    const seed = buildRemoteUserProfileSeed(
+      makeProfile({
+        auth: {
+          state: "remote_auth",
+          signedIn: true,
+          displayName: "Mario",
+          accountLabel: "Mario",
+          authKind: "email",
+          signedInAtUnixMs: 1,
+          entitlements: [],
+        },
+      }),
+    );
+
+    let thrown: unknown = null;
+    try {
+      await saveRemoteUserProfile({
+        apiBaseUrl: "http://127.0.0.1:8787",
+        accountId: "acct_123",
+        email: "player@example.com",
+        profile: {
+          ...seed,
+          revision: 2,
+        },
+        fetchImpl: (async () => ({
+          ok: false,
+          status: 409,
+          json: async () => ({
+            ...seed,
+            revision: 3,
+            seedSource: "backend_persisted",
+          }),
+        })) as unknown as typeof fetch,
+      });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(RemoteProfileWriteConflictError);
+    expect((thrown as RemoteProfileWriteConflictError).currentProfile.revision).toBe(3);
   });
 });

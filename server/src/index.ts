@@ -95,7 +95,10 @@ app.put("/api/v1/profile", express.json({ limit: "32kb" }), (req, res) => {
   if (payload == null) {
     return res.status(400).json({ error: "Invalid remote profile payload" });
   }
-  return res.json(payload);
+  if (payload.status === "conflict") {
+    return res.status(409).json(payload.currentProfile);
+  }
+  return res.json(payload.profile);
 });
 
 app.get("/api/v1/library-state", (req, res) => {
