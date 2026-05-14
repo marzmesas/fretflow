@@ -8,6 +8,7 @@ function profile(
 ): RemoteUserProfileV1 {
   return {
     schemaVersion: 1,
+    revision: 0,
     seedSource,
     fields: {
       displayName: null,

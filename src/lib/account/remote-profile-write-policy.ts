@@ -1,5 +1,5 @@
 export type RemoteProfileWritePolicy = {
-  revisionGuardRequiredNext: true;
+  revisionGuardRequiredNext: false;
   broadenProfileEditingNow: false;
   summary: string;
   detail: string;
@@ -8,12 +8,12 @@ export type RemoteProfileWritePolicy = {
 
 export function getRemoteProfileWritePolicy(): RemoteProfileWritePolicy {
   return {
-    revisionGuardRequiredNext: true,
+    revisionGuardRequiredNext: false,
     broadenProfileEditingNow: false,
     summary: "Remote profile editing stays intentionally narrow for now.",
     detail:
-      "Only the core identity and learning-seed fields should be cloud-editable right now. Device setup, rollout flags, and broader account settings should wait until auth, billing, and revision-guarded writes are more mature.",
+      "Identity, learning-seed placement, and the daily goal target are enough for the current cross-device profile story. Device setup, rollout flags, and broader preferences should stay off the remote profile until there is a concrete user-facing reason to carry them between machines.",
     nextRequirement:
-      "Keep the current narrow cloud profile field set, then add a profile revision field plus 409 conflict handling before expanding remote profile edits further.",
+      "Only broaden the remote profile when a new field clearly belongs to the user rather than the device, and when the cloud value should dominate across machines.",
   };
 }

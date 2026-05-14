@@ -78,6 +78,7 @@
     maybeSendScheduledAnalyticsBatch,
     sendPendingAnalyticsBatch,
   } from "$lib/analytics/delivery";
+  import { setDailyGoalSessions } from "$lib/practice-goals-storage";
   import type { RemoteCatalogMigrationTarget } from "$lib/catalog/remote-catalog";
   import type { AppSession, SubscriptionState } from "$lib/ipc";
   import { isTauri } from "$lib/tauri-env";
@@ -281,6 +282,13 @@
     } finally {
       savingApiBase = false;
     }
+  }
+
+  function applyRemoteDailyGoalTargetLocally() {
+    if (remoteProfile == null) return;
+    setDailyGoalSessions(remoteProfile.fields.dailyGoalSessions);
+    refreshProfile(session, subscription);
+    remoteProfileWriteStatus = `Applied the cloud daily goal target (${remoteProfile.fields.dailyGoalSessions}) to this device.`;
   }
 
   async function refreshRemoteProfile() {
@@ -1363,6 +1371,9 @@
                     </div>
                   </li>
                 </ul>
+                <p class="muted account-footnote">
+                  Not moving online yet: audio/MIDI device choice, latency calibration, analytics retry state, and local rollout preferences.
+                </p>
               </div>
 
               <div class="policy-group">
@@ -1443,6 +1454,20 @@
                           </li>
                         {/each}
                       </ul>
+                      {#if remoteProfileConflict.fields.some((field) =>
+                        field.key === "daily_goal_sessions" &&
+                        (field.state === "remote_only" || field.state === "diverged")
+                      )}
+                        <div class="account-actions">
+                          <button
+                            type="button"
+                            class="btn"
+                            onclick={applyRemoteDailyGoalTargetLocally}
+                          >
+                            Apply cloud goal target locally
+                          </button>
+                        </div>
+                      {/if}
                     </div>
                   {/if}
                   {#if remoteProfileWriteStatus}
