@@ -2,7 +2,6 @@ import { DEMO_CHART } from "../chart/demo-chart";
 import type { FretflowChartV1 } from "../chart/types";
 import type { SubscriptionState } from "../ipc";
 import { getCatalogTrackAccess } from "./entitlement-overlay";
-import { findCatalogTrackById } from "./catalog-service";
 import type { CatalogTrackStub } from "./types";
 import { resolveUserChart } from "./user-charts";
 
@@ -55,9 +54,7 @@ export function resolvePracticeChart(
     };
   }
 
-  const row =
-    options.catalogTracks?.find((track) => track.id === id) ??
-    findCatalogTrackById(id);
+  const row = options.catalogTracks?.find((track) => track.id === id) ?? null;
   if (!row) {
     return {
       chart: DEMO_CHART,

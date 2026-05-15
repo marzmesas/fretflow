@@ -44,6 +44,7 @@
   let loadError = $state<string | null>(null);
   let onboarding = $state<OnboardingSnapshot | null>(null);
   let lastSession = $state<SessionSummaryV1 | null>(null);
+  let surfaceHistory = $state<SessionSummaryV1[]>(loadSessionHistory());
   let recentSessions = $state<SessionSummaryV1[]>([]);
   let recommendedTracks = $state<RecommendedTrack[]>([]);
   let learningPaths = $state<LearningPathProgress[]>([]);
@@ -78,7 +79,8 @@
     },
   };
 
-  function refreshHomeState(history: SessionSummaryV1[] = loadSessionHistory()) {
+  function refreshHomeState(history: SessionSummaryV1[] = surfaceHistory) {
+    surfaceHistory = history;
     onboarding = getOnboardingSnapshot();
     if (onboarding.assessment) {
       assessmentExperience = onboarding.assessment.experienceLevel;
@@ -284,8 +286,10 @@
         session,
         subscription,
       });
+      refreshHomeState(surfaceHistory);
     } catch {
       catalogSnapshot = getCatalogSnapshot();
+      refreshHomeState(surfaceHistory);
     }
   }
 

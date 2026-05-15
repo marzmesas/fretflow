@@ -57,4 +57,17 @@ describe("resolve-practice-chart", () => {
     expect(resolved.catalogTrackId).toBe("premium-blues");
     expect(resolved.bundledChartUrl).toBe("/charts/blues-shuffle.json");
   });
+
+  it("treats missing explicit catalog tracks as invalid instead of falling back to a shared seed lookup", () => {
+    const resolved = resolvePracticeChart("premium-blues", {
+      catalogTracks: [],
+      subscription: makeSubscription({
+        entitled: true,
+        subscriptionStatus: "active",
+      }),
+    });
+
+    expect(resolved.trackRequestInvalid).toBe(true);
+    expect(resolved.catalogTrackId).toBeNull();
+  });
 });
