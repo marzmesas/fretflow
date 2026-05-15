@@ -1,6 +1,6 @@
 import type { SessionSummaryV1 } from "../chart/session-storage";
 import { getLatestSessionsByTrackId } from "../chart/session-storage";
-import { findCatalogTrackById } from "./catalog-service";
+import { findCatalogTrackById, getCatalogSnapshot } from "./catalog-service";
 import type { CatalogTrackStub } from "./types";
 
 const DEFAULT_COMPLETION_ACCURACY_THRESHOLD = 85;
@@ -9,7 +9,20 @@ export type LearningPathId = "starter" | "rhythm" | "technique";
 export type OnboardingExperienceLevel = "brand_new" | "returning" | "comfortable";
 export type OnboardingPracticeGoal = "fundamentals" | "rhythm" | "technique";
 
+type LearningPathStepDefinition = {
+  trackId: string;
+  note: string;
+};
+
+type LearningPathDefinition = {
+  id: LearningPathId;
+  title: string;
+  description: string;
+  steps: LearningPathStepDefinition[];
+};
+
 export type LearningPathStep = {
+  trackId: string;
   track: CatalogTrackStub;
   note: string;
 };
@@ -20,6 +33,8 @@ export type LearningPath = {
   description: string;
   steps: LearningPathStep[];
 };
+
+export type LearningPathSummary = Pick<LearningPathDefinition, "id" | "title" | "description">;
 
 export type LearningPathProgress = {
   path: LearningPath;
@@ -46,25 +61,17 @@ export type LearningPathContinuation = {
   state: "current_step" | "advance" | "completed" | "not_on_path";
 };
 
-function trackById(trackId: string): CatalogTrackStub {
-  const track = findCatalogTrackById(trackId);
-  if (track == null) {
-    throw new Error(`Unknown learning path track: ${trackId}`);
-  }
-  return track;
-}
-
-export const LEARNING_PATHS: LearningPath[] = [
+const LEARNING_PATH_DEFINITIONS: LearningPathDefinition[] = [
   {
     id: "starter",
     title: "Starter path",
     description: "Build first-run confidence with short bundled drills before longer melodic work.",
     steps: [
-      { track: trackById("bundled-one-note"), note: "Single-note timing and input verification." },
-      { track: trackById("bundled-chromatic"), note: "Left-hand warm-up with steady motion." },
-      { track: trackById("bundled-major-scale"), note: "Scale continuity without rushing position changes." },
-      { track: trackById("bundled-pentatonic"), note: "Basic shape memory at an easy tempo." },
-      { track: trackById("bundled-open-chords"), note: "Apply timing control to multi-note changes." },
+      { trackId: "bundled-one-note", note: "Single-note timing and input verification." },
+      { trackId: "bundled-chromatic", note: "Left-hand warm-up with steady motion." },
+      { trackId: "bundled-major-scale", note: "Scale continuity without rushing position changes." },
+      { trackId: "bundled-pentatonic", note: "Basic shape memory at an easy tempo." },
+      { trackId: "bundled-open-chords", note: "Apply timing control to multi-note changes." },
     ],
   },
   {
@@ -72,10 +79,10 @@ export const LEARNING_PATHS: LearningPath[] = [
     title: "Rhythm builder",
     description: "Move from single-string pulse to chord and riff timing with groove-focused charts.",
     steps: [
-      { track: trackById("bundled-single-string"), note: "Lock your picking hand to a simple subdivision." },
-      { track: trackById("bundled-power-chords"), note: "Keep chord changes tight without losing pulse." },
-      { track: trackById("bundled-open-chords"), note: "Transfer groove control into wider voicings." },
-      { track: trackById("bundled-blues"), note: "Hold a shuffle feel through repeating phrases." },
+      { trackId: "bundled-single-string", note: "Lock your picking hand to a simple subdivision." },
+      { trackId: "bundled-power-chords", note: "Keep chord changes tight without losing pulse." },
+      { trackId: "bundled-open-chords", note: "Transfer groove control into wider voicings." },
+      { trackId: "bundled-blues", note: "Hold a shuffle feel through repeating phrases." },
     ],
   },
   {
@@ -83,30 +90,75 @@ export const LEARNING_PATHS: LearningPath[] = [
     title: "Technique ladder",
     description: "Climb through coordination-heavy drills that push fretting accuracy and string control.",
     steps: [
-      { track: trackById("bundled-chromatic"), note: "Set a clean baseline before harder movement." },
-      { track: trackById("bundled-spider"), note: "Increase finger independence across adjacent strings." },
-      { track: trackById("bundled-string-skip"), note: "Stay precise while jumping across strings." },
-      { track: trackById("bundled-hammer-pull"), note: "Control articulation without over-gripping." },
-      { track: trackById("bundled-arpeggio"), note: "Connect shapes cleanly across multiple string sets." },
-      { track: trackById("bundled-sustained"), note: "Finish with cleaner tone and note duration control." },
+      { trackId: "bundled-chromatic", note: "Set a clean baseline before harder movement." },
+      { trackId: "bundled-spider", note: "Increase finger independence across adjacent strings." },
+      { trackId: "bundled-string-skip", note: "Stay precise while jumping across strings." },
+      { trackId: "bundled-hammer-pull", note: "Control articulation without over-gripping." },
+      { trackId: "bundled-arpeggio", note: "Connect shapes cleanly across multiple string sets." },
+      { trackId: "bundled-sustained", note: "Finish with cleaner tone and note duration control." },
     ],
   },
 ];
 
-export function getLearningPathById(pathId: LearningPathId): LearningPath | null {
-  return LEARNING_PATHS.find((path) => path.id === pathId) ?? null;
+function resolveCatalogTracks(catalogTracks?: CatalogTrackStub[]): CatalogTrackStub[] {
+  return catalogTracks ?? getCatalogSnapshot().tracks;
+}
+
+function resolveTrack(trackId: string, catalogTracks: CatalogTrackStub[]): CatalogTrackStub | null {
+  return (
+    catalogTracks.find((track) => track.id === trackId) ??
+    (catalogTracks === getCatalogSnapshot().tracks ? findCatalogTrackById(trackId) : null)
+  );
+}
+
+function resolveLearningPath(
+  definition: LearningPathDefinition,
+  catalogTracks: CatalogTrackStub[],
+): LearningPath {
+  return {
+    id: definition.id,
+    title: definition.title,
+    description: definition.description,
+    steps: definition.steps.flatMap((step) => {
+      const track = resolveTrack(step.trackId, catalogTracks);
+      return track == null ? [] : [{ trackId: step.trackId, track, note: step.note }];
+    }),
+  };
+}
+
+export const LEARNING_PATHS: LearningPathSummary[] = LEARNING_PATH_DEFINITIONS.map(
+  ({ id, title, description }) => ({
+    id,
+    title,
+    description,
+  }),
+);
+
+export function listLearningPaths(catalogTracks?: CatalogTrackStub[]): LearningPath[] {
+  const resolvedTracks = resolveCatalogTracks(catalogTracks);
+  return LEARNING_PATH_DEFINITIONS.map((definition) => resolveLearningPath(definition, resolvedTracks));
+}
+
+export function getLearningPathById(
+  pathId: LearningPathId,
+  catalogTracks?: CatalogTrackStub[],
+): LearningPath | null {
+  const definition = LEARNING_PATH_DEFINITIONS.find((path) => path.id === pathId);
+  if (definition == null) return null;
+  return resolveLearningPath(definition, resolveCatalogTracks(catalogTracks));
 }
 
 export function getLearningPathTrackIds(pathId: LearningPathId): string[] {
-  return getLearningPathById(pathId)?.steps.map((step) => step.track.id) ?? [];
+  return LEARNING_PATH_DEFINITIONS.find((path) => path.id === pathId)?.steps.map((step) => step.trackId) ?? [];
 }
 
 export function getLearningPathContinuation(
   pathId: LearningPathId,
   currentTrackId: string | null | undefined,
   latestAccuracyPercent: number | null | undefined,
+  catalogTracks?: CatalogTrackStub[],
 ): LearningPathContinuation | null {
-  const path = getLearningPathById(pathId);
+  const path = getLearningPathById(pathId, catalogTracks);
   const normalizedTrackId = currentTrackId?.trim() ?? "";
   if (path == null || normalizedTrackId === "") return null;
 
@@ -168,10 +220,13 @@ export function recommendLearningPathSeed(
   };
 }
 
-export function getLearningPathProgress(history: SessionSummaryV1[]): LearningPathProgress[] {
+export function getLearningPathProgress(
+  history: SessionSummaryV1[],
+  catalogTracks?: CatalogTrackStub[],
+): LearningPathProgress[] {
   const latestByTrackId = getLatestSessionsByTrackId(history);
 
-  return LEARNING_PATHS.map((path) => {
+  return listLearningPaths(catalogTracks).map((path) => {
     let completedSteps = 0;
 
     for (const step of path.steps) {
@@ -185,7 +240,7 @@ export function getLearningPathProgress(history: SessionSummaryV1[]): LearningPa
 
     const totalSteps = path.steps.length;
     const nextStep = path.steps[completedSteps] ?? null;
-    const completionPercent = Math.round((completedSteps / totalSteps) * 100);
+    const completionPercent = totalSteps === 0 ? 0 : Math.round((completedSteps / totalSteps) * 100);
     const status =
       completedSteps === 0 ? "not_started" : completedSteps === totalSteps ? "completed" : "in_progress";
 

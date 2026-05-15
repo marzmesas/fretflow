@@ -15,7 +15,6 @@
   } from "$lib/catalog/active-catalog";
   import {
     LEARNING_PATHS,
-    getLearningPathById,
     getLearningPathProgress,
     recommendLearningPathSeed,
     type LearningPathProgress,
@@ -89,7 +88,7 @@
     lastSession = history[0] ?? loadLastSession();
     recentSessions = getRecentSessions(history, 4);
     recommendedTracks = getRecommendedTracks(history, 3, catalogSnapshot.playableBundledTracks);
-    learningPaths = getLearningPathProgress(history);
+    learningPaths = getLearningPathProgress(history, catalogSnapshot.tracks);
     practiceGoals = toPracticeGoalsSnapshot(loadPracticeGoals());
   }
 
@@ -111,7 +110,7 @@
   function activeRecommendedPath() {
     const pathId = remoteProfile?.fields.recommendedPathId ?? onboarding?.assessment?.recommendedPathId;
     if (!pathId) return null;
-    return LEARNING_PATHS.find((path) => path.id === pathId) ?? null;
+    return learningPaths.find((path) => path.path.id === pathId)?.path ?? null;
   }
 
   function saveAssessment() {

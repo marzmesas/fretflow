@@ -178,7 +178,12 @@
   const pathContinuation = $derived.by(() => {
     const pathId = getOnboardingAssessment()?.recommendedPathId;
     if (pathId !== "starter" && pathId !== "rhythm" && pathId !== "technique") return null;
-    return getLearningPathContinuation(pathId, trackId, chartInsight.latestAccuracy);
+    return getLearningPathContinuation(
+      pathId,
+      trackId,
+      chartInsight.latestAccuracy,
+      activeCatalogSnapshot.tracks,
+    );
   });
   const postSessionCoaching = $derived(
     getPostSessionCoaching(currentCatalogTrack, chartInsight, pathContinuation),
